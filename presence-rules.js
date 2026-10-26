@@ -1,0 +1,7 @@
+import {C} from './config.js';
+import {creditFund,resolveVote} from './team-rules.js';
+import {addPile} from './hauling-rules.js';
+export function cleanNickname(value){return String(value??'').replace(/[\p{Cc}\p{Cf}]/gu,'').trim().slice(0,C.maxNickname)||'Digger';}
+export function disconnect(room,p,now){if(!p.connected||p.departed)return;p.connected=false;p.disconnectedAt=now;p.leaveAt=now+C.resilience.leaveGraceSeconds*C.tapWindowMs;p.move={dx:0,dy:0};}
+function money(value){for(const [scale,suffix]of [[C.view.billion,'B'],[C.view.million,'M'],[C.view.km,'K']])if(value>=scale)return '$'+(value/scale).toFixed(C.view.decimalPlaces)+suffix;return '$'+Math.round(value).toLocaleString('en-US');}
+export function expireDepartures(room,now){for(const p of room.players){if(p.connected||p.departed||p.leaveAt==null||now<p.leaveAt)continue;const index=p.shaft??Math.floor(p.y)*C.mapSize+Math.floor(p.x);for(const lot of p.hold.lots)addPile(room,index,lot);p.hold={value:0,units:0,lots:[]};p.holdFullNotified=false;const donation=p.wallet;p.wallet=0;if(donation>0){creditFund(room,donation);p.contributed+=donation;p.contributedAt=++room.achievement;(room.pendingAnnouncements??=[]).push({type:'departure',text:p.nickname+"'s wallet joined the fund: "+money(donation)});}p.departed=true;p.drive=null;p.boarding=false;p.boarded=false;p.target=null;p.returning=false;if(room.vote){room.vote.voters=room.vote.voters.filter(id=>id!==p.publicId);delete room.vote.ballots[p.publicId];resolveVote(room,now);}}}

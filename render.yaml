@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: toothpick-to-the-core
+    runtime: node
+    plan: free
+    numInstances: 1
+    buildCommand: npm ci
+    startCommand: npm start
+    healthCheckPath: /health
+    autoDeployTrigger: commit

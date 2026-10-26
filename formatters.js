@@ -1,0 +1,2 @@
+import {C} from './config.js';
+export function fundEta(price,fund,income){if(fund>=price)return 'Ready to buy';if(!income)return 'add to the fund to start the clock';const seconds=(price-fund)/income;if(seconds>C.hauling.maxEtaSeconds)return 'no steady income yet';if(seconds<C.team.etaMinuteSeconds)return 'about '+Math.max(1,Math.ceil(seconds))+' sec';return 'about '+Math.ceil(seconds/C.team.etaMinuteSeconds)+' min';}

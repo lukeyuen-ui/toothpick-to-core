@@ -1,0 +1,19 @@
+{
+  "name": "toothpick-to-the-core",
+  "version": "0.7.1",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "test": "node --test test/*.test.js",
+    "test:pacing": "node --test test/pacing.test.js",
+    "test:integration": "node test/integration.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "ws": "8.18.3"
+  }
+}
