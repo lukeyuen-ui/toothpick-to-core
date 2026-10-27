@@ -88,8 +88,12 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
   }
   const previousRow=cell.row;cell.row++;for(const who of room.players)if(who.shaft===index&&!who.belay&&who.depth+C.damageEpsilon>=previousRow)who.depth=cell.row;
   if(!p.isTeam){if(cell.row>C.shafts.surfaceReachRows)p.deepCoach=true;lightShaft(room,p,index);}cell.damage={}; cell.hp=hp(cell.row); room.deepest=Math.max(room.deepest,cell.row); room.broken.add(index);
+  collapseAround(room,index);
  }
 }
+// A block left standing between four dug holes caves in, so the holes become one big hole you can keep digging. The fallen rock pays nothing.
+const SIDES=[[1,0],[-1,0],[0,1],[0,-1]];
+export function collapseAround(room,index){const N=C.mapSize,M=C.pits.mergeRow,x=index%N,y=Math.floor(index/N);if(room.cells[index].row<M)return;for(const [dx,dy] of SIDES){const nx=x+dx,ny=y+dy;if(!validCell(nx,ny))continue;const i=ny*N+nx,c=room.cells[i];if(c.row>=M||isDepot(nx,ny)||i===room.site||machineAt(room,nx,ny)||room.players.some(p=>!p.departed&&(p.shaft===i||(p.shaft==null&&Math.floor(p.x)===nx&&Math.floor(p.y)===ny))))continue;const around=SIDES.map(([ax,ay])=>validCell(nx+ax,ny+ay)?room.cells[(ny+ay)*N+nx+ax].row:-1);if(around.some(r=>r<M))continue;c.row=Math.min(...around);c.hp=hp(c.row);c.damage={};room.dirty.add(i);room.broken.add(i);room.deepest=Math.max(room.deepest,c.row);}}
 export function action(room,p,message,now) {
  if(!p.connected||!validMessage(message)) return;
  if(message.type==='layConveyor')return layConveyor(room,p,message);
