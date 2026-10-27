@@ -1,6 +1,7 @@
 import {lightReach,darkMessage} from './lighting-rules.js';
 import {C} from './config.js';
 import {home,isDepot,pickup,returnHome,privateToast,holdCapacity} from './hauling-rules.js';
+import {machineAt} from './obstacles.js';
 import {validPosition} from './movement-rules.js';
 const S=C.shafts;
 export function atHub(p){return p.shaft==null&&!p.belay&&home(p.x,p.y);}
@@ -13,4 +14,13 @@ export function rimArrival(room,p,returning=false){const index=p.shaft??Math.flo
  if(safe){p.x=safe.x;p.y=safe.y;p.rimCell=null;}else{const candidates=[];for(const [cx,cy]of C.hauling.depotCells)for(const [dx,dy]of [[-1,0],[1,0],[0,-1],[0,1]]){const nx=cx+0.5+dx*(0.5+C.movement.collisionRadius+C.damageEpsilon),ny=cy+0.5+dy*(0.5+C.movement.collisionRadius+C.damageEpsilon);if(!validPosition(nx,ny,room))continue;candidates.push({x:nx,y:ny,d:Math.hypot(nx-p.x,ny-p.y)});}candidates.sort((a,b)=>a.d-b.d);const edge=candidates[0];p.x=edge.x;p.y=edge.y;p.rimCell=Math.floor(p.y)*C.mapSize+Math.floor(p.x);}
  const dx=(returning?C.mapSize/2:x+0.5)-p.x,dy=(returning?C.mapSize/2:y+0.5)-p.y,d=Math.hypot(dx,dy)||1;p.facing={dx:dx/d,dy:dy/d};p.shaft=null;p.depth=0;p.surfaceCell=Math.floor(p.y)*C.mapSize+Math.floor(p.x);p.shaftApproach=null;p.shaftEntry=null;}
 export function advanceShaft(room,p,now,dt){if(p.shaft==null)return;if(p.belay){const b=p.belay;p.depth=b.startDepth*Math.max(0,1-(now-b.startedAt)/(b.endsAt-b.startedAt));if(now>=b.endsAt){const returning=b.returning;rimArrival(room,p,returning);p.belay=null;p.returning=false;if(returning)returnHome(room,p,now);}return;}p.depth=Math.min(room.cells[p.shaft].row,p.depth+S.rappelRowsPerSecond*dt);if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row)pickup(room,p,p.shaft);}
+// Level, joined holes form one cave: at the floor you can walk from your shaft into a neighbour within a row of your depth.
+export function joinedLevel(room,a,b){const N=C.mapSize,M=C.pits.mergeRow,ax=a%N,ay=Math.floor(a/N),bx=b%N,by=Math.floor(b/N),dx=bx-ax,dy=by-ay;if(bx<0||by<0||bx>=N||by>=N||Math.max(Math.abs(dx),Math.abs(dy))!==1)return false;const ra=room.cells[a].row,rb=room.cells[b].row;if(ra<M||rb<M||Math.abs(ra-rb)>S.tunnelLevelRows||isDepot(bx,by)||(room.drill&&b===room.site)||machineAt(room,bx,by))return false;if(dx&&dy)return room.cells[ay*N+bx].row>=M&&room.cells[by*N+ax].row>=M;return true;}
+function caveOk(room,p,x,y){const N=C.mapSize,cx=Math.floor(x),cy=Math.floor(y);if(cx<0||cy<0||cx>=N||cy>=N)return false;const c=cy*N+cx,walk=i=>i===p.shaft||joinedLevel(room,p.shaft,i);if(!walk(c))return false;const lx=x-cx-0.5,ly=y-cy-0.5,sx=lx<0?-1:1,sy=ly<0?-1:1,inBounds=(i,j)=>i>=0&&j>=0&&i<N&&j<N;
+ if(Math.abs(lx)<=S.tunnelCore&&Math.abs(ly)<=S.tunnelCore)return true;
+ if(Math.abs(ly)<=S.tunnelCorridor&&inBounds(cx+sx,cy)&&walk(cy*N+cx+sx))return true;
+ if(Math.abs(lx)<=S.tunnelCorridor&&inBounds(cx,cy+sy)&&walk((cy+sy)*N+cx))return true;
+ return inBounds(cx+sx,cy+sy)&&walk(cy*N+cx+sx)&&walk((cy+sy)*N+cx)&&walk((cy+sy)*N+cx+sx);}
+export function walkShaft(room,p,dt){if(p.shaft==null||p.belay||p.depth+C.damageEpsilon<room.cells[p.shaft].row)return;const travel=S.tunnelSpeed*dt,steps=Math.max(1,Math.ceil(travel/0.04)),sx=p.move.dx*travel/steps,sy=p.move.dy*travel/steps;
+ for(let i=0;i<steps;i++){if(caveOk(room,p,p.x+sx,p.y))p.x+=sx;if(caveOk(room,p,p.x,p.y+sy))p.y+=sy;const cell=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(cell!==p.shaft){p.shaft=cell;p.depth=room.cells[cell].row;p.shaftEntry=null;p.target=null;pickup(room,p,cell);}}}
 export function lightShaft(room,p,index){const cell=room.cells[index];if(p.lighting<C.lighting.length&&!cell.shaftLights)return;if(!cell.shaftLights){cell.shaftLights=true;room.dirty.add(index);}const lit=Math.floor(cell.row/S.lampEveryRows)*S.lampEveryRows;if(lit>(cell.litDepth||0)){cell.litDepth=lit;room.dirty.add(index);}}

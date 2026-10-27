@@ -21,3 +21,7 @@ test('from a shaft you can dig a neighbour whose top is within reach and lit, no
  const before=at(5,4).hp;assert.equal(tick(r,[cmd(p,'tap',{x:5,y:4})]).length,0);assert.ok(at(5,4).row>7||at(5,4).hp<before,'top two rows above the floor is in reach');
  assert.match(tick(r,[cmd(p,'tap',{x:4,y:3})])[0].text,/Out of reach above/);assert.match(tick(r,[cmd(p,'tap',{x:4,y:5})])[0].text,/Too far below/);assert.match(tick(r,[cmd(p,'tap',{x:6,y:4})])[0].text,/beside you/);
  const dark=tick(r,[cmd(p,'tap',{x:3,y:4})]);assert.equal(at(3,4).hp,hp(11),'beyond your light stays untouched');assert.ok(dark[0]?.text,'dark neighbour explains why');});
+test('at the floor you can walk into a joined, level neighbour hole, but not into rock or a much deeper hole',()=>{const {r,p}=setup();setFloor(r,(4*C.mapSize+4),6);setFloor(r,(4*C.mapSize+5),6);setFloor(r,(5*C.mapSize+4),12);enterShaft(r,p,(4*C.mapSize+4));p.depth=6;
+ for(let i=0;i<25;i++)tick(r,[cmd(p,'move',{dx:1,dy:0})]);assert.equal(p.shaft,(4*C.mapSize+5),'walked into the level neighbour');assert.ok(p.x>5);assert.equal(p.depth,6);
+ for(let i=0;i<25;i++)tick(r,[cmd(p,'move',{dx:0,dy:1})]);assert.equal(p.shaft,(4*C.mapSize+5),'rock below blocks');assert.ok(p.y<5);
+ for(let i=0;i<25;i++)tick(r,[cmd(p,'move',{dx:-1,dy:0})]);assert.equal(p.shaft,(4*C.mapSize+4));for(let i=0;i<25;i++)tick(r,[cmd(p,'move',{dx:0,dy:1})]);assert.equal(p.shaft,(4*C.mapSize+4),'a much deeper neighbour is not level');});
