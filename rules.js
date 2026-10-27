@@ -110,7 +110,7 @@ export function action(room,p,message,now) {
  if(room.won)return;
  if(message.type==='tune'){p.tapTimes=p.tapTimes.filter(t=>now-t<C.tapWindowMs);if(p.tapTimes.length>=C.tapsPerSecond)return;p.tapTimes.push(now);tuneConsole(room,p);markActive(room,p,now);return;}
  if(message.type==='aim'){p.aim=validCell(message.x,message.y)?{x:message.x,y:message.y}:null;p.oilAim=oilAimAt(room,p);return;}
- if(message.type==='belay'){startBelay(room,p,now);return;}
+ if(message.type==='belay'){const l=Math.hypot(message.dx||0,message.dy||0);if(p.shaft!=null&&!p.belay)p.exitDir=l>0.1?{dx:message.dx/l,dy:message.dy/l}:null;startBelay(room,p,now);return;}
  if(message.type==='belayDown'){if(p.shaft!=null||p.belay||p.boarded||p.boarding)return;const {x,y}=message;if(!validCell(x,y))return;const index=y*C.mapSize+x;if(!room.cells[index].row||isDepot(x,y))return {type:'toast',text:'Dig a hole first'};if(machineAt(room,x,y))return {type:'toast',text:'Keep out. Excavator running.'};if(room.drill&&index===room.site)return {type:'toast',text:'That is the drill bore. Board the drill instead.'};if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))>1)return {type:'toast',text:'Walk up to the hole first'};markActive(room,p,now);p.lastWorked=now;p.returning=false;enterShaft(room,p,index);return;}
  if(message.type==='returnHome'){if(p.shaft!=null)startBelay(room,p,now,true);else returnHome(room,p,now);return;}
  if(message.type==='move'){applyMove(room,p,message,now);return;}

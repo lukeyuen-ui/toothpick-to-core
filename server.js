@@ -7,6 +7,8 @@ import {C,STYLE,M2_STYLE,M3_STYLE,HAUL_STYLE,THREE_STYLE,CAB_STYLE,SHIP_STYLE,PO
 import {createRoom,join,step,snapshot,snapshotForPlayer,depthAt} from './rules.js';
 import {disconnect} from './presence-rules.js';
 import {decodeMessage,escapeHtml,allowAction} from './resilience.js';
+// Each deploy gets a build id; clients that reconnect to a newer server reload to pick up the new code.
+const BUILD=process.env.RENDER_GIT_COMMIT||String(Date.now());
 const rooms=new Map(),sockets=new Map(),queues=new Map();
 const ended='That expedition has ended. Start a new one.';
 const routes=new Map([['/',['public/index.html','text/html']],['/favicon.svg',['public/favicon.svg','image/svg+xml']],['/cover.png',['public/cover.png','image/png']],['/cover.html',['public/cover.html','text/html']],['/config.js',['config.js','text/javascript']]]);
@@ -37,7 +39,7 @@ wss.on('connection',ws=>{
    const token=typeof msg.token==='string'&&room.players.some(p=>p.token===msg.token)?msg.token:randomBytes(24).toString('hex');let p;
    try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();
    for(const [other,b]of sockets)if(b.player===p){sockets.delete(other);other.close();}
-   sockets.set(ws,{room,player:p,detectors:detectorMask(p)});send(ws,{type:'welcome',token,id:p.publicId});send(ws,snapshotForPlayer(room,snapshot(room,true),p));return;
+   sockets.set(ws,{room,player:p,detectors:detectorMask(p)});send(ws,{type:'welcome',token,id:p.publicId,build:BUILD});send(ws,snapshotForPlayer(room,snapshot(room,true),p));return;
   }
   const b=sockets.get(ws);if(!b||!allowAction(b.player,msg.type,now))return;const queue=queues.get(b.room.code);if(!queue||queue.length>=C.resilience.queueLimit)return;
   if(['tune','aim','belayDown','layConveyor','buyExcavator','placeExcavator','toggleExcavator','takeExcavator','belay','move','tap','buy','chip','propose','proposeSite','proposeConveyor','returnHome','vote','cancelVote','board','reset'].includes(msg.type))queue.push({player:b.player,message:msg,respond:r=>send(ws,r)});

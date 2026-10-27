@@ -57,10 +57,10 @@ export function makeFactory(scene,assets){
  const capsule=new T.Group();capsule.name='Drill cockpit';root.add(capsule);const H=D.hatch,E=D.deckHalf,W=(E-H)/2+0.0001,Y=D.deckY;
  for(const s of [-1,1]){box(capsule,deck,2*E,0.1,E-H,0,Y,s*(H+E)/2);box(capsule,deck,E-H,0.1,2*H,s*(H+E)/2,Y,0);}
  const glass=new T.Mesh(new T.BoxGeometry(2*H,0.015,2*H),new T.MeshStandardMaterial({color:'#80d8ff',transparent:true,opacity:0.14,roughness:0.1,depthWrite:false}));glass.position.y=Y-0.02;capsule.add(glass);
- const seats=[],seatSpots=[];for(const [x,z] of [[0,1],[-1,0],[0,-1],[1,0]]){const mid=(H+E)/2;seats.push(box(capsule,'#243d40',x?E-H:0.26,0.07,x?0.26:E-H,x*mid,Y+0.09,z*mid));box(capsule,'#80d8ff',x?0.02:0.2,0.05,x?0.2:0.02,x*(H+0.02),Y+0.08,z*(H+0.02),true);seatSpots.push({x:x*E,z:z*E});}
+ const seats=[],seatSpots=[],consoles=[];for(const [x,z] of [[0,1],[-1,0],[0,-1],[1,0]]){const mid=(H+E)/2;seats.push(box(capsule,'#243d40',x?E-H:0.26,0.07,x?0.26:E-H,x*mid,Y+0.09,z*mid));consoles.push(box(capsule,'#80d8ff',x?0.02:0.2,0.05,x?0.2:0.02,x*(H+0.02),Y+0.08,z*(H+0.02),true));seatSpots.push({x:x*E,z:z*E});}
  for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]])box(capsule,'#c9d0c4',0.05,0.5,0.05,x*(E-0.03),Y+0.3,z*(E-0.03));
  const bit=cylinder(capsule,'#6d8d9c',0.16,Y-0.08,0,(Y-0.08)/2+0.04,0),plasma=cylinder(capsule,'#65bbff',0.19,0.14,0,0.10,0,true),glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.3;plasma.add(glow);
  const cables=[];for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]])cables.push(cylinder(root,'#9aa6a8',0.012,1,x*(E-0.03),top/2,z*(E-0.03)));
- scene.add(root);return {root,capsule,cables,bit,plasma,seats,seatSpots};}
+ scene.add(root);return {root,capsule,cables,bit,plasma,seats,seatSpots,consoles};}
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries};
 }

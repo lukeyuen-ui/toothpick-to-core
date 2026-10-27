@@ -62,7 +62,7 @@ if(tool.tier===0){r.position.z=-0.07*down+0.03*up;}
 else if(tool.tier===1){r.rotation.x=-f*0.7;r.position.z=-0.03*down;}
 else if(tool.tier===2){r.rotation.x=-f*0.8;r.position.z=-0.05*down;}
 else if(tool.tier===3){r.rotation.x=-f*0.55;r.position.z=-0.09*down+0.03*up;}
-else if(tool.tier===4){r.rotation.order='YXZ';r.rotation.y=tv.handSwingYaw;r.rotation.x=0.15-f*1.25;r.rotation.z=-f*0.25;r.position.y=0.07*up-0.02*down;r.position.z=-0.07*down+0.04*up;}
+else if(tool.tier===4){r.rotation.order='ZYX';r.rotation.z=tv.handSwingRoll;r.rotation.y=tv.handSwingYaw;r.rotation.x=0.2-f*1.2;r.position.y=0.07*up-0.02*down;r.position.z=-0.07*down+0.04*up;r.position.x=-0.04*down;}
 else if(tool.tier===5){r.rotation.x=-1.2;const active=!reduced&&t>=0&&t<1;r.position.y=active?-0.035*Math.abs(Math.sin(t*Math.PI*tv.hammerPulses)):0;r.rotation.z=active?Math.sin(now/14)*0.04:0;}
 else if(tool.tier===6){r.rotation.x=-f*0.45;r.position.z=-0.08*down+0.03*up;}
 else if(tool.tier===8){for(const a of r.userData.arms||[]){const g=reduced?0:strikeCurve(t-(a.side?tv.mechArmLag:0)),down=Math.max(0,g),up=Math.max(0,-g);a.arm.rotation.x=0.1-g*0.55;a.arm.position.z=-0.09*down+0.04*up;a.arm.position.y=0.04*up-0.03*down;for(const f of a.fingers)f.rotation.x=f.userData.open*(1-down*0.9);}}
