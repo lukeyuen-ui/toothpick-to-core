@@ -40,7 +40,7 @@ export function teamAction(room,p,msg,now){
   if(!room.drill)return {type:'toast',text:'Place the drill first'};
   markActive(room,p,now);p.returning=false;if(p.boarded||p.boarding){p.boarded=false;p.boarding=false;p.drive=null;if(room.cells[Math.floor(p.y)*C.mapSize+Math.floor(p.x)]?.row)rimArrival(room,p);return;}
   const x=room.site%C.mapSize,y=Math.floor(room.site/C.mapSize);p.target=null;
-  if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=T.boardRadius)board(p,room);else{p.boarding=true;let target=null;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((!dx&&!dy)||!validCell(nx,ny)||isDepot(nx,ny))continue;const d=Math.hypot(nx+0.5-p.x,ny+0.5-p.y);if(!target||d<target.d)target={x:nx+0.5,y:ny+0.5,d};}p.drive=target||{x:x+0.5,y:y+0.5};}return;
+  if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=T.boardRadius)board(p,room);else{p.boarding=true;let target=null;for(let dy=-T.boardRadius;dy<=T.boardRadius;dy++)for(let dx=-T.boardRadius;dx<=T.boardRadius;dx++){const nx=x+dx,ny=y+dy;if((!dx&&!dy)||!validCell(nx,ny)||isDepot(nx,ny)||room.cells[ny*C.mapSize+nx].row||!validPosition(nx+0.5,ny+0.5,room))continue;const d=Math.hypot(nx+0.5-p.x,ny+0.5-p.y);if(!target||d<target.d)target={x:nx+0.5,y:ny+0.5,d};}p.drive=target||{x:x+0.5,y:y+0.5};}return;
  }
  if(msg.type==='cancelVote'){if(room.vote?.proposerId===p.publicId){markActive(room,p,now);failVote(room,now,false);}return;}
  if(msg.type==='vote'){

@@ -117,7 +117,7 @@ The Build 1 safety and machine behavior remains in this release. See the Build 2
 
 ## Build 2: guided expeditions and personal logistics (1.0.0)
 
-Choose Full expedition (about 30 minutes) or Quick expedition in the lobby. Quick multiplies material, find and oil-sale values by 20; every price stays the same. QUICK is shown to every joining player and preserved by Dig again. The hidden FAST test flag composes once with Quick. Four Full runs finish between 22:14.5 and 28:10.8; four Quick runs finish between 10:49.5 and 11:17.8. PACING.md gives every timeline and numeric change.
+Choose Full expedition (about 30 minutes) or Quick expedition in the lobby. Quick multiplies material, find and oil-sale values by 60; every price stays the same. QUICK is shown to every joining player and preserved by Dig again. The hidden FAST test flag composes once with Quick. Bot runs finish Full expeditions in about 30 to 34 minutes and Quick in about 5.5 minutes; people take longer, so Quick aims at roughly 10 minutes of real play. PACING.md gives every timeline and numeric change.
 
 A skippable first-session guide advances through digging three blocks, delivery, Spoon, digging a shaft floor, belaying, a visible glint and a chip-in. Checks and a chime mark completion; hub/ore markers help where useful. Partial progress and Skip are remembered locally. It replaces the coach while active. The core meter combines deepest progress (70 percent) and total dug rows (30 percent), stays below full before the finale, then fills during the World Breaker's sixty seconds. It is a progress display, not an additional authority rule.
 
