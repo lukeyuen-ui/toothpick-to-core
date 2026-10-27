@@ -30,7 +30,8 @@ export function teamAction(room,p,msg,now){
  if(msg.type==='proposeConveyor'||msg.type==='propose'&&msg.item==='conveyor')return {type:'toast',text:'Buy personal conveyors in Supply'};
  if(msg.type==='reset'){if(room.won)resetPlanet(room,now);return;}
  if(room.won)return;
- if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p))return {type:'toast',text:'Trade at the hub'};
+ // The drill cab radios the hub, so a crew aboard can chip in and propose from their seats.
+ if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p)&&!p.boarded)return {type:'toast',text:'Trade at the hub'};
  if(msg.type==='board'&&(p.shaft!=null||p.belay))return {type:'toast',text:'Belay up before boarding'};
  if(msg.type==='chip'){
   if(typeof msg.amount!=='string'||!Object.hasOwn(T.chipFractions,msg.amount))return;const fraction=T.chipFractions[msg.amount];
