@@ -78,7 +78,7 @@ The lobby reuses the scene renderer with local visual set dressing and a slow du
 
 ### Embedded browser controls
 
-Click and drag with either mouse button to look; a short click digs immediately. Pointer lock is optional and falls back silently. Left and Right arrows turn at 90 degrees per second; Up and Down drive, and WASD keep camera-relative driving and strafing. Space digs the outlined cell. A one-time controls card and a pulsing reachable target explain the first dig before the hub coach. Phone look gestures are unchanged.
+Click and drag with either mouse button to look; a short click digs immediately. The game never captures the mouse, so the cursor stays free for HUD buttons such as Belay up (R key). Left and Right arrows turn at 90 degrees per second; Up and Down drive, and WASD keep camera-relative driving and strafing. Space digs the outlined cell. A one-time controls card and a pulsing reachable target explain the first dig before the hub coach. Phone look gestures are unchanged.
 
 ### Belay and purchase confirmation
 
