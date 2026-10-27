@@ -62,7 +62,7 @@ export function cellPayout(cell){return payout(cell.row)*(isThin(cell)?C.deposit
 // neighbours level with your floor (within blastBand rows above it), at full force.
 export function toolPattern(room,p,x,y,tool,amount,shaftRow){const N=C.mapSize,cells=[];
  if(tool.splash||tool.area){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy)cells.push([x+dx,y+dy]);}
- else if(tool.line){let sx=Math.sign(x-Math.floor(p.x)),sy=Math.sign(y-Math.floor(p.y));if(!sx&&!sy&&p.facing){sx=Math.abs(p.facing.dx)>0.38?Math.sign(p.facing.dx):0;sy=Math.abs(p.facing.dy)>0.38?Math.sign(p.facing.dy):0;}if(sx||sy)for(let k=1;k<tool.line;k++)cells.push([x+sx*k,y+sy*k]);}
+ else if(tool.line){let sx=Math.sign(x-Math.floor(p.x)),sy=Math.sign(y-Math.floor(p.y));if(!sx&&!sy&&p.facing){sx=Math.abs(p.facing.dx)>0.38?Math.sign(p.facing.dx):0;sy=Math.abs(p.facing.dy)>0.38?Math.sign(p.facing.dy):0;}if(sx&&sy){const f=p.facing||{dx:0,dy:0};if(Math.abs(f.dx)>=Math.abs(f.dy))sy=0;else sx=0;}if(sx||sy)for(let k=1;k<tool.line;k++)cells.push([x+sx*k,y+sy*k]);}
  const force=tool.splash?tool.splash/tool.tap:(tool.areaForce??tool.lineForce??1),surface=amount*force;
  let reached=0;for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true);continue;}const n=room.cells[ny*N+nx];if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)){reached++;hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true);}}
  if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle.');}}
