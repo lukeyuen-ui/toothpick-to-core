@@ -32,7 +32,7 @@ Only the server owns money, cells, damage, movement and timers. The pure rules m
 
 ## A round
 
-New explorers face away from the habitat, two cells from the pad edge. Nearby surface blocks can be hit through row three. Walk into a deeper opening to rappel to its floor; then dig beneath your explorer. Movement is disabled underground. A broken floor lowers everyone standing there. Share a shaft and its cargo in proportion to damage. Granite needs the pickaxe; outer-core magma needs coolant; the inner core needs team machinery.
+New explorers face away from the habitat, two cells from the pad edge. Nearby surface blocks can be hit through row three. Holes stop you at their edge; stand beside one and press R (or tap Belay down) to rappel to its floor, then dig beneath your explorer. R belays back up. Movement is disabled underground. A broken floor lowers everyone standing there. Share a shaft and its cargo in proportion to damage. Granite needs the pickaxe; outer-core magma needs coolant; the inner core needs team machinery.
 
 The hold carries one unit per broken-block share and a separate unit for a find-bonus share. Boots, Sprint servos, Hover pack and Jump jets hold 8, 12, 16 and 24 units. Full holds spill shared FIFO piles. Collect ground piles by crossing their cell; shaft piles require reaching the floor. Belay takes two seconds plus 0.08 seconds per shaft row. Return to base belays first if necessary, drives to the depot edge and sells the whole hold once. Ore delivery increases personal money, lifetime earnings and income. Machine income credits those balances directly. Tools, mobility, detectors and lighting are bought at the hub. Chip-ins and proposals also require the hub; voting works anywhere.
 

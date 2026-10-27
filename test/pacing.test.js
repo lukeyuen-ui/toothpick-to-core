@@ -36,7 +36,7 @@ export function simulate(seed=C.pacing.seed,count=2,{quick=false}={}){
    if(p.shaft!=null){if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row&&now>=bot.nextTap){add(p,'tap',{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)});bot.nextTap=now+C.pacing.tapEveryMs;}continue;}
    if(bot.work==null||gate(p,room.cells[bot.work].row,room)||room.cells[bot.work].row>lightReach(room,p,bot.work)){let best=null,distance=Infinity;for(let i=0;i<room.cells.length;i++){const x=i%C.mapSize,y=Math.floor(i/C.mapSize);if(isDepot(x,y)||home(x+0.5,y+0.5)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i))continue;const d=Math.hypot(x+0.5-p.x,y+0.5-p.y);if(d<distance){distance=d;best=i;}}bot.work=best;}
    if(bot.work==null)continue;const x=bot.work%C.mapSize,y=Math.floor(bot.work/C.mapSize),cell=room.cells[bot.work];
-   if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){const dx=x+0.5-p.x,dy=y+0.5-p.y,d=Math.hypot(dx,dy);if(d>C.damageEpsilon)steer(bot,x+0.5,y+0.5,room,add);}
+   if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){bot.route=null;add(p,'move',{dx:0,dy:0});add(p,'belayDown',{x,y});}else steer(bot,x+0.5,y+0.5,room,add);}
    else if(!within(p,x,y)){steer(bot,x+0.5,y+0.5,room,add);}else if(now>=bot.nextTap){bot.route=null;add(p,'move',{dx:0,dy:0});add(p,'tap',{x,y});bot.nextTap=now+C.pacing.tapEveryMs;}
   }
   const prior=bots.map(b=>b.p.tool);step(room,commands,now);

@@ -1,4 +1,4 @@
-import {surfaceVisible,detectorMask} from './lighting-rules.js';
+import {surfaceVisible,detectorMask,lightReach} from './lighting-rules.js';
 import {layConveyor} from './personal-conveyors.js';
 import {excavatorAction,runExcavators,stashExcavator,publicExcavators} from './excavator-rules.js';
 import {machineAt} from './obstacles.js';
@@ -42,7 +42,7 @@ export function join(room,token,nickname,now) {
   
   let [spawnX,spawnY]=C.spawnSeats[seat];if(!validPosition(spawnX,spawnY,room)){const candidates=[];for(let y=0;y<C.mapSize;y++)for(let x=0;x<C.mapSize;x++)if(!room.cells[y*C.mapSize+x].row&&validPosition(x+0.5,y+0.5,room))candidates.push({x:x+0.5,y:y+0.5,d:Math.hypot(x+0.5-spawnX,y+0.5-spawnY)});candidates.sort((a,b)=>a.d-b.d);if(candidates[0]){spawnX=candidates[0].x;spawnY=candidates[0].y;}}
   const outward=Math.hypot(spawnX-C.mapSize/2,spawnY-C.mapSize/2);
-  p={id:token,token,nickname:cleanNickname(nickname),seat,color:C.colors[seat],x:spawnX,y:spawnY,hold:{value:0,units:0,lots:[]},holdFullNotified:false,pods:0,beltsBuilt:0,beltIncome:0,beltEarned:0,excavatorKits:0,firstCargo:false,returning:false,shaft:null,depth:0,belay:null,rimCell:null,shaftEntry:null,surfaceCell:null,shaftApproach:null,lighting:0,deepCoach:false,move:{dx:0,dy:0},moveAt:-Infinity,facing:{dx:(spawnX-C.mapSize/2)/outward,dy:(spawnY-C.mapSize/2)/outward},drivePath:null,driveKey:null,deliveredValue:0,deliveredAt:Infinity,wallet:0,lifetime:0,income:0,earned:0,tool:0,mobility:0,metal:0,diamond:0,dowsing:0,bestFind:0,bestFindAt:Infinity,contributed:0,contributedAt:Infinity,deepestRow:-1,deepestAt:Infinity,drillSeconds:0,drillAt:Infinity,boarded:false,boarding:false,lastActive:-Infinity,lastWorked:-Infinity,rods:{bearing:null,onPocket:false},detectorCell:null,target:null,drive:null,autoElapsed:0,tapTimes:[],connected:true};
+  p={id:token,token,nickname:cleanNickname(nickname),seat,color:C.colors[seat],x:spawnX,y:spawnY,hold:{value:0,units:0,lots:[]},holdFullNotified:false,pods:0,beltsBuilt:0,beltIncome:0,beltEarned:0,excavatorKits:0,firstCargo:false,returning:false,shaft:null,depth:0,belay:null,rimCell:null,shaftEntry:null,surfaceCell:null,shaftApproach:null,lighting:0,deepCoach:false,move:{dx:0,dy:0},moveAt:-Infinity,facing:{dx:(spawnX-C.mapSize/2)/outward,dy:(spawnY-C.mapSize/2)/outward},drivePath:null,driveKey:null,deliveredValue:0,deliveredAt:Infinity,wallet:0,lifetime:0,income:0,earned:0,tool:0,mobility:0,metal:0,diamond:0,dowsing:0,bestFind:0,bestFindAt:Infinity,contributed:0,contributedAt:Infinity,deepestRow:-1,deepestAt:Infinity,drillSeconds:0,drillAt:Infinity,boarded:false,boarding:false,lastActive:-Infinity,lastWorked:-Infinity,rods:{bearing:null,onPocket:false},aim:null,oilAim:-1,detectorCell:null,target:null,drive:null,autoElapsed:0,tapTimes:[],connected:true};
   room.players.push(p);
  }
  if(!validPosition(p.x,p.y,room)){p.shaft??=Math.floor(p.y)*C.mapSize+Math.floor(p.x);rimArrival(room,p);p.belay=null;}p.seat=seat;p.color=C.colors[seat];p.connected=true;p.departed=false;p.leaveAt=null;p.disconnectedAt=null;room.lastActivity=now; return p;
@@ -57,12 +57,12 @@ export function gate(p,row,room) {
 export function validCell(x,y) { return Number.isInteger(x)&&Number.isInteger(y)&&x>=0&&y>=0&&x<C.mapSize&&y<C.mapSize; }
 export function isThin(cell){return cell.richStart!=null&&cell.row>=cell.richStart+C.deposits.richRows;}
 export function cellPayout(cell){return payout(cell.row)*(isThin(cell)?C.deposits.dryFactor:1);}
-export function hit(room,p,x,y,amount,indirect=false) {
+export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
  const index=y*C.mapSize+x, cell=room.cells[index];
  if(indirect&&room.players.some(who=>!who.departed&&Math.floor(who.x)===x&&Math.floor(who.y)===y))return;
  if(machineAt(room,x,y)?.damagerId!==p.id&&machineAt(room,x,y))return;
- if(room.broken.has(index)||gate(p,cell.row,room)||(!p.isTeam&&shaftGate(room,p,x,y))) return;
+ if(room.broken.has(index)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
  if(!p.isTeam){lightShaft(room,p,index);p.lastWorked=room.now;}
  cell.richStart??=cell.row;const actual=Math.min(amount,cell.hp); cell.hp-=actual; cell.damage[p.id]=(cell.damage[p.id]||0)+actual; room.dirty.add(index);
  if(cell.hp<=hp(cell.row)*C.damageEpsilon) {
@@ -96,7 +96,9 @@ export function action(room,p,message,now) {
  if(['buyExcavator','placeExcavator','toggleExcavator','takeExcavator'].includes(message.type))return excavatorAction(room,p,message,now);
  if(['chip','propose','proposeSite','proposeConveyor','vote','cancelVote','board','reset'].includes(message.type))return teamAction(room,p,message,now);
  if(room.won)return;
+ if(message.type==='aim'){p.aim=validCell(message.x,message.y)?{x:message.x,y:message.y}:null;p.oilAim=oilAimAt(room,p);return;}
  if(message.type==='belay'){startBelay(room,p,now);return;}
+ if(message.type==='belayDown'){if(p.shaft!=null||p.belay||p.boarded||p.boarding)return;const {x,y}=message;if(!validCell(x,y))return;const index=y*C.mapSize+x;if(!room.cells[index].row||isDepot(x,y))return {type:'toast',text:'Dig a hole first'};if(machineAt(room,x,y))return {type:'toast',text:'Keep out. Excavator running.'};if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))>1)return {type:'toast',text:'Walk up to the hole first'};markActive(room,p,now);p.lastWorked=now;p.returning=false;enterShaft(room,p,index);return;}
  if(message.type==='returnHome'){if(p.shaft!=null)startBelay(room,p,now,true);else returnHome(room,p,now);return;}
  if(message.type==='move'){applyMove(room,p,message,now);return;}
  if(message.type==='tap') {
@@ -111,8 +113,9 @@ export function action(room,p,message,now) {
   if(!within(p,x,y)) {p.drive={x:x+0.5,y:y+0.5};p.target=null;return;}
   p.drive=null;
   const reason=machineAt(room,x,y)?'Keep out. Excavator running.':isDepot(x,y)?'Depot. Bring cargo here.':shaftGate(room,p,x,y)||gate(p,room.cells[y*C.mapSize+x].row,room); if(reason) {p.target=null; return {type:'toast',text:reason,x,y};}
-  p.target={x,y}; const tool=C.tools[p.tool]; hit(room,p,x,y,tool.tap);
-  if(tool.splash) for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) if(dx||dy) hit(room,p,x+dx,y+dy,tool.splash,true);
+  p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap);
+  // In a shaft the blast keeps its 3x3 going down together: lit neighbours level with your floor (within blastBand rows above it) take the full hit.
+  if(tool.splash) for(let dy=-1;dy<=1;dy++) for(let dx=-1;dx<=1;dx++) if(dx||dy){if(shaftRow==null){hit(room,p,x+dx,y+dy,tool.splash,true);continue;}const nx=x+dx,ny=y+dy;if(!validCell(nx,ny))continue;const n=room.cells[ny*C.mapSize+nx];if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft))hit(room,p,nx,ny,tool.tap,true,true);}
  } else if(message.type==='buy') {
   if(!atHub(p))return {type:'toast',text:'Trade at the hub'};
   const kind=message.kind; if(kind!=='pods'&&kind!=='lighting'&&kind!=='tool'&&kind!=='mobility'&&!C.detectorLines.includes(kind)) return;
@@ -135,7 +138,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
    const oldX=p.x,oldY=p.y,wasInShaft=p.shaft!=null;if(!wasInShaft)trackSurfaceCell(p,Math.floor(oldY)*C.mapSize+Math.floor(oldX));
    if(p.shaft!=null){advanceShaft(room,p,now,dt);}else if(liveMove(p,now)){p.drive=null;p.drivePath=null;p.target=null;p.returning=false;p.boarded=false;p.boarding=false;const speed=C.mobility[p.mobility].speed*dt;slide(p,p.move.dx*speed,p.move.dy*speed,room);}else {if(p.move&&(p.move.dx||p.move.dy))p.move={dx:0,dy:0};driveStep(p,dt,room);}
 
-   if(!wasInShaft&&p.shaft==null&&!p.boarding&&!p.boarded&&Math.hypot(p.x-oldX,p.y-oldY)>C.damageEpsilon){const samples=Math.max(1,Math.ceil(Math.hypot(p.x-oldX,p.y-oldY)/C.movement.substep)),endX=p.x,endY=p.y;for(let i=0;i<=samples;i++){const sx=oldX+(endX-oldX)*i/samples,sy=oldY+(endY-oldY)*i/samples,cx=Math.floor(sx),cy=Math.floor(sy),index=cy*C.mapSize+cx;trackSurfaceCell(p,index);if(p.rimCell===index)continue;if(room.cells[index]?.row>0&&Math.abs(sx-cx-0.5)<C.shafts.entryRadius&&Math.abs(sy-cy-0.5)<C.shafts.entryRadius){enterShaft(room,p,index);break;}if(p.rimCell!=null&&index!==p.rimCell)p.rimCell=null;}}
+   if(!wasInShaft&&p.shaft==null&&!p.boarding&&!p.boarded&&Math.hypot(p.x-oldX,p.y-oldY)>C.damageEpsilon){const samples=Math.max(1,Math.ceil(Math.hypot(p.x-oldX,p.y-oldY)/C.movement.substep)),endX=p.x,endY=p.y;for(let i=0;i<=samples;i++){const sx=oldX+(endX-oldX)*i/samples,sy=oldY+(endY-oldY)*i/samples,cx=Math.floor(sx),cy=Math.floor(sy),index=cy*C.mapSize+cx;trackSurfaceCell(p,index);if(p.rimCell===index)continue;if(p.rimCell!=null&&index!==p.rimCell)p.rimCell=null;}}
    if(!wasInShaft&&Math.hypot(p.x-oldX,p.y-oldY)>C.damageEpsilon)p.lastWorked=now;
    haulAlong(room,p,oldX,oldY);
    if(p.boarding&&!p.drive)board(p,room);
@@ -160,7 +163,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
  if(!room.won)for(const p of room.players)if(p.connected)haulAlong(room,p);
  for(const p of room.players){const alpha=1-Math.exp(-dt/C.incomeWindowSeconds);p.income+=(p.earned/dt-p.income)*alpha;p.earned=0;p.beltIncome+=((p.beltEarned||0)/dt-p.beltIncome)*alpha;p.beltEarned=0;}
 }
-export function publicPlayer(p) { const {controlTimes,token,tapTimes,autoElapsed,earned,id,detectorCell,lastActive,bestFindAt,contributedAt,deepestAt,drillAt,deliveredAt,hold,holdFullNotified,rimCell,shaftEntry,surfaceCell,shaftApproach,lastWorked,beltEarned,moveAt,drivePath,driveKey,...safe}=p; return {...safe,hold:{units:hold.units,value:hold.value},id: p.publicId}; }
+export function publicPlayer(p) { const {aim,controlTimes,token,tapTimes,autoElapsed,earned,id,detectorCell,lastActive,bestFindAt,contributedAt,deepestAt,drillAt,deliveredAt,hold,holdFullNotified,rimCell,shaftEntry,surfaceCell,shaftApproach,lastWorked,beltEarned,moveAt,drivePath,driveKey,...safe}=p; return {...safe,hold:{units:hold.units,value:hold.value},id: p.publicId}; }
 function wireCells(room,indices){return [...indices].map(index=>{const c=room.cells[index];return {index,row:c.row,hp:c.hp,thin:isThin(c),surfaceSign:c.surfaceSign||null,oilSite:!!c.oilSite,pumpBuilt:!!c.pumpBuilt,litDepth:c.litDepth||0,shaftLights:!!c.shaftLights,damage:Object.fromEntries(Object.entries(c.damage).map(([id,amount])=>[id===C.team.damagerId?id:room.players.find(p=>p.id===id)?.publicId,amount]))};});}
 function delta(previous,next){const patch={};for(const [key,value]of Object.entries(next))if(JSON.stringify(previous?.[key])!==JSON.stringify(value))patch[key]=value;return patch;}
 export function snapshot(room,full=false) {
@@ -191,9 +194,11 @@ function distance(ax,ay,bx,by){return Math.max(Math.abs(ax-bx),Math.abs(ay-by));
 function nearest(room,x,y,types){let best=null,bestDistance=Infinity;for(const find of room.finds){if(find.extracted||!types.includes(find.type))continue;const d=distance(x,y,find.cell%C.mapSize,Math.floor(find.cell/C.mapSize));if(d<bestDistance){best=find;bestDistance=d;}}return best?{find:best,distance:bestDistance}:null;}
 export function removeFindHints(room,findId){for(const [index,hints]of Object.entries(room.hints)){for(const channel of ['metal','diamond','oil'])if(hints[channel]?.findId===findId)delete hints[channel];if(!Object.keys(hints).length)delete room.hints[index];}}
 export function heatAt(distance,range){return distance>range?0:C.heatLevels-Math.round((C.heatLevels-1)*distance/range);}
+// Rods turn green only for the one cell the explorer is aiming at, so oil positions are never sent in bulk.
+export function oilAimAt(room,p){const tier=C.detectors.dowsing[p.dowsing-1];if(!tier||!p.aim)return -1;const i=p.aim.y*C.mapSize+p.aim.x;if(distance(Math.floor(p.x),Math.floor(p.y),p.aim.x,p.aim.y)>tier.range)return -1;return room.finds.some(f=>f.type==='oil'&&!f.extracted&&f.cell===i)?i:-1;}
 export function updateDowsing(room,p){
  const tier=C.detectors.dowsing[p.dowsing-1],x=Math.floor(p.x),y=Math.floor(p.y),reading=tier?nearest(room,x,y,['oil']):null;
- p.rods={bearing:null,onPocket:false};
+ p.rods={bearing:null,onPocket:false};p.oilAim=oilAimAt(room,p);
  if(!reading||reading.distance>tier.range)return;
  const f=reading.find,dx=f.cell%C.mapSize-x,dy=Math.floor(f.cell/C.mapSize)-y;
  p.rods={bearing:Math.atan2(dy,dx),onPocket:reading.distance<=C.dowsingCrossRadius};

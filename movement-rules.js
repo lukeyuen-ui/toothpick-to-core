@@ -4,13 +4,18 @@ const M=C.movement;
 export function normalizeMove(dx,dy){if(typeof dx!=='number'||typeof dy!=='number'||!Number.isFinite(dx)||!Number.isFinite(dy)||Math.hypot(dx,dy)>1+M.inputTolerance)return null;const length=Math.hypot(dx,dy);return length>1?{dx:dx/length,dy:dy/length}:{dx,dy};}
 export function liveMove(p,now){return p.move&&now-p.moveAt<=M.moveTimeoutMs&&(p.move.dx||p.move.dy);}
 export function validPosition(x,y,room){const r=M.collisionRadius;if(x<r||y<r||x>C.mapSize-r||y>C.mapSize-r)return false;return !machineBlocks(room,x,y)&&!C.hauling.depotCells.some(([cx,cy])=>x>cx-r&&x<cx+1+r&&y>cy-r&&y<cy+1+r);}
-export function slide(p,dx,dy,room){const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/M.substep)),sx=dx/steps,sy=dy/steps;for(let i=0;i<steps;i++){const nx=Math.max(M.collisionRadius,Math.min(C.mapSize-M.collisionRadius,p.x+sx));if(validPosition(nx,p.y,room))p.x=nx;const ny=Math.max(M.collisionRadius,Math.min(C.mapSize-M.collisionRadius,p.y+sy));if(validPosition(p.x,ny,room))p.y=ny;}}
+// Explorers stop at a hole's edge instead of falling in; Belay down is the only way into a shaft.
+export function overPit(room,x,y){const cx=Math.floor(x),cy=Math.floor(y);return room.cells[cy*C.mapSize+cx]?.row>0&&Math.abs(x-cx-0.5)<C.shafts.entryRadius&&Math.abs(y-cy-0.5)<C.shafts.entryRadius;}
+function walkable(room,x,y,fromPit){return validPosition(x,y,room)&&(fromPit||!overPit(room,x,y));}
+export function slide(p,dx,dy,room){const steps=Math.max(1,Math.ceil(Math.max(Math.abs(dx),Math.abs(dy))/M.substep)),sx=dx/steps,sy=dy/steps;for(let i=0;i<steps;i++){const fromPit=overPit(room,p.x,p.y),nx=Math.max(M.collisionRadius,Math.min(C.mapSize-M.collisionRadius,p.x+sx));if(walkable(room,nx,p.y,fromPit))p.x=nx;const ny=Math.max(M.collisionRadius,Math.min(C.mapSize-M.collisionRadius,p.y+sy));if(walkable(room,p.x,ny,fromPit))p.y=ny;}}
 export function applyMove(room,p,message,now){const vector=normalizeMove(message.dx,message.dy);if(!vector)return false;if(p.shaft!=null||p.belay)return true;p.move=vector;p.moveAt=now;if(vector.dx||vector.dy){p.facing={...vector};p.target=null;p.drive=null;p.drivePath=null;p.returning=false;p.boarded=false;p.boarding=false;p.lastActive=now;p.lastWorked=now;room.lastActivity=now;}return true;}
 // Only the click autopilot needs routing. Direct control always slides, never teleports.
 export function driveStep(p,dt,room){let target=p.drive;if(!target)return;if(!validPosition(target.x,target.y,room)){let best=null;for(const [cx,cy]of C.hauling.depotCells)for(const [dx,dy]of [[-1,0],[1,0],[0,-1],[0,1]]){const x=cx+dx+0.5,y=cy+dy+0.5;if(!validPosition(x,y,room))continue;const d=Math.hypot(x-p.x,y-p.y);if(!best||d<best.d)best={x,y,d};}if(!best){p.drive=null;return;}p.drive=target={x:best.x,y:best.y};}
- if(p.driveKey!==target){p.driveKey=target;p.drivePath=route(p.x,p.y,target.x,target.y,room,!!p.returning);}
+ if(p.driveKey!==target){p.driveKey=target;p.drivePath=route(p.x,p.y,target.x,target.y,room,true);}
  const point=p.drivePath?.[0]||target,dx=point.x-p.x,dy=point.y-p.y,length=Math.hypot(dx,dy),travel=(p.machineSpeed||C.mobility[p.mobility].speed)*dt;
- if(length){p.facing={dx:dx/length,dy:dy/length};slide(p,dx/length*Math.min(travel,length),dy/length*Math.min(travel,length),room);}
+ const beforeX=p.x,beforeY=p.y;if(length){p.facing={dx:dx/length,dy:dy/length};slide(p,dx/length*Math.min(travel,length),dy/length*Math.min(travel,length),room);}
+ // A drive aimed into a hole (or otherwise blocked) stops at the rim instead of pushing forever.
+ if(length>C.damageEpsilon&&Math.hypot(p.x-beforeX,p.y-beforeY)<C.damageEpsilon*0.01){p.drive=null;p.drivePath=null;return;}
  if(Math.hypot(point.x-p.x,point.y-p.y)<C.damageEpsilon){if(p.drivePath?.length)p.drivePath.shift();else p.drive=null;}
  if(!validPosition(target.x,target.y,room)&&Math.hypot(dx,dy)<1){p.drive=null;p.drivePath=null;}
 }

@@ -28,7 +28,7 @@ WebGL is disabled in this build environment. Scene-graph and shader-substitution
 
 ## Entering, digging and belaying
 
-1. Dig a neighboring surface cell through row 3 to row 4. Further surface taps must say "Too deep to reach. Walk in and dig down." without damage. Splash/automatic tools respect the same depth gate.
+1. Dig a neighboring surface cell through row 3 to row 4. Further surface taps must say "Too deep to reach. Belay down into it to dig deeper." without damage. Splash/automatic tools respect the same depth gate.
 2. Drive into the opening. shaft becomes that cell, depth advances at 12 rows/sec. Move has no effect. Tap during descent: "Rappelling. Wait for the floor" and no damage. At the floor, dig only the occupied shaft. Both clients see the descent and floor progression.
 3. Put both seats in one shaft. Damage and bonus shares remain proportional; when a block breaks, everyone already at the floor descends with it. A player still rappelling cannot hit early or collect its floor pile.
 4. Belay from rows 60 and 180: durations should be about 6.8 and 16.4 seconds. No tap or move cancels the trip. On arrival, search outward ring by ring across the claim for undug, non-depot ground, preferring the entry side within the nearest ring. Face the shaft. If no undug ground exists, arrive safely at the depot edge. Return to base must work even when the whole claim is dug.
@@ -202,7 +202,7 @@ Browser QA verified the live Machines section, Sprint servos rename and Excavato
 
 Automated: 154 checks, real two-client integration and eight pacing simulations. Two Full two-player, two Full solo, two Quick two-player and two Quick solo routes use real 10 Hz actions, no injected money or positions. Full must finish in 20 to 35 minutes; Quick in 8 to 12. Every World Breaker still takes exactly sixty seconds. See PACING.md.
 
-- [ ] Start a fresh-browser Full expedition. Complete Dig 3 blocks, delivery, Spoon, walk in and actually dig below surface reach, Belay, strike a signed find, then chip in. Each check animates/chimes once, then the next appears. The guide hides the old coach and marks the hub or nearest glint when appropriate. Refresh midway preserves partial progress. Skip stays skipped after refresh; another device has its own first session.
+- [ ] Start a fresh-browser Full expedition. Complete Dig 3 blocks, delivery, Spoon, belay down and actually dig below surface reach, Belay, strike a signed find, then chip in. Each check animates/chimes once, then the next appears. The guide hides the old coach and marks the hub or nearest glint when appropriate. Refresh midway preserves partial progress. Skip stays skipped after refresh; another device has its own first session.
 - [ ] Core meter stays visible at top center in the field and hub. Digging depth and more total rows raises it from blue toward orange; next text follows coolant, drill and World Breaker. Finale fills it and the ending starts at full.
 - [ ] Create Quick with no FAST flag. Both seats show QUICK; joining cannot change the mode. Compare material/find/oil values with Full: exactly 20 times, never doubled on pickup, delivery or belts. Prices are identical. Dig again keeps the mode. Full has no QUICK badge.
 - [ ] Buy each pod with Confirm. Hold equals suit capacity plus the current pod's 12/36/100/300 bonus. Disconnect/reconnect keeps it; Dig again clears it. Inspect larger backpacks, and Pod III/IV's trailing sled filling with ore in Chase/Overview. No collision physics is added.
