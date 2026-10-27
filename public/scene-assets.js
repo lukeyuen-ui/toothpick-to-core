@@ -47,6 +47,16 @@ export function makeFactory(scene,assets){
   const padLight=new T.SpotLight('#edf2ff',C.visual.padSpotIntensity,C.visual.padSpotRange,C.visual.padSpotAngle,0.65,1);padLight.position.set(0,1.7,0.45);padLight.target.position.set(0,0,0.55);root.add(padLight,padLight.target);scene.add(root);return dish;
  }
  function pump(index){const root=new T.Group();root.position.set(index%C.mapSize+0.5,0,Math.floor(index/C.mapSize)+0.5);const puddle=new T.Mesh(new T.CircleGeometry(0.45,20),mat('#121e23'));puddle.rotation.x=-Math.PI/2;puddle.position.y=0.014;root.add(puddle);box(root,'#536264',0.55,0.10,0.45,0,0.1,0);box(root,'#b5b9a0',0.08,0.75,0.08,0,0.5,0);const beam=new T.Group();beam.position.y=0.86;box(beam,'#c3b991',0.12,0.12,0.85);box(beam,'#526064',0.22,0.29,0.18,0,-0.08,-0.4);root.add(beam);scene.add(root);return {root,beam};}
- function drill(index){const root=new T.Group();root.position.set(index%C.mapSize+0.5,0,Math.floor(index/C.mapSize)+0.5);box(root,'#647174',0.94,0.18,0.94,0,0.12,0);for(const x of [-0.34,0.34])for(const z of [-0.34,0.34])box(root,'#c6cbc1',0.08,1.65,0.08,x,0.92,z);box(root,'#426a78',0.90,0.15,0.85,0,1.7,0);box(root,'#d4d5be',0.55,0.25,0.18,0,0.65,0.46);box(root,'#80d8ff',0.40,0.10,0.015,0,0.69,0.56,true);const bit=cylinder(root,'#6d8d9c',0.16,1.1,0,0.65,0),plasma=cylinder(root,'#65bbff',0.19,0.14,0,0.10,0,true),seats=[];for(const x of [-0.32,-0.11,0.11,0.32])seats.push(box(root,'#243d40',0.11,0.06,0.10,x,1.81,0.43));scene.add(root);return {root,bit,plasma,seats};}
+ function drill(index){const root=new T.Group();root.name='Plasma drill cockpit';root.position.set(index%C.mapSize+0.5,0,Math.floor(index/C.mapSize)+0.5);
+ const frame='#647174',deck='#426a78',steel='#c6cbc1',D=C.three.cockpit;
+ for(const s of [-1,1]){box(root,frame,1.5,0.14,0.16,0,0.08,s*0.68);box(root,frame,0.16,0.14,1.5,s*0.68,0.08,0);}
+ for(const x of [-0.68,0.68])for(const z of [-0.68,0.68])box(root,steel,0.09,D.deckY,0.09,x,D.deckY/2,z);
+ // Open deck around a glass hatch, so the crew looks straight down the bore.
+ for(const s of [-1,1]){box(root,deck,1.5,0.1,0.45,0,D.deckY,s*0.525);box(root,deck,0.45,0.1,0.6,s*0.525,D.deckY,0);}
+ const glass=new T.Mesh(new T.BoxGeometry(0.6,0.015,0.6),new T.MeshStandardMaterial({color:'#80d8ff',transparent:true,opacity:0.14,roughness:0.1,depthWrite:false}));glass.position.y=D.deckY-0.02;root.add(glass);
+ const seats=[],seatSpots=[];for(const [x,z] of [[0,1],[-1,0],[0,-1],[1,0]]){const sx=x*D.seatRing,sz=z*D.seatRing;seats.push(box(root,'#243d40',0.26,0.07,0.24,sx,D.deckY+0.09,sz));
+  box(root,'#2f4a4e',x?0.04:0.26,0.28,x?0.26:0.04,sx+x*0.13,D.deckY+0.24,sz+z*0.13);box(root,'#80d8ff',x?0.02:0.18,0.07,x?0.18:0.02,x*0.33,D.deckY+0.12,z*0.33,true);seatSpots.push({x:sx,z:sz});}
+ const bit=cylinder(root,'#6d8d9c',0.16,1.1,0,0.65,0),plasma=cylinder(root,'#65bbff',0.19,0.14,0,0.10,0,true),glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.3;plasma.add(glow);
+ scene.add(root);return {root,bit,plasma,seats,seatSpots};}
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries};
 }
