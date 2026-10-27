@@ -5,6 +5,7 @@ import {validPosition} from './movement-rules.js';
 import {home,isDepot,holdCapacity} from './hauling-rules.js';
 import {lightReach} from './lighting-rules.js';
 import {disconnect,expireDepartures} from './presence-rules.js';
+import {equipShowcase} from './showcase-rules.js';
 
 // Computer crewmates fill the empty seats so a solo player still has a crew. They send the same messages a person does,
 // at a chosen skill: slower hands, later upgrades, looser tuning and the odd pause keep them helpful without playing the game for you.
@@ -14,6 +15,8 @@ export const people=room=>room.players.filter(p=>!p.bot&&!p.departed);
 export const crewBots=room=>room.players.filter(p=>p.bot&&!p.departed);
 function removeBot(room,bot,now){disconnect(room,bot,now);bot.leaveAt=now;expireDepartures(room,now);brains.delete(bot);}
 
+// In a showcase the bots wait until a person has ridden the drill for a few seconds before proposing the finale.
+function showcaseReady(room,now){if(!room.showcase)return true;if(people(room).some(h=>h.boarded&&h.connected))room.showcaseBoardedAt??=now;return room.showcaseBoardedAt!=null&&now-room.showcaseBoardedAt>=C.showcase.boardedMs;}
 // A person joining a full room takes a bot's seat.
 export function makeRoomForPerson(room,now){const seated=room.players.filter(p=>!p.departed).length,bot=crewBots(room).pop();if(seated>=C.maxPlayers&&bot)removeBot(room,bot,now);}
 
@@ -21,11 +24,11 @@ export function makeRoomForPerson(room,now){const seated=room.players.filter(p=>
 export function fillBots(room,now){const level=C.bots.levels[room.botLevel],humans=people(room);let bots=crewBots(room);
  if(!level||!humans.length){for(const b of bots)removeBot(room,b,now);return;}
  const want=Math.max(0,C.maxPlayers-humans.length);while(bots.length>want)removeBot(room,bots.pop(),now);
- while(bots.length<want){const used=new Set(room.players.filter(p=>!p.departed).map(p=>p.nickname)),name=(C.bots.names.find(n=>!used.has(n+C.bots.suffix))||'Crew')+C.bots.suffix;room.botSerial=(room.botSerial||0)+1;let p;try{p=join(room,'bot-'+room.code+'-'+room.botSerial,name,now);}catch{break;}p.publicId='bot-'+room.botSerial;p.bot=true;bots.push(p);}}
+ while(bots.length<want){const used=new Set(room.players.filter(p=>!p.departed).map(p=>p.nickname)),name=(C.bots.names.find(n=>!used.has(n+C.bots.suffix))||'Crew')+C.bots.suffix;room.botSerial=(room.botSerial||0)+1;let p;try{p=join(room,'bot-'+room.code+'-'+room.botSerial,name,now);}catch{break;}p.publicId='bot-'+room.botSerial;p.bot=true;equipShowcase(room,p);bots.push(p);}}
 
 export function botCommands(room,now){const out=[],L=C.bots.levels[room.botLevel];if(!L||room.won)return out;const bots=crewBots(room);
  for(const p of bots){let b=brains.get(p);if(!b){b={work:null,route:null,routeKey:null,nextTap:0,nextTrade:0,nextTune:0,napUntil:0,voteAt:null,chipKey:null};brains.set(p,b);}
-  const rider=bots[bots.length-1],planner=bots.find(q=>q.tool===C.tools.length-1&&!q.boarded&&q!==rider)||bots.find(q=>q.tool===C.tools.length-1&&!q.boarded);try{think(room,p,b,L,now,{rider:rider===p,planner:planner===p},(type,extra={})=>out.push({player:p,message:{type,...extra}}));}catch{b.route=null;b.work=null;}}
+  const rider=bots[bots.length-1],planner=bots.find(q=>q.tool===C.tools.length-1);try{think(room,p,b,L,now,{rider:rider===p,planner:planner===p},(type,extra={})=>out.push({player:p,message:{type,...extra}}));}catch{b.route=null;b.work=null;}}
  return out;}
 
 function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
@@ -33,6 +36,9 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(now<b.napUntil)return;if(Math.random()<L.napChance){b.napUntil=now+L.napMs*(0.5+Math.random());return;}
  if(p.belay||p.boarding||p.drive||p.returning)return;
  const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps&&!room.goal));
+ // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
+ if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
+  const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&showcaseReady(room,now)?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
  if(p.boarded){if(!crewWanted){add('board');return;}const g=room.console?.[p.publicId];if(g&&Math.abs(g.v-0.5)>L.tuneAt&&now>=b.nextTune){add('tune');b.nextTune=now+L.tuneEveryMs*(0.7+0.6*Math.random());}return;}
  if(crewWanted){if(p.shaft!=null)add('returnHome');else add('board');return;}
  const full=p.hold.units>=holdCapacity(p),blocked=p.shaft!=null&&(gate(p,room.cells[p.shaft].row,room)||room.cells[p.shaft].row>lightReach(room,p));
@@ -40,10 +46,9 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(atHub(p)){
   if(now>=b.nextTrade){b.nextTrade=now+L.tradeEveryMs;const options=[{kind:'pods',item:C.cargoPods[p.pods]},{kind:'tool',item:C.tools[p.tool+1]},{kind:'mobility',item:C.mobility[p.mobility+1]},{kind:'lighting',item:C.lighting[p.lighting]}].filter(o=>o.item&&p.wallet>=o.item.cost*L.spare).sort((a,c)=>a.item.cost-c.item.cost);if(options.length){add('buy',{kind:options[0].kind});return;}}
   const chipKey=room.goal?.key+':'+p.deliveredValue;if(room.goal&&p.wallet>0&&b.chipKey!==chipKey){add('chip',{amount:'half'});b.chipKey=chipKey;return;}
-  if(role.planner&&!room.vote&&!room.goal){if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
-   const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}}
- const upgrade=[C.cargoPods[p.pods],C.tools[p.tool+1],C.mobility[p.mobility+1],C.lighting[p.lighting]].some(item=>item&&p.wallet>=item.cost*L.spare),pending=!room.vote&&!room.goal&&(room.site==null||!room.coolant||!room.drill||!room.worldBreaker);
- if(!atHub(p)&&now>=(b.nextShop||0)&&(upgrade||(role.planner&&pending)||(room.goal&&p.wallet>0&&b.chipKey!==room.goal.key+':'+p.deliveredValue))){b.nextShop=now+L.tradeEveryMs*4;b.route=null;add('returnHome');return;}
+}
+ const upgrade=[C.cargoPods[p.pods],C.tools[p.tool+1],C.mobility[p.mobility+1],C.lighting[p.lighting]].some(item=>item&&p.wallet>=item.cost*L.spare),pending=!room.vote&&!room.goal&&(room.site==null||!room.coolant||!room.drill||(!room.worldBreaker&&showcaseReady(room,now)));
+ if(!atHub(p)&&now>=(b.nextShop||0)&&(upgrade||(room.goal&&p.wallet>0&&b.chipKey!==room.goal.key+':'+p.deliveredValue))){b.nextShop=now+L.tradeEveryMs*4;b.route=null;add('returnHome');return;}
  if(p.shaft!=null){if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row&&now>=b.nextTap){add('tap',{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
  if(b.work==null||(room.drill&&b.work===room.site)||gate(p,room.cells[b.work].row,room)||room.cells[b.work].row>lightReach(room,p,b.work)){let best=null,distance=Infinity;for(let i=0;i<room.cells.length;i++){const x=i%C.mapSize,y=Math.floor(i/C.mapSize);if(isDepot(x,y)||home(x+0.5,y+0.5)||(room.site!=null&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i))continue;const d=Math.hypot(x+0.5-p.x,y+0.5-p.y)+Math.random()*C.bots.wander;if(d<distance){distance=d;best=i;}}b.work=best;}
  if(b.work==null)return;const x=b.work%C.mapSize,y=Math.floor(b.work/C.mapSize),cell=room.cells[b.work];

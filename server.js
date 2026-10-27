@@ -1,3 +1,4 @@
+import {setupShowcase,equipShowcase} from './showcase-rules.js';
 import {BOT_LEVELS,fillBots,makeRoomForPerson,botCommands} from './bot-rules.js';
 import {detectorMask} from './lighting-rules.js';
 import http from 'node:http';
@@ -36,10 +37,10 @@ wss.on('connection',ws=>{
   if(msg.type==='ping'){if(Number.isFinite(msg.at))send(ws,{type:'pong',at:msg.at});return;}
   if(msg.type==='create'||msg.type==='join'){
    if(sockets.has(ws))return;
-   let room;if(msg.type==='create'){const code=makeCode();room=createRoom(code,randomBytes(4).readUInt32LE(),msg.fast===true,now,msg.quick===true);room.botLevel=BOT_LEVELS.includes(msg.bots)?msg.bots:'off';rooms.set(code,room);queues.set(code,[]);}else{room=rooms.get(String(msg.code||'').toUpperCase());if(!room||now-room.lastActivity>=C.idleMs){send(ws,{type:'error',code:'ended',text:ended});return;}}
+   let room;if(msg.type==='create'){const code=makeCode();room=createRoom(code,randomBytes(4).readUInt32LE(),msg.fast===true,now,msg.quick===true);room.botLevel=BOT_LEVELS.includes(msg.bots)?msg.bots:'off';if(msg.showcase===true)setupShowcase(room);rooms.set(code,room);queues.set(code,[]);}else{room=rooms.get(String(msg.code||'').toUpperCase());if(!room||now-room.lastActivity>=C.idleMs){send(ws,{type:'error',code:'ended',text:ended});return;}}
    const token=typeof msg.token==='string'&&room.players.some(p=>p.token===msg.token)?msg.token:randomBytes(24).toString('hex');let p;
    if(!room.players.some(q=>q.token===token&&!q.departed))makeRoomForPerson(room,now);
-   try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();fillBots(room,now);
+   try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();equipShowcase(room,p);fillBots(room,now);
    for(const [other,b]of sockets)if(b.player===p){sockets.delete(other);other.close();}
    sockets.set(ws,{room,player:p,detectors:detectorMask(p)});send(ws,{type:'welcome',token,id:p.publicId,build:BUILD});send(ws,snapshotForPlayer(room,snapshot(room,true),p));return;
   }

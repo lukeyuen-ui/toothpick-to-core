@@ -183,7 +183,7 @@ function wireCells(room,indices){return [...indices].map(index=>{const c=room.ce
 function delta(previous,next){const patch={};for(const [key,value]of Object.entries(next))if(JSON.stringify(previous?.[key])!==JSON.stringify(value))patch[key]=value;return patch;}
 export function snapshot(room,full=false) {
  full=full||room.resetEvent;
- const metadata={code:room.code,fast:room.fast,quick:room.quick,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
+ const metadata={code:room.code,fast:room.fast,quick:room.quick,showcase:!!room.showcase,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
  const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil','console'].map(key=>[key,room[key]]));team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
  const players=room.players.map(publicPlayer),hintStrings=Object.fromEntries(Object.entries(room.hints).map(([key,value])=>[key,JSON.stringify(value)]));
  const piles=publicPiles(room),belts=room.belts;
