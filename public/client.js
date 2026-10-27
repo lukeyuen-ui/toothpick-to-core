@@ -16,6 +16,8 @@ import {mergeSnapshot} from '/protocol.js';
 import {createTeamView} from '/team-view.js';
 const copy=inputCopy(touchInput());const $=id=>document.getElementById(id),params=new URLSearchParams(location.search),debug=params.get('debug')==='1';
 $('lobby-controls').textContent=copy.lobby;$('start-controls').textContent=copy.start;
+// Safari zooms the page on pinch even with maximum-scale; inside a game every pinch belongs to the game.
+for(const type of ['gesturestart','gesturechange'])document.addEventListener(type,e=>{if(!$('game').hidden)e.preventDefault();},{passive:false});
 let ws,state,myId,renderer,lastBytes=0,ping=0,lastTick=0,lastTickAt=0,tickRate=0,lastCell=null,wanted=null,toastTimer,everTapped=false,retry,shopKey,announcementTimer,announcementQueue=[],pickSite=null,packetAt=0,inputs=null,frameRequest=0,hubOpen=false,hubVisited=false,shaftCoached=false,shaftCoachDone=false,firstHubCoach=true,previousMode=null,reconnectAttempt=0,connected=false,aloneSince=null,nudged=false; 
 let controlsSeen=false;try{controlsSeen=localStorage.getItem('toothpick-controls-seen')==='1';}catch{}
 function dismissControls(){controlsSeen=true;$('start-controls').hidden=true;try{localStorage.setItem('toothpick-controls-seen','1');}catch{}}
