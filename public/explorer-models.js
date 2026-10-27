@@ -6,8 +6,27 @@ export function heldTool(factory,tier){const root=new T.Group(),spin=new T.Group
  if(tier===1){rod('#a7bcc4',0.008,0.17,0,0,-0.07);const bowl=new T.Mesh(new T.SphereGeometry(0.035,10,6),factory.mat('#c6d5d8'));bowl.scale.set(0.7,0.2,1.25);bowl.position.z=-0.18;root.add(bowl);}
  if(tier===2){rod('#bc5542',0.016,0.12,0,0,0);const blade=new T.Mesh(new T.ConeGeometry(0.055,0.15,3),factory.mat('#a4b3b7'));blade.rotation.x=-Math.PI/2;blade.scale.z=0.18;blade.position.z=-0.13;root.add(blade);}
  if(tier===3){rod('#9b8062',0.012,0.32,0,0,-0.07);b('#a1b0b5',0.10,0.012,0.12,0,0,-0.26);b('#c3c9c6',0.08,0.01,0.025,0,0,-0.32);}
- if(tier===4){rod('#947b55',0.013,0.27,0,0,-0.04);b('#a8bec7',0.24,0.026,0.035,0,0,-0.19);for(const side of [-1,1]){const tip=new T.Mesh(new T.ConeGeometry(0.025,0.09,5),factory.mat('#9dabb1'));tip.rotation.z=side*Math.PI/2;tip.position.set(side*0.14,0,-0.19);root.add(tip);}}
- if(tier===5){b('#bcc5be',0.12,0.15,0.15,0,0,-0.05);b('#435959',0.18,0.025,0.05,0,0.08,-0.06);rod('#6e858d',0.018,0.25,0,-0.05,-0.20);b('#60dfcb',0.035,0.055,0.012,0,0,-0.13);}
+ if(tier===4){// Crescent pickaxe: wooden haft, curved steel head in the swing plane, copper cap.
+const steel=new T.MeshStandardMaterial({color:'#7d9bbd',metalness:0.3,roughness:0.35,emissive:'#1c2a3a',emissiveIntensity:0.6}),copper=new T.MeshStandardMaterial({color:'#d07a43',metalness:0.25,roughness:0.4,emissive:'#3a1c0c',emissiveIntensity:0.5});
+const haft=new T.Mesh(new T.CylinderGeometry(0.011,0.015,0.34,8),factory.mat('#7b4b2c'));haft.rotation.x=Math.PI/2;haft.position.z=-0.09;root.add(haft);
+const curve=new T.QuadraticBezierCurve3(new T.Vector3(0,0.12,-0.235),new T.Vector3(0,0,-0.29),new T.Vector3(0,-0.17,-0.215));root.add(new T.Mesh(new T.TubeGeometry(curve,14,0.016,6),steel));
+for(const [at,dir] of [[curve.getPoint(0),curve.getTangent(0).negate()],[curve.getPoint(1),curve.getTangent(1)]]){const tip=new T.Mesh(new T.ConeGeometry(0.016,0.055,6),steel);tip.position.copy(at).addScaledVector(dir,0.027);tip.quaternion.setFromUnitVectors(new T.Vector3(0,1,0),dir);root.add(tip);}
+const socket=new T.Mesh(new T.CylinderGeometry(0.022,0.022,0.05,8),steel);socket.rotation.x=Math.PI/2;socket.position.z=-0.262;root.add(socket);
+for(const side of [-1,1]){const cap=new T.Mesh(new T.CylinderGeometry(0.018,0.018,0.012,10),copper);cap.rotation.z=Math.PI/2;cap.position.set(side*0.023,0,-0.262);root.add(cap);}
+}
+ if(tier===5){// Upright jackhammer along -z: T-handle, yellow motor body, neck, steel chisel bit.
+const yellow=new T.MeshStandardMaterial({color:'#d9a92e',metalness:0.35,roughness:0.45}),dark=factory.mat('#2c3438'),steel=new T.MeshStandardMaterial({color:'#aebdc8',metalness:0.3,roughness:0.35,emissive:'#202a30',emissiveIntensity:0.5});
+const along=(mesh,z)=>{mesh.rotation.x=Math.PI/2;mesh.position.z=z;root.add(mesh);return mesh;};
+const bar=new T.Mesh(new T.CylinderGeometry(0.012,0.012,0.22,8),dark);bar.rotation.z=Math.PI/2;bar.position.z=0.13;root.add(bar);
+for(const side of [-1,1]){const grip=new T.Mesh(new T.CylinderGeometry(0.018,0.018,0.06,8),dark);grip.rotation.z=Math.PI/2;grip.position.set(side*0.085,0,0.13);root.add(grip);}
+along(new T.Mesh(new T.CylinderGeometry(0.014,0.014,0.06,8),dark),0.1);
+along(new T.Mesh(new T.CylinderGeometry(0.052,0.058,0.15,12),yellow),0.02);
+for(const z of [0.075,-0.035])along(new T.Mesh(new T.CylinderGeometry(0.06,0.06,0.014,12),dark),z);
+along(new T.Mesh(new T.CylinderGeometry(0.024,0.03,0.06,10),dark),-0.085);
+along(new T.Mesh(new T.CylinderGeometry(0.011,0.011,0.16,8),steel),-0.19);
+const tip=new T.Mesh(new T.ConeGeometry(0.011,0.04,8),steel);tip.rotation.x=-Math.PI/2;tip.position.z=-0.29;root.add(tip);
+b('#60dfcb',0.012,0.03,0.04,0.055,0,0.03);
+}
  if(tier===6){rod('#a8433e',0.028,0.13,-0.022,0,-0.05);rod('#ad4d3d',0.028,0.13,0.026,0,-0.05);b('#3c4649',0.12,0.04,0.025,0,0,-0.05);const fuse=rod('#ddb85c',0.004,0.09,0,0.02,-0.16);}
  if(tier===7||tier===8){b('#e1e6df',0.13,0.10,0.15,0,0,-0.05);b('#49636c',0.05,0.07,0.07,0,-0.07,0);const spindle=factory.cylinder(spin,'#91abb7',0.04,0.16,0,0,-0.19);spindle.rotation.x=Math.PI/2;for(let i=0;i<8;i++){const a=i/8*Math.PI*2;factory.box(spin,'#d0d5bf',0.02,0.025,0.04,Math.cos(a)*0.05,Math.sin(a)*0.05,-0.27);}root.add(spin);if(tier===8){b('#677d83',0.045,0.05,0.20,-0.28,0,-0.08);for(const side of [-1,1]){const claw=b('#bdc5b3',0.025,0.065,0.09,-0.28+side*0.04,0,-0.22);claw.rotation.y=side*0.35;}}}
  root.userData.tool=tier;return {root,spin,tier};}
@@ -21,7 +40,7 @@ if(tool.tier===0){r.position.z=-0.07*down+0.03*up;}
 else if(tool.tier===1){r.rotation.x=-f*0.7;r.position.z=-0.03*down;}
 else if(tool.tier===2){r.rotation.x=-f*0.8;r.position.z=-0.05*down;}
 else if(tool.tier===3){r.rotation.x=-f*0.55;r.position.z=-0.09*down+0.03*up;}
-else if(tool.tier===4){r.rotation.x=-f*1.35;r.position.y=0.07*up;r.position.z=-0.05*down+0.04*up;}
+else if(tool.tier===4){r.rotation.order='YXZ';r.rotation.y=tv.handSwingYaw;r.rotation.x=0.15-f*1.25;r.rotation.z=-f*0.25;r.position.y=0.07*up-0.02*down;r.position.z=-0.07*down+0.04*up;}
 else if(tool.tier===5){r.rotation.x=-1.2;const active=!reduced&&t>=0&&t<1;r.position.y=active?-0.035*Math.abs(Math.sin(t*Math.PI*tv.hammerPulses)):0;r.rotation.z=active?Math.sin(now/14)*0.04:0;}
 else if(tool.tier===6){r.rotation.x=-f*0.45;r.position.z=-0.08*down+0.03*up;}
 else{r.position.z=-0.05*down;tool.spin.rotation.z=reduced||!(t>=0&&t<1.6)?tool.spin.rotation.z:now/C.tapWindowMs*tv.spinRate;}
