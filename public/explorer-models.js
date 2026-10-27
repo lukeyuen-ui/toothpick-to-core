@@ -28,18 +28,22 @@ const tip=new T.Mesh(new T.ConeGeometry(0.011,0.04,8),steel);tip.rotation.x=-Mat
 b('#60dfcb',0.012,0.03,0.04,0.055,0,0.03);
 }
  if(tier===6){rod('#a8433e',0.028,0.13,-0.022,0,-0.05);rod('#ad4d3d',0.028,0.13,0.026,0,-0.05);b('#3c4649',0.12,0.04,0.025,0,0,-0.05);const fuse=rod('#ddb85c',0.004,0.09,0,0.02,-0.16);}
- if(tier===7){// Tunnel borer: orange motor body with grips, spinning fluted cutter cone and rim teeth.
-const orange=new T.MeshStandardMaterial({color:'#e0802c',metalness:0.25,roughness:0.45,emissive:'#3a1a05',emissiveIntensity:0.4}),dark=factory.mat('#2c3438'),steel=new T.MeshStandardMaterial({color:'#b9c6cf',metalness:0.3,roughness:0.3,emissive:'#22292e',emissiveIntensity:0.5});
+ if(tier===7){// Tunnel borer: a heavy two-handed boring machine. Ribbed orange motor with hazard bands, glowing vents and pistons, and a wide toothed cutter head that spins.
+const orange=new T.MeshStandardMaterial({color:'#e0802c',metalness:0.3,roughness:0.42,emissive:'#3a1a05',emissiveIntensity:0.4}),dark=factory.mat('#22292d'),yellow=factory.mat('#f2c230'),steel=new T.MeshStandardMaterial({color:'#c3ccd2',metalness:0.45,roughness:0.28,emissive:'#22292e',emissiveIntensity:0.5}),vent=new T.MeshBasicMaterial({color:'#ff9a3c'}),heat=new T.MeshBasicMaterial({color:'#ffb35c',transparent:true,opacity:0.85,blending:T.AdditiveBlending,depthWrite:false});
 const along=(mesh,z,parent=root)=>{mesh.rotation.x=Math.PI/2;mesh.position.z=z;parent.add(mesh);return mesh;};
-along(new T.Mesh(new T.CylinderGeometry(0.062,0.07,0.17,14),orange),0.0);
-for(const z of [0.06,-0.05])along(new T.Mesh(new T.CylinderGeometry(0.074,0.074,0.016,14),dark),z);
-along(new T.Mesh(new T.CylinderGeometry(0.035,0.04,0.07,10),dark),0.115);
-const grip=new T.Mesh(new T.BoxGeometry(0.03,0.09,0.035),dark);grip.position.set(0,-0.07,0.08);root.add(grip);
-const side=new T.Mesh(new T.CylinderGeometry(0.012,0.012,0.16,8),dark);side.rotation.z=Math.PI/2;side.position.set(-0.09,0.02,-0.01);root.add(side);
-along(new T.Mesh(new T.CylinderGeometry(0.075,0.075,0.02,16),steel),-0.095,spin);
-const cone=new T.Mesh(new T.ConeGeometry(0.072,0.13,16),steel);cone.rotation.x=-Math.PI/2;cone.position.z=-0.17;spin.add(cone);
-for(let k=0;k<6;k++){const a=k/6*Math.PI*2;const flute=new T.Mesh(new T.BoxGeometry(0.012,0.02,0.12),dark);flute.position.set(Math.cos(a)*0.04,Math.sin(a)*0.04,-0.165);flute.rotation.set(Math.sin(a)*0.5,-Math.cos(a)*0.5,a);spin.add(flute);}
-for(let k=0;k<10;k++){const a=k/10*Math.PI*2;const tooth=new T.Mesh(new T.BoxGeometry(0.016,0.016,0.03),steel);tooth.position.set(Math.cos(a)*0.074,Math.sin(a)*0.074,-0.112);spin.add(tooth);}
+along(new T.Mesh(new T.CylinderGeometry(0.095,0.105,0.26,18),orange),0.02);
+for(const z of [0.12,0.07,0.02,-0.03])along(new T.Mesh(new T.CylinderGeometry(0.108,0.108,0.012,18),dark),z);
+for(const [z,c] of [[-0.075,yellow],[-0.092,dark]])along(new T.Mesh(new T.CylinderGeometry(0.104,0.104,0.017,18),c),z);
+const pack=new T.Mesh(new T.BoxGeometry(0.15,0.11,0.1),dark);pack.position.set(0,0.02,0.19);root.add(pack);for(let k=0;k<3;k++){const v=new T.Mesh(new T.BoxGeometry(0.1,0.008,0.004),vent);v.position.set(0,0.0+k*0.022,0.242);root.add(v);}
+const top=new T.Mesh(new T.BoxGeometry(0.03,0.03,0.2),dark);top.position.set(0,0.135,0.03);root.add(top);for(const z of [-0.06,0.12]){const post=new T.Mesh(new T.BoxGeometry(0.026,0.04,0.026),dark);post.position.set(0,0.11,z);root.add(post);}
+const grip=new T.Mesh(new T.BoxGeometry(0.036,0.11,0.04),dark);grip.position.set(0,-0.12,0.1);root.add(grip);
+for(const sx of [-1,1]){const piston=new T.Mesh(new T.CylinderGeometry(0.014,0.014,0.2,8),steel);piston.rotation.x=Math.PI/2;piston.position.set(sx*0.11,-0.03,-0.03);root.add(piston);const sleeve=new T.Mesh(new T.CylinderGeometry(0.02,0.02,0.09,8),dark);sleeve.rotation.x=Math.PI/2;sleeve.position.set(sx*0.11,-0.03,0.05);root.add(sleeve);}
+along(new T.Mesh(new T.TorusGeometry(0.1,0.012,8,24),heat),-0.112).rotation.x=0;
+along(new T.Mesh(new T.CylinderGeometry(0.19,0.19,0.03,26),steel),-0.13,spin);along(new T.Mesh(new T.CylinderGeometry(0.196,0.196,0.012,26),dark),-0.148,spin);
+for(let k=0;k<3;k++){const a=k/3*Math.PI*2,arm=new T.Mesh(new T.BoxGeometry(0.034,0.18,0.022),yellow);arm.position.set(Math.cos(a)*0.09,Math.sin(a)*0.09,-0.154);arm.rotation.z=a-Math.PI/2;spin.add(arm);}
+const cone=new T.Mesh(new T.ConeGeometry(0.06,0.12,14),steel);cone.rotation.x=-Math.PI/2;cone.position.z=-0.21;spin.add(cone);
+for(let k=0;k<18;k++){const a=k/18*Math.PI*2,tooth=new T.Mesh(new T.ConeGeometry(0.016,0.045,6),steel);tooth.rotation.x=-Math.PI/2;tooth.position.set(Math.cos(a)*0.175,Math.sin(a)*0.175,-0.168);spin.add(tooth);}
+for(let k=0;k<6;k++){const a=k/6*Math.PI*2,flute=new T.Mesh(new T.BoxGeometry(0.01,0.018,0.1),dark);flute.position.set(Math.cos(a)*0.033,Math.sin(a)*0.033,-0.2);flute.rotation.set(Math.sin(a)*0.45,-Math.cos(a)*0.45,a);spin.add(flute);}
 root.add(spin);}
  if(tier===8){// Mining mech: two hydraulic arms with three-finger claws that rake the dirt.
 const plate=new T.MeshStandardMaterial({color:'#23292e',metalness:0.35,roughness:0.4,emissive:'#0d1013',emissiveIntensity:0.5}),trim=new T.MeshStandardMaterial({color:'#f2c230',emissive:'#7a5a00',emissiveIntensity:0.8}),lamp=new T.MeshBasicMaterial({color:'#ffe08a'}),dark=factory.mat('#2a3236'),steel=new T.MeshStandardMaterial({color:'#d3dde3',metalness:0.25,roughness:0.3,emissive:'#3a444a',emissiveIntensity:0.6});
@@ -66,7 +70,7 @@ else if(tool.tier===4){r.rotation.order='ZYX';r.rotation.z=tv.handSwingRoll;r.ro
 else if(tool.tier===5){r.rotation.x=-1.2;const active=!reduced&&t>=0&&t<1;r.position.y=active?-0.035*Math.abs(Math.sin(t*Math.PI*tv.hammerPulses)):0;r.rotation.z=active?Math.sin(now/14)*0.04:0;}
 else if(tool.tier===6){r.rotation.x=-f*0.45;r.position.z=-0.08*down+0.03*up;}
 else if(tool.tier===8){for(const a of r.userData.arms||[]){const g=reduced?0:strikeCurve(t-(a.side?tv.mechArmLag:0)),down=Math.max(0,g),up=Math.max(0,-g);a.arm.rotation.x=0.1-g*0.55;a.arm.position.z=-0.09*down+0.04*up;a.arm.position.y=0.04*up-0.03*down;for(const f of a.fingers)f.rotation.x=f.userData.open*(1-down*0.9);}}
-else{r.position.z=-0.05*down;tool.spin.rotation.z=reduced||!(t>=0&&t<1.6)?tool.spin.rotation.z:now/C.tapWindowMs*tv.spinRate;}
+else{const run=!reduced&&t>=0&&t<1.6;r.position.z=-0.05*down;if(tool.tier===7){r.rotation.y=0.36;r.rotation.x=-0.26;if(run){r.position.x=Math.sin(now/9)*0.004;r.position.y=Math.cos(now/7)*0.004;}}tool.spin.rotation.z=run?now/C.tapWindowMs*tv.spinRate:tool.spin.rotation.z;}
 return f;}
 export function astronaut(factory,player,scene){const root=new T.Group(),body=new T.Group();root.add(body);root.position.set(player.x,0,player.y);root.name='Explorer '+player.nickname;const white='#e2e7e1',dark='#42525a',legs=[],arms=[];factory.box(body,white,0.32,0.31,0.22,0,0.61,0);const backpack=factory.box(body,dark,0.24,0.30,0.16,0,0.62,0.18);backpack.scale.multiply(new T.Vector3(1+(player.pods||0)*0.12,1+(player.pods||0)*0.12,1+(player.pods||0)*0.20));factory.box(body,player.color,0.23,0.04,0.02,0,0.65,-0.12);for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*0.10,0.45,0);factory.cylinder(leg,white,0.075,0.26,0,-0.13,0);factory.box(leg,dark,0.14,0.09,0.23,0,-0.31,-0.04);body.add(leg);legs.push(leg);const arm=new T.Group();arm.position.set(side*0.23,0.73,0);factory.cylinder(arm,white,0.055,0.24,0,-0.12,0);factory.cylinder(arm,player.color,0.057,0.05,0,-0.04,0);const glove=new T.Mesh(new T.SphereGeometry(0.06,8,6),factory.mat(white));glove.position.y=-0.25;arm.add(glove);body.add(arm);arms.push(arm);}
  const helmet=new T.Mesh(new T.SphereGeometry(0.22,16,12),factory.mat(white));helmet.position.y=0.97;body.add(helmet);const visor=new T.Mesh(new T.SphereGeometry(0.18,16,12),new T.MeshStandardMaterial({color:'#bda36a',metalness:0.92,roughness:0.13,emissive:'#68532a',emissiveIntensity:0.28}));visor.scale.set(1,0.65,0.35);visor.position.set(0,0.98,-0.18);body.add(visor);factory.box(body,player.color,0.12,0.035,0.09,0,1.18,0);const beacon=factory.box(body,player.color,0.06,0.04,0.05,0,1.215,0,true);factory.box(body,'#f6efd7',0.09,0.04,0.025,0,1.08,-0.19,true);

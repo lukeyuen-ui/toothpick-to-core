@@ -66,14 +66,15 @@ export function toolPattern(room,p,x,y,tool,amount,shaftRow){const N=C.mapSize,c
  const force=tool.splash?tool.splash/tool.tap:(tool.areaForce??tool.lineForce??1),surface=amount*force;
  let reached=0;for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true);continue;}const n=room.cells[ny*N+nx];if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)){reached++;hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true);}}
  if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle.');}}
-export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
+// pierce: how many extra rows damage left over after breaking a row may carry into, in the same hit (the tunnel borer bores down two layers at a time).
+export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,again=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
  const index=y*C.mapSize+x, cell=room.cells[index];
  if(indirect&&room.players.some(who=>!who.departed&&!who.boarded&&Math.floor(who.x)===x&&Math.floor(who.y)===y))return;
  if(machineAt(room,x,y)?.damagerId!==p.id&&machineAt(room,x,y))return;
- if(room.broken.has(index)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
+ if((room.broken.has(index)&&!again)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
  if(!p.isTeam){lightShaft(room,p,index);p.lastWorked=room.now;}
- cell.richStart??=cell.row;const actual=Math.min(amount,cell.hp); cell.hp-=actual; cell.damage[p.id]=(cell.damage[p.id]||0)+actual; room.dirty.add(index);
+ cell.richStart??=cell.row;const actual=Math.min(amount,cell.hp),leftover=amount-actual; cell.hp-=actual; cell.damage[p.id]=(cell.damage[p.id]||0)+actual; room.dirty.add(index);
  if(cell.hp<=hp(cell.row)*C.damageEpsilon) {
   const total=Object.values(cell.damage).reduce((a,b)=>a+b,0), value=cellPayout(cell)*incomeMultiplier(room);
   const find=room.finds.find(f=>!f.extracted&&f.cell===index&&f.row===cell.row);
@@ -98,6 +99,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
   const previousRow=cell.row;cell.row++;for(const who of room.players)if(who.shaft===index&&!who.belay&&who.depth+C.damageEpsilon>=previousRow)who.depth=cell.row;
   if(!p.isTeam){if(cell.row>C.shafts.surfaceReachRows)p.deepCoach=true;lightShaft(room,p,index);}cell.damage={}; cell.hp=hp(cell.row); room.deepest=Math.max(room.deepest,cell.row); room.broken.add(index);
   collapseAround(room,index);
+  if(pierce>0&&leftover>0&&cell.row)hit(room,p,x,y,leftover,indirect,shaftBlast,pierce-1,true);
  }
 }
 // A block left standing between four dug holes caves in, so the holes become one big hole you can keep digging. The fallen rock pays nothing.
@@ -127,7 +129,7 @@ export function action(room,p,message,now) {
   if(!within(p,x,y)) {p.drive={x:x+0.5,y:y+0.5};p.target=null;return;}
   p.drive=null;
   const reason=machineAt(room,x,y)?'Keep out. Excavator running.':isDepot(x,y)?'Depot. Bring cargo here.':shaftGate(room,p,x,y)||gate(p,room.cells[y*C.mapSize+x].row,room); if(reason) {p.target=null; return {type:'toast',text:reason,x,y};}
-  p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap);
+  p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap,false,false,tool.pierce||0);
   toolPattern(room,p,x,y,tool,tool.tap,shaftRow);
  } else if(message.type==='buy') {
   if(!atHub(p))return {type:'toast',text:'Trade at the hub'};
@@ -162,7 +164,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
     if(p.autoElapsed+Number.EPSILON>=tool.interval) {
      p.autoElapsed%=tool.interval;
      if(tool.areaDamage) {const cx=Math.floor(p.x),cy=Math.floor(p.y);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)hit(room,p,cx+dx,cy+dy,tool.areaDamage,true);}
-     else if(p.target&&within(p,p.target.x,p.target.y)&&!gate(p,room.cells[p.target.y*C.mapSize+p.target.x].row,room)){hit(room,p,p.target.x,p.target.y,tool.autoDamage,true);if(tool.area||tool.line)toolPattern(room,p,p.target.x,p.target.y,tool,tool.autoDamage,p.shaft!=null?room.cells[p.shaft].row:null);}
+     else if(p.target&&within(p,p.target.x,p.target.y)&&!gate(p,room.cells[p.target.y*C.mapSize+p.target.x].row,room)){hit(room,p,p.target.x,p.target.y,tool.autoDamage,true,false,tool.pierce||0);if(tool.area||tool.line)toolPattern(room,p,p.target.x,p.target.y,tool,tool.autoDamage,p.shaft!=null?room.cells[p.shaft].row:null);}
     }
    }
    const index=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(p.shaft==null&&!p.boarded&&!p.boarding&&room.broken.has(index))enterShaft(room,p,index);
