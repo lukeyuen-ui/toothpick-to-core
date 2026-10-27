@@ -53,14 +53,44 @@ export function makeFactory(scene,assets){
  for(const s of [-1,1]){box(root,frame,2*R+0.16,0.14,0.16,0,0.08,s*R);box(root,frame,0.16,0.14,2*R+0.16,s*R,0.08,0);box(root,frame,2*R+0.1,0.12,0.12,0,top,s*R);box(root,frame,0.12,0.12,2*R+0.1,s*R,top,0);}
  for(const x of [-R,R])for(const z of [-R,R])box(root,steel,0.1,top,0.1,x,top/2,z);
  box(root,frame,2*R,0.08,0.1,0,top,0);box(root,frame,0.1,0.08,2*R,0,top,0);box(root,'#2f3a3e',0.5,0.22,0.5,0,top+0.12,0);
- // Cockpit capsule: lowered on cables as the bore deepens. Its local zero sits on the dig face.
- const capsule=new T.Group();capsule.name='Drill cockpit';root.add(capsule);const H=D.hatch,E=D.deckHalf,W=(E-H)/2+0.0001,Y=D.deckY;
- for(const s of [-1,1]){box(capsule,deck,2*E,0.1,E-H,0,Y,s*(H+E)/2);box(capsule,deck,E-H,0.1,2*H,s*(H+E)/2,Y,0);}
- const glass=new T.Mesh(new T.BoxGeometry(2*H,0.015,2*H),new T.MeshStandardMaterial({color:'#80d8ff',transparent:true,opacity:0.14,roughness:0.1,depthWrite:false}));glass.position.y=Y-0.02;capsule.add(glass);
- const seats=[],seatSpots=[],consoles=[];for(const [x,z] of [[0,1],[-1,0],[0,-1],[1,0]]){const mid=(H+E)/2;seats.push(box(capsule,'#243d40',x?E-H:0.26,0.07,x?0.26:E-H,x*mid,Y+0.09,z*mid));consoles.push(box(capsule,'#80d8ff',x?0.02:0.2,0.05,x?0.2:0.02,x*(H+0.02),Y+0.08,z*(H+0.02),true));seatSpots.push({x:x*E,z:z*E});}
- for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]])box(capsule,'#c9d0c4',0.05,0.5,0.05,x*(E-0.03),Y+0.3,z*(E-0.03));
- const bit=cylinder(capsule,'#6d8d9c',0.16,Y-0.08,0,(Y-0.08)/2+0.04,0),plasma=cylinder(capsule,'#65bbff',0.19,0.14,0,0.10,0,true),glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.3;plasma.add(glow);
- const cables=[];for(const [x,z] of [[-1,-1],[1,-1],[-1,1],[1,1]])cables.push(cylinder(root,'#9aa6a8',0.012,1,x*(E-0.03),top/2,z*(E-0.03)));
- scene.add(root);return {root,capsule,cables,bit,plasma,seats,seatSpots,consoles};}
+ // Cockpit pod: lowered on cables as the bore deepens. Its local zero sits on the dig face.
+ // Up to four crew lie face down side by side above a glass floor, like a shuttle crew turned to face the ground.
+ // Each station has a dashboard, a gauge screen and two control sticks held in gloved hands; the cutter head spins below the glass.
+ const capsule=new T.Group();capsule.name='Drill cockpit';root.add(capsule);
+ const G=D.glassY,PX=D.podHalfX,PZ=D.podHalfZ,RY=D.roofY,hull='#2e363b',dark='#1a1f23',trim='#f2c230';
+ const glass=new T.Mesh(new T.BoxGeometry(2*PX,0.01,2*PZ),new T.MeshStandardMaterial({color:'#a6e6ff',transparent:true,opacity:0.1,roughness:0.05,metalness:0.3,depthWrite:false}));glass.name='Cockpit glass floor';glass.position.y=G;capsule.add(glass);
+ for(const s of [-1,1]){box(capsule,hull,2*PX+0.1,0.07,0.1,0,G,s*PZ);box(capsule,hull,0.1,0.07,2*PZ+0.1,s*PX,G,0);if(s>0){box(capsule,dark,2*PX+0.1,0.24,0.04,0,G+0.15,PZ+0.03);box(capsule,trim,2*PX+0.1,0.025,0.045,0,G+0.28,PZ+0.03);}box(capsule,dark,0.04,0.24,2*PZ+0.1,s*(PX+0.03),G+0.15,0);box(capsule,trim,0.045,0.025,2*PZ+0.1,s*(PX+0.03),G+0.28,0);box(capsule,hull,2*PX+0.1,0.06,0.06,0,RY,s*PZ);box(capsule,hull,0.06,0.06,2*PZ+0.1,s*PX,RY,0);}
+ for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,hull,0.07,RY-G,0.07,x,(RY+G)/2,z);
+ for(let k=1;k<4;k++){const x=(k-2)*D.seatGap;for(const z of [-PZ,PZ])box(capsule,hull,0.045,RY-G,0.045,x,(RY+G)/2,z);}
+ for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,'#ff7a3a',0.05,0.05,0.05,x,RY+0.05,z,true);
+ const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.position.set(0,D.eye+0.12,D.eyeZ+0.2);capsule.add(cabin);
+ // Cutter head: a toothed wheel under the pod. Its spokes turning are how the crew see the drill working.
+ const cutter=new T.Group();cutter.name='Plasma cutter head';cutter.position.y=D.cutterY;capsule.add(cutter);const CR=D.cutterRadius,steel2='#8f989c';
+ const rim=new T.Mesh(new T.TorusGeometry(CR,0.07,8,56).rotateX(Math.PI/2),mat(steel2));rim.castShadow=true;cutter.add(rim);
+ cylinder(cutter,'#59646a',0.26,0.22,0,0.02,0);cylinder(cutter,trim,0.18,0.24,0,0.02,0);cylinder(cutter,'#3d464b',0.1,0.27,0,0.02,0);
+ const tooth=new T.ConeGeometry(0.035,0.1,6).rotateX(Math.PI),toothMat=mat('#c9ced0');
+ for(let i=0;i<6;i++){const arm=new T.Group();arm.rotation.y=i/6*Math.PI*2;cutter.add(arm);box(arm,'#4f595e',CR-0.2,0.09,0.1,(CR+0.2)/2,0,0);box(arm,'#7d878b',CR-0.26,0.02,0.05,(CR+0.22)/2,0.05,0);for(let h=0;h<4;h++)box(arm,h%2?trim:'#14181a',0.06,0.012,0.104,CR-0.1-h*0.06,0.047,0);for(let t=0;t<3;t++){const m=new T.Mesh(tooth,toothMat);m.position.set(0.32+t*0.2,-0.08,0);arm.add(m);}}
+ for(let i=0;i<30;i++){const a=i/30*Math.PI*2,m=new T.Mesh(tooth,toothMat);m.position.set(Math.cos(a)*CR,-0.1,Math.sin(a)*CR);cutter.add(m);}
+ const housing=cylinder(capsule,'#3a4348',0.13,0.05,0,G-0.035,0);cylinder(capsule,'#4c565c',0.065,G-D.cutterY-0.06,0,(G+D.cutterY)/2-0.03,0);
+ const plasma=new T.Group();plasma.name='Plasma glow';capsule.add(plasma);const plasmaMat=new T.MeshBasicMaterial({color:'#7fd0ff',transparent:true,opacity:0.85,blending:T.AdditiveBlending,depthWrite:false});
+ const ringGlow=new T.Mesh(new T.TorusGeometry(CR,0.05,6,56).rotateX(Math.PI/2),plasmaMat);ringGlow.position.y=D.cutterY-0.16;plasma.add(ringGlow);const disc=new T.Mesh(new T.CircleGeometry(0.3,24).rotateX(-Math.PI/2),plasmaMat);disc.position.y=D.cutterY-0.14;plasma.add(disc);
+ const glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.12;plasma.add(glow);
+ // Crew stations. Seat order fills the middle first, so a crew of two sit side by side in the centre.
+ const view=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().lookAt(new T.Vector3(),new T.Vector3(0,Math.sin(D.boardPitch),-Math.cos(D.boardPitch)),new T.Vector3(0,1,0)));
+ const seats=[],pads=[],seatSpots=[],consoles=[],stations=[],glove=mat('#e4e9e3'),fingerGeo=new T.CapsuleGeometry(0.0072,0.022,3,6),suit=mat('#e9ece6'),grip='#2a2a2c';
+ for(let k=0;k<4;k++){const sx=([1,2,0,3][k]-1.5)*D.seatGap;seatSpots.push({x:sx,z:D.bodyZ});
+  pads.push(box(capsule,'#2a3438',0.2,0.05,0.62,sx,D.bodyY-0.1,D.bodyZ+0.12));seats.push(box(capsule,'#243d40',0.05,0.012,0.6,sx,D.bodyY-0.07,D.bodyZ+0.12));box(capsule,hull,0.035,RY-D.bodyY,0.035,sx,(RY+D.bodyY)/2,D.bodyZ+0.3);box(capsule,hull,0.04,0.04,2*PZ,sx,RY,0);
+  // A station is authored in the seated crew member's view space: x right, y up the screen, -z into the view.
+  const g=new T.Group();g.name='Crew station';g.position.set(sx,D.eye,D.eyeZ);g.quaternion.copy(view);capsule.add(g);const dash=new T.Group();g.add(dash);
+  box(dash,'#262d32',D.seatGap,0.17,0.03,0,-0.2,-0.385);box(dash,trim,D.seatGap,0.008,0.032,0,-0.113,-0.383);box(dash,dark,0.2,0.115,0.035,0,-0.172,-0.372);
+  const lights=[];for(let r=0;r<3;r++)for(let c=0;c<3;c++){const col=['#4fd17f','#e6b84a','#ff5d5d','#80d8ff'][(c+r*3+k)%4];for(const side of [-1,1])lights.push(box(dash,col,0.014,0.01,0.008,side*(0.125+c*0.03),-0.145-r*0.026,-0.368,true));}
+  const canvas=document.createElement('canvas');canvas.width=256;canvas.height=144;const screenTexture=new T.CanvasTexture(canvas);screenTexture.colorSpace=T.SRGBColorSpace;const screen=new T.Mesh(new T.PlaneGeometry(0.18,0.101),new T.MeshBasicMaterial({map:screenTexture,toneMapped:false}));screen.name='Gauge screen';screen.position.set(0,-0.172,-0.353);dash.add(screen);
+  const status=box(dash,'#80d8ff',0.22,0.01,0.01,0,-0.106,-0.37,true);consoles.push(status);box(g,'#2b3237',D.seatGap,0.012,0.09,0,-0.222,-0.31);
+  const sticks=[],sleeves=[],bands=[],cuffs=[];for(const side of [-1,1]){const pivot=new T.Group();pivot.position.set(side*0.13,-0.215,-0.3);pivot.rotation.x=D.stickBase;g.add(pivot);cylinder(pivot,'#151819',0.022,0.018,0,0.006,0);cylinder(pivot,'#7c868a',0.008,0.09,0,0.05,0);cylinder(pivot,grip,0.015,0.055,0,0.1,0);const button=cylinder(pivot,'#f2c230',0.008,0.01,0,0.13,-0.004,true);
+   const hand=new T.Group();hand.position.set(0,0.1,0);pivot.add(hand);const palm=new T.Mesh(fingerGeo,glove);palm.scale.set(2.6,1.9,1.9);palm.position.set(side*0.006,0,0.014);hand.add(palm);for(let f=0;f<4;f++){const finger=new T.Mesh(fingerGeo,glove);finger.rotation.z=Math.PI/2;finger.position.set(side*0.002,0.019-f*0.0125,-0.016);hand.add(finger);}const thumb=new T.Mesh(fingerGeo,glove);thumb.position.set(-side*0.004,0.03,-0.002);thumb.rotation.x=-0.6;hand.add(thumb);const cuff=new T.Mesh(geometries.cylinder,mat('#2f6f8f'));cuff.scale.set(0.026,0.022,0.026);cuff.position.set(side*0.006,-0.032,0.022);cuff.rotation.x=0.9;hand.add(cuff);cuffs.push(cuff);
+   const sleeve=new T.Mesh(geometries.cylinder,suit);sleeve.scale.set(0.028,0.1,0.028);g.add(sleeve);sleeves.push(sleeve);const band=new T.Mesh(geometries.cylinder,mat('#2f6f8f'));band.scale.set(0.03,0.018,0.03);g.add(band);bands.push(band);sticks.push({pivot,hand,button,side});}
+  stations.push({group:g,dash,sticks,sleeves,bands,cuffs,lights,screen:{canvas,ctx:canvas.getContext('2d'),texture:screenTexture,key:''},tunedAt:-Infinity});}
+ const cables=[];for(const x of [-PX+0.03,PX-0.03])for(const z of [-PZ+0.03,PZ-0.03])cables.push(cylinder(root,'#9aa6a8',0.012,1,x,top/2,z));
+ scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,seats,pads,seatSpots,consoles,stations,housing};}
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries};
 }
