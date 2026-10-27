@@ -40,7 +40,7 @@ wss.on('connection',ws=>{
    sockets.set(ws,{room,player:p,detectors:detectorMask(p)});send(ws,{type:'welcome',token,id:p.publicId});send(ws,snapshotForPlayer(room,snapshot(room,true),p));return;
   }
   const b=sockets.get(ws);if(!b||!allowAction(b.player,msg.type,now))return;const queue=queues.get(b.room.code);if(!queue||queue.length>=C.resilience.queueLimit)return;
-  if(['aim','belayDown','layConveyor','buyExcavator','placeExcavator','toggleExcavator','takeExcavator','belay','move','tap','buy','chip','propose','proposeSite','proposeConveyor','returnHome','vote','cancelVote','board','reset'].includes(msg.type))queue.push({player:b.player,message:msg,respond:r=>send(ws,r)});
+  if(['tune','aim','belayDown','layConveyor','buyExcavator','placeExcavator','toggleExcavator','takeExcavator','belay','move','tap','buy','chip','propose','proposeSite','proposeConveyor','returnHome','vote','cancelVote','board','reset'].includes(msg.type))queue.push({player:b.player,message:msg,respond:r=>send(ws,r)});
  });ws.on('close',()=>drop(ws));
 });
 setInterval(()=>{for(const ws of wss.clients){if(!ws.alive){drop(ws);ws.terminate();continue;}ws.alive=false;ws.ping();}},C.heartbeatMs);

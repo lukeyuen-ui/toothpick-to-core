@@ -6,7 +6,7 @@ import {C} from './config.js';
 import {hit,payout,hp,createRoom,join,validCell,gate} from './rules.js';
 import {isDepot,conveyorQuote,buildConveyor} from './hauling-rules.js';
 const T=C.team;
-export function initialTeam(){return {fund:0,fundIncome:0,fundEarned:0,vote:null,goal:null,locks:{},site:null,drill:null,coolant:false,worldBreaker:null,won:false,stats:null,wonAt:null,achievement:0,round:0,oil:{production:0,burn:0,sold:0,demand:0,speed:0,crew:0,blocked:null}};}
+export function initialTeam(){return {console:{},fund:0,fundIncome:0,fundEarned:0,vote:null,goal:null,locks:{},site:null,drill:null,coolant:false,worldBreaker:null,won:false,stats:null,wonAt:null,achievement:0,round:0,oil:{production:0,burn:0,sold:0,demand:0,speed:0,crew:0,blocked:null}};}
 export function creditFund(room,value){room.fund+=value;room.fundEarned+=value;}
 export function markActive(room,p,now){p.lastActive=now;room.lastActivity=now;}
 export function active(room,now){return room.players.filter(p=>p.connected&&(p.boarded||now-p.lastActive<=T.activeMs));}
@@ -71,13 +71,24 @@ export function autoBuy(room,now){const goal=room.goal;if(!goal||requirement(roo
 }
 // The plasma drill bores a 3 by 3 shaft: the site first, then its eight neighbours (never ahead of the site). Extra blocks pay nothing.
 function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
+// Drill console: every crew member aboard keeps one gauge (pressure, heat, alignment, power) in the green.
+// Needles wander; tuning nudges yours back to the middle. More crew and any red gauge make every needle wander faster.
+// The crew's average zone scales drill speed: green speeds it up, red stalls it.
+export function consoleZone(v){const K=C.console,d=Math.abs(v-0.5);return d<=K.green?'green':d<=K.yellow?'yellow':'red';}
+function consoleRandom(room){room.consoleSeed=((room.consoleSeed??(room.seed||1))*1103515245+12345)%2147483648;return room.consoleSeed/2147483648;}
+export function runConsole(room,crew,now,dt){const K=C.console,gauges=room.console??={},ids=new Set(crew.map(p=>p.publicId));for(const id of Object.keys(gauges))if(!ids.has(id))delete gauges[id];
+ for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind));gauges[p.publicId]={kind:K.kinds.find(k=>!used.has(k))||K.kinds[0],v:0.5,dir:consoleRandom(room)<0.5?-1:1,flipAt:now+K.flipMs};}
+ if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,drift=K.drift*(1+K.crewDrift*(crew.length-1));
+ for(const p of crew){const g=gauges[p.publicId];if(now>=g.flipAt){g.dir=consoleRandom(room)<0.5?-1:1;g.flipAt=now+K.flipMs*(0.5+consoleRandom(room));}const drag=1+K.redDrag*(red-(consoleZone(g.v)==='red'?1:0));g.v=Math.min(1,Math.max(0,g.v+(g.dir*drift*drag+(consoleRandom(room)-0.5)*K.jitter)*dt));}
+ return crew.reduce((sum,p)=>sum+K.zoneSpeed[consoleZone(gauges[p.publicId].v)],0)/crew.length;}
+export function tuneConsole(room,p){const g=room.console?.[p.publicId];if(!p.boarded||!g)return;const step=C.console.tuneStep;g.v=Math.abs(g.v-0.5)<=step?0.5:g.v+(g.v<0.5?step:-step);}
 export function runTeam(room,now,dt){
  resolveVote(room,now);autoBuy(room,now);
  const crew=room.players.filter(p=>p.connected&&p.boarded&&room.drill),count=crew.length,blocked=room.drill?gate({isTeam:true},room.cells[room.site].row,room):null;
  for(const p of crew){p.drillSeconds+=dt;p.drillAt=++room.achievement;}
  const production=room.cells.filter(c=>c.pumpBuilt).length*T.pumpBarrelsPerSecond,demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
  const burn=Math.min(production,demand),ratio=demand?Math.min(1,production/demand):0;
- const speed=count&&!blocked?T.crewSpeed[count]*ratio:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked};
+ const panel=room.worldBreaker?1:runConsole(room,crew,now,dt),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
  if(speed||room.worldBreaker)for(const p of crew)p.lastWorked=now;
  if(production>burn)creditMachine(room,(production-burn)*T.barrelPrice*dt*incomeMultiplier(room),'oil');
  const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};const bore={...team,id:'bore',publicId:'bore'},digger=i=>i===room.site?team:bore;

@@ -1,4 +1,5 @@
 export const C = {
+ console:{kinds:['PRESSURE','HEAT','ALIGN','POWER'],drift:0.06,crewDrift:0.25,redDrag:0.5,jitter:0.15,flipMs:2500,tuneStep:0.07,green:0.12,yellow:0.28,zoneSpeed:{green:1,yellow:0.75,red:0.4}},
  core:{heartRadius:0.5,shellRadius:0.64,shards:18,rays:7,rayLength:4.5,debris:28,lightRange:16,lightIntensity:7,haloSize:4.2,boreScale:1,embed:0.25,openAt:1.5,openSeconds:4,openDistance:0.55,beamTop:14,riseHeight:2.6,capsuleClear:1.5,cinematicSeconds:12,cinematicDistance:7.5},
  explorerPolish:{fillIntensity:1.3,fillPosition:[0,1.65,0.8],fillDistance:2.2,fillColor:'#d9e4ef',suitEmission:0.12,stripeEmission:0.18,glovePalm:[0.016,0.021,0.012],gloveCuff:[0.018,0.007,0.015],gloveSpacing:0.012,fingerRadius:0.0018,fingerLength:0.007,thumbRadius:0.0025,thumbLength:0.009},
  oilPurpose:'Oil powers the plasma drill. Oil the drill does not burn sells every second: half to the team fund, half to active crew.',
