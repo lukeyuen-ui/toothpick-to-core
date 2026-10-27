@@ -9,7 +9,7 @@ import {shaftGate,enterShaft,trackSurfaceCell,advanceShaft,walkShaft,startBelay,
 import { C } from './config.js';
 import {applyMove,liveMove,slide,driveStep,validPosition} from './movement-rules.js';
 import {initialTeam,creditFund,markActive,teamAction,runTeam,board,catalog,resolveVote,tuneConsole} from './team-rules.js';
-import {isDepot,addCargo,hoistCargo,haulAlong,runConveyors,publicPiles,returnHome,crossedCells} from './hauling-rules.js';
+import {isDepot,addCargo,hoistCargo,haulAlong,runConveyors,publicPiles,returnHome,crossedCells,privateToast} from './hauling-rules.js';
 export function seeded(seed) { let state=seed>>>0; return ()=>{state=(Math.imul(state,C.seed.multiplier)+C.seed.increment)>>>0; return state/C.seed.modulus;}; }
 export function generateFinds(seed) {
  const random=seeded(seed),used=new Set(C.hauling.depotCells.map(([x,y])=>y*C.mapSize+x)),finds=[],D=C.deposits;
@@ -62,9 +62,10 @@ export function cellPayout(cell){return payout(cell.row)*(isThin(cell)?C.deposit
 // neighbours level with your floor (within blastBand rows above it), at full force.
 export function toolPattern(room,p,x,y,tool,amount,shaftRow){const N=C.mapSize,cells=[];
  if(tool.splash||tool.area){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy)cells.push([x+dx,y+dy]);}
- else if(tool.line&&shaftRow==null){const sx=Math.sign(x-Math.floor(p.x)),sy=Math.sign(y-Math.floor(p.y));if(sx||sy)for(let k=1;k<tool.line;k++)cells.push([x+sx*k,y+sy*k]);}
+ else if(tool.line){let sx=Math.sign(x-Math.floor(p.x)),sy=Math.sign(y-Math.floor(p.y));if(!sx&&!sy&&p.facing){sx=Math.abs(p.facing.dx)>0.38?Math.sign(p.facing.dx):0;sy=Math.abs(p.facing.dy)>0.38?Math.sign(p.facing.dy):0;}if(sx||sy)for(let k=1;k<tool.line;k++)cells.push([x+sx*k,y+sy*k]);}
  const force=tool.splash?tool.splash/tool.tap:(tool.areaForce??tool.lineForce??1),surface=amount*force;
- for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true);continue;}const n=room.cells[ny*N+nx];if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft))hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true);}}
+ let reached=0;for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true);continue;}const n=room.cells[ny*N+nx];if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)){reached++;hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true);}}
+ if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle.');}}
 export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
  const index=y*C.mapSize+x, cell=room.cells[index];
