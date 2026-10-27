@@ -25,3 +25,20 @@ Completed terrain/planet fixes, two real-rule normal-mode pacing runs, leave gra
 
 ## 0.7.1 final visual polish
 Removed undug shaft geometry, corrected rock material tinting/visibility, fixed the cover frame and composition, added a no-room local lobby orbit with reduced-motion/WebGL fallback, and contextualized the hub coach. No rule or pacing changes.
+
+0.7.2: Embedded-browser input fallback, smooth arrow yaw, immediate short-click digging, one-time controls prompt and dig-first coaching. No authority or economy changes.
+
+0.7.3: Belay remembers entry side and faces its own shaft; Return to base routing preserved. Hub purchase/proposal/chip-all confirmation with live affordability and keyboard handling. Prices, balance and pacing unchanged.
+
+0.8.0: Dead-planet cold-core story; 16-cell busier claim with visible signs and thin shafts; multi-cell oil fields and veins; active machine shares and solo pooling; round merged pit presentation; held/dial field dowsing. Four deterministic normal pacing runs cover two players and solo. No queued Build 1/2 features are included.
+
+0.9.0 Build 1: occupied-cell indirect-hit safety; ring search/emergency depot escape; separately owned excavators with safe footprints, hopper and owner belt receipts; astronaut suits/helmet view; nine held tool models, equip moments and sound profiles. Build 2 is recorded below.
+
+
+1.0.0 Build 2 complete: remembered guided goals and markers, core meter, Full/20x Quick mode, four pod tiers, personal owned conveyors with first-line discount and source ownership, automatic hoist overflow, belt receipts/income, live hub header and Owned/Next inventory. 154 checks, integration and eight pacing routes pass. Full 22:14.5 to 28:10.8, Quick 10:49.5 to 11:17.8. All queued builds are delivered separately; render.yaml unchanged. Remaining hazards/supports/survey/permanent bonuses stay excluded. GPU visual acceptance remains with the designer.
+
+
+1.1.0 Build 3: direct shaft-hoist output with digger credit and untouched holds, oil-purpose guidance/flows/status, per-seat matching detector signs, authoritative/shared depth lighting and machine exemption. Mandatory light prices retuned; other Build 2 numbers unchanged. 163 tests, integration and eight pacing runs. Build 4 polish is queued separately.
+
+
+1.1.1 Build 4: compact always-visible phone CORE row with immediate snapshot paint, touch-specific instructions, walk wording, bounded explorer fill/material lift and compact shaped tool gloves. No rules, economy or pacing changes. 167 tests, integration, eight pacing runs. Responsive CSS browser check at 375 px passes; GPU acceptance remains manual.
