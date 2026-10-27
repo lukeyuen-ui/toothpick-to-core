@@ -38,7 +38,7 @@ export function teamAction(room,p,msg,now){
  }
  if(msg.type==='board'){
   if(!room.drill)return {type:'toast',text:'Place the drill first'};
-  markActive(room,p,now);p.returning=false;if(p.boarded||p.boarding){p.boarded=false;p.boarding=false;p.drive=null;return;}
+  markActive(room,p,now);p.returning=false;if(p.boarded||p.boarding){p.boarded=false;p.boarding=false;p.drive=null;if(room.cells[Math.floor(p.y)*C.mapSize+Math.floor(p.x)]?.row)rimArrival(room,p);return;}
   const x=room.site%C.mapSize,y=Math.floor(room.site/C.mapSize);p.target=null;
   if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=T.boardRadius)board(p,room);else{p.boarding=true;let target=null;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((!dx&&!dy)||!validCell(nx,ny)||isDepot(nx,ny))continue;const d=Math.hypot(nx+0.5-p.x,ny+0.5-p.y);if(!target||d<target.d)target={x:nx+0.5,y:ny+0.5,d};}p.drive=target||{x:x+0.5,y:y+0.5};}return;
  }
@@ -69,6 +69,8 @@ export function autoBuy(room,now){const goal=room.goal;if(!goal||requirement(roo
  if(goal.item==='plasma')room.drill={index:room.site};
  if(goal.item==='worldBreaker'){for(const p of room.players)if(!p.departed&&Math.floor(p.y)*C.mapSize+Math.floor(p.x)===room.site){p.shaft=room.site;rimArrival(room,p);p.belay=null;p.drive=null;p.target=null;}room.worldBreaker={startedAt:now,startRow:room.cells[room.site].row,endsAt:now+T.worldBreakerMs};}
 }
+// The plasma drill bores a 3 by 3 shaft: the site first, then its eight neighbours (never ahead of the site). Extra blocks pay nothing.
+function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
 export function runTeam(room,now,dt){
  resolveVote(room,now);autoBuy(room,now);
  const crew=room.players.filter(p=>p.connected&&p.boarded&&room.drill),count=crew.length,blocked=room.drill?gate({isTeam:true},room.cells[room.site].row,room):null;
@@ -78,9 +80,9 @@ export function runTeam(room,now,dt){
  const speed=count&&!blocked?T.crewSpeed[count]*ratio:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked};
  if(speed||room.worldBreaker)for(const p of crew)p.lastWorked=now;
  if(production>burn)creditMachine(room,(production-burn)*T.barrelPrice*dt*incomeMultiplier(room),'oil');
- const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};
- if(room.worldBreaker){const wb=room.worldBreaker,target=wb.startRow+Math.floor((C.finalRow-wb.startRow)*Math.min(1,(now-wb.startedAt)/T.worldBreakerMs));while(room.cells[room.site].row<target){const c=room.cells[room.site];c.damage={};c.hp=hp(c.row);room.broken.delete(room.site);hit(room,team,room.site%C.mapSize,Math.floor(room.site/C.mapSize),c.hp,true);}}
- else if(room.drill&&speed)hit(room,team,room.site%C.mapSize,Math.floor(room.site/C.mapSize),hp(room.cells[room.site].row)/(T.drillSecondsPerBlock*C.tickHz)*speed,true);
+ const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};const bore={...team,id:'bore',publicId:'bore'},digger=i=>i===room.site?team:bore;
+ if(room.worldBreaker){const wb=room.worldBreaker,target=wb.startRow+Math.floor((C.finalRow-wb.startRow)*Math.min(1,(now-wb.startedAt)/T.worldBreakerMs));for(const i of boreCells(room)){for(let guard=0;guard<C.finalRow&&room.cells[i].row<target;guard++){const c=room.cells[i],before=c.row;c.damage={};c.hp=hp(c.row);room.broken.delete(i);hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),c.hp,true);if(room.cells[i].row===before)break;}}}
+ else if(room.drill&&speed)for(const i of boreCells(room))if(i===room.site||room.cells[i].row<=room.cells[room.site].row)hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),hp(room.cells[i].row)/(T.drillSecondsPerBlock*C.tickHz)*speed,true);
  if(room.site!==null&&room.cells[room.site].row>=C.finalRow)win(room,room.worldBreaker?room.worldBreaker.endsAt:now);
  const alpha=1-Math.exp(-dt/C.incomeWindowSeconds);room.fundIncome+=(room.fundEarned/dt-room.fundIncome)*alpha;room.fundEarned=0;if(!room.won)autoBuy(room,now);
 }

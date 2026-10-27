@@ -2,7 +2,7 @@ export const C = {
  core:{heartRadius:0.5,shellRadius:0.64,shards:18,rays:7,rayLength:4.5,debris:28,lightRange:16,lightIntensity:7,haloSize:4.2,boreScale:0.32,restLift:0.3,riseHeight:2.6,riseSeconds:4.5,openAt:3,openSeconds:4,openDistance:0.55,cinematicSeconds:9,cinematicDistance:7.5},
  explorerPolish:{fillIntensity:1.3,fillPosition:[0,1.65,0.8],fillDistance:2.2,fillColor:'#d9e4ef',suitEmission:0.12,stripeEmission:0.18,glovePalm:[0.016,0.021,0.012],gloveCuff:[0.018,0.007,0.015],gloveSpacing:0.012,fingerRadius:0.0018,fingerLength:0.007,thumbRadius:0.0025,thumbLength:0.009},
  oilPurpose:'Oil powers the plasma drill. Oil the drill does not burn sells every second: half to the team fund, half to active crew.',
- logistics:{pipeHeight:0.17,pipeRadius:0.035,flowCount:4,flowSpeed:1.5,flowRadius:0.055,hoistOreSize:0.08},
+ logistics:{coolantLead:4,pipeHeight:0.17,pipeRadius:0.035,flowCount:4,flowSpeed:1.5,flowRadius:0.055,hoistOreSize:0.08},
  quickValueMultiplier:20,quickMinimumSeconds:480,quickMaximumSeconds:720,
  cargoPods:[{name:'Pod I',icon:'🎒',cost:300,hold:12},{name:'Pod II',icon:'🎒',cost:12000,hold:36},{name:'Pod III',icon:'🎒',cost:600000,hold:100},{name:'Pod IV',icon:'🎒',cost:60000000,hold:300}],
  guide:{checkMs:650,cardWidth:225,markerHeight:1.7,markerBob:0.12,notes:[784,1047]},coreMeter:{coldColor:[119,200,236],hotColor:[237,120,67],depthWeight:0.7,totalWeight:0.3,maxBeforeFinale:0.95},

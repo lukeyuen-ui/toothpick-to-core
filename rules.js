@@ -60,7 +60,7 @@ export function cellPayout(cell){return payout(cell.row)*(isThin(cell)?C.deposit
 export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
  const index=y*C.mapSize+x, cell=room.cells[index];
- if(indirect&&room.players.some(who=>!who.departed&&Math.floor(who.x)===x&&Math.floor(who.y)===y))return;
+ if(indirect&&room.players.some(who=>!who.departed&&!who.boarded&&Math.floor(who.x)===x&&Math.floor(who.y)===y))return;
  if(machineAt(room,x,y)?.damagerId!==p.id&&machineAt(room,x,y))return;
  if(room.broken.has(index)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
  if(!p.isTeam){lightShaft(room,p,index);p.lastWorked=room.now;}
