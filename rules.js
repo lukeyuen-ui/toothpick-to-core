@@ -87,7 +87,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
   }
   const teamFraction=(cell.damage[C.team.damagerId]||0)/total;
   for(const m of room.excavators){const f=(cell.damage[m.damagerId]||0)/total;if(f){stashExcavator(room,m,value*f,bonus*f);shares[m.damagerId]=(value+bonus)*f;bonuses[m.damagerId]=bonus*f;}}
-  if(teamFraction){creditMachine(room,(value+bonus)*teamFraction,'drill');shares[C.team.damagerId]=(value+bonus)*teamFraction;bonuses[C.team.damagerId]=bonus*teamFraction;}
+  if(teamFraction){const credited=(value+bonus)*teamFraction*(C.team.drillYield||1);creditMachine(room,credited,'drill');shares[C.team.damagerId]=credited;bonuses[C.team.damagerId]=bonus*teamFraction;}
   if(!p.isTeam&&cell.row>p.deepestRow){p.deepestRow=cell.row;p.deepestAt=++room.achievement;}
   room.breakEvents.push({index,shares,bonuses,units,spilled,viaBelt});
   if(find){

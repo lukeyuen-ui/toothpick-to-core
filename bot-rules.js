@@ -35,7 +35,7 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(room.vote&&room.vote.voters.includes(p.publicId)&&!room.vote.ballots[p.publicId]){b.voteAt??=now+L.voteDelayMs*(0.5+Math.random());if(now>=b.voteAt){add('vote',{yes:true});b.voteAt=null;}}else b.voteAt=null;
  if(now<b.napUntil)return;if(Math.random()<L.napChance){b.napUntil=now+L.napMs*(0.5+Math.random());return;}
  if(p.belay||p.boarding||p.drive||p.returning)return;
- const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps&&!room.goal));
+ const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps));
  // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
  if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
   const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&showcaseReady(room,now)?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}

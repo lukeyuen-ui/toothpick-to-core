@@ -54,7 +54,7 @@ export const C = {
  findBonuses:{silver:60,gold:120,diamond:180}, heatLevels:4,
  polish:{aimEveryMs:150,rodHot:'#58e07f',rodCold:'#e0574c',floatMs:1100,floatRise:36,floatFont:17,bonusFont:11,flashMs:260,flashAlpha:0.65,rimWidth:4,rimInset:3,rimAlpha:0.55,rowMinWidth:60,rowFont:10,heatAlpha:[0,0.10,0.20,0.31,0.43],sparkleSize:7,sparklePeriodMs:1200,sparkleMinAlpha:0.45,miniHintRadius:1.8,rodSwingMs:180,rodLength:20,rodWidth:3,rodOpenAngle:0.28,rodCrossAngle:0.65,rodPivot:13,rodBox:76,rodCenter:38,announcementMs:3600,percent:100,crackRays:[[[0,0],[0.12,-0.07],[0.2,-0.04],[0.3,-0.2]],[[0,0],[-0.08,-0.1],[-0.17,-0.09],[-0.27,-0.28]],[[0,0],[-0.05,0.13],[0.03,0.22],[-0.06,0.34]]]},
  dowsingCrossRadius:1,
- team:{endingDelayMs:14000,activeMs:45000,machinePersonalFraction:0.5,shareFloatMs:1000,voteMs:10000,lockMs:15000,chipFractions:{ten:0.1,half:0.5,all:1},pumpBarrelsPerSecond:1,barrelPrice:50000,pumpMinimum:2000,pumpPayoutMultiplier:40,drillSecondsPerBlock:30,drillBurnBase:1,crewSpeed:[0,1,1.5,3,5],crewBurn:[0,2,1.5,1,0.75],boardRadius:2,worldBreakerMs:60000,rippleMs:10000,damagerId:'@team',etaMinuteSeconds:60,etaHourMinutes:60},
+ team:{endingDelayMs:14000,activeMs:45000,machinePersonalFraction:0.5,shareFloatMs:1000,voteMs:10000,lockMs:15000,chipFractions:{ten:0.1,half:0.5,all:1},pumpBarrelsPerSecond:1,barrelPrice:50000,pumpMinimum:2000,pumpPayoutMultiplier:40,drillSecondsPerBlock:30,drillYield:3,boreCatchUpRows:6,drillBurnBase:1,crewSpeed:[0,1,1.5,3,5],crewBurn:[0,2,1.5,1,0.75],boardRadius:2,worldBreakerMs:60000,rippleMs:10000,damagerId:'@team',etaMinuteSeconds:60,etaHourMinutes:60},
  teamItems:{pump:{name:'Oil pump',price:null},coolant:{name:'Coolant system',price:20000000},plasma:{name:'Plasma drill',price:120000000},worldBreaker:{name:'World Breaker',price:9200000000},supports:{name:'Shaft supports',price:8000,locked:true},conveyor:{name:'Conveyor line',price:null,personal:true},survey:{name:'Orbital survey',price:1000000,locked:true}},
  presentation:{cover:{position:[13,3.4,15.5],target:[8.5,0.6,8.5],fov:52,orbitRate:0,sunScale:1,ambientScale:1.8,fillIntensity:12,planetNdc:[0.69,0.52],planetDistance:24,planetRadius:3.5},lobby:{position:[17,5,20],target:[8,0.7,8],fov:55,orbitRate:0.018,sunScale:0.38,ambientScale:1.6,fillIntensity:6,planetNdc:[0.65,0.5],planetDistance:28,planetRadius:3.5},rovers:[[9,10.6],[11.8,9.7]],shaft:[10,10],shaftRow:30,pile:[10,11],pileUnits:6,pileValue:42000},
  cover:{pixelRatio:1,width:1200,height:630,seed:9,eyeFov:60,chaseBack:8,chaseUp:4,pitch:-0.12,rovers:[[11.5,13.5],[9.5,11.5]],shaft:[10,10],shaftRow:30},
@@ -159,7 +159,7 @@ body.aboard #game #vote-banner{top:96px}
 #map-wrap:has(#vote-banner:not([hidden])) #guide-card{display:none!important}
 body.aboard #game #minimap{display:none}
 body.aboard #map-wrap #guide-card:not([hidden]){display:block!important;top:8px}
-body.aboard #game #drill-console:not([hidden]){position:absolute;top:58px;bottom:8px;right:max(8px,env(safe-area-inset-right));left:auto;transform:none;width:250px;box-sizing:border-box;padding:8px 10px;display:flex;flex-direction:column;overflow:hidden}
+body.aboard #game #drill-console:not([hidden]){position:absolute;top:86px;bottom:8px;right:max(8px,env(safe-area-inset-right));left:auto;transform:none;width:250px;box-sizing:border-box;padding:8px 10px;display:flex;flex-direction:column;overflow:hidden}
 body.aboard #console-title{font-size:11px;margin-bottom:2px}
 body.aboard .console-bar.big{height:16px;flex:0 0 16px}
 body.aboard #console-crew{font-size:10px;gap:0 6px;margin:4px 0}
@@ -168,7 +168,8 @@ body.aboard #console-crew .console-bar{height:8px;margin:3px 0}
 body.aboard #console-tune{margin-top:auto;min-height:54px;font-size:16px}
 body.aboard #console-help{display:none}
 body.aboard #game #drill-readout{top:8px;right:max(8px,env(safe-area-inset-right));left:auto;transform:none;min-width:0;width:250px;max-width:none;box-sizing:border-box;padding:4px 9px;font-size:10px}
-body.aboard #drill-layer,body.aboard #drill-status{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.aboard #drill-layer,body.aboard #drill-status,body.aboard #drill-income,body.aboard #drill-depth{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+body.aboard #drill-depth{font-size:13px;margin:1px 0}
 body.aboard .drill-bar{margin:3px 0;height:4px}
 body.aboard #game #vote-banner{top:auto;bottom:8px;width:auto;right:274px}
 body.aboard #game #announcement{bottom:auto;top:calc(50% + 4px);left:calc((100% - 266px)/2);transform:translateX(-50%);max-width:calc(100% - 300px)}
@@ -193,3 +194,6 @@ body.hub-open #game>#core-meter:not([hidden]){position:fixed;top:0;left:0;right:
 // Graphics upgrade: the awards sit on a frosted translucent card so the rescued planet shows around them. The backdrop blur is
 // limited to the card: a full-screen blur over the animating canvas measurably cost frame rate behind the ending panel.
 export const GFX_STYLE = `#ending article{background:#14201cb8;-webkit-backdrop-filter:blur(6px) saturate(1.2);backdrop-filter:blur(6px) saturate(1.2);border:1px solid #d4ed8733;border-radius:18px;padding:22px 26px;box-shadow:0 18px 60px #0006}#ending h2,#ending dd{text-shadow:0 1px 8px #000a}@media (max-height:500px){#ending{padding:10px;place-items:start center}#ending article{max-width:620px;padding:12px 18px}#ending h2{font-size:19px;margin:6px 0}#ending p{margin:4px 0}#ending dl{margin:8px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:baseline}#ending dt{margin:0;font-size:10px}#ending dd{font-size:14px;margin:0}#ending button{min-height:40px}}`;
+
+// Drill readout: the bore depth is the headline number and pulses as each row breaks, and the money line says what the bore earns.
+export const DRILL_STYLE = `#drill-depth{font-size:17px;font-weight:700;color:#eef5e0;letter-spacing:.3px;margin:2px 0;display:inline-block}#drill-depth.tick{animation:drill-tick .6s ease}@keyframes drill-tick{30%{color:#80d8ff;transform:scale(1.06)}}#drill-income{font-size:11px;color:#b4cf85;margin-top:3px}@media(prefers-reduced-motion:reduce){#drill-depth.tick{animation:none}}`;
