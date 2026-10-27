@@ -10,7 +10,7 @@ import {decodeMessage,escapeHtml,allowAction} from './resilience.js';
 const rooms=new Map(),sockets=new Map(),queues=new Map();
 const ended='That expedition has ended. Start a new one.';
 const routes=new Map([['/',['public/index.html','text/html']],['/favicon.svg',['public/favicon.svg','image/svg+xml']],['/cover.png',['public/cover.png','image/png']],['/cover.html',['public/cover.html','text/html']],['/config.js',['config.js','text/javascript']]]);
-for(const file of ['client.js','protocol.js','team-view.js','renderer.js','audio.js','renderer3d.js','input.js','feedback.js','scene-assets.js','cab-scene.js','control-math.js','cover.js','scene-preview.js','confirmation.js','pit-geometry.js','explorer-models.js','supply-view.js','goals.js','logistics-view.js','wording.js'])routes.set('/'+file,['public/'+file,'text/javascript']);
+for(const file of ['core-scene.js','client.js','protocol.js','team-view.js','renderer.js','audio.js','renderer3d.js','input.js','feedback.js','scene-assets.js','cab-scene.js','control-math.js','cover.js','scene-preview.js','confirmation.js','pit-geometry.js','explorer-models.js','supply-view.js','goals.js','logistics-view.js','wording.js'])routes.set('/'+file,['public/'+file,'text/javascript']);
 for(const file of ['rules.js','team-rules.js','hauling-rules.js','formatters.js','shaft-rules.js','movement-rules.js','presence-rules.js','resilience.js','economy-rules.js','excavator-rules.js','obstacles.js','personal-conveyors.js','lighting-rules.js'])routes.set('/'+file,[file,'text/javascript']);
 const server=http.createServer(async(req,res)=>{
  let url;try{url=new URL(req.url,'http://localhost');}catch{res.writeHead(400);res.end();return;}

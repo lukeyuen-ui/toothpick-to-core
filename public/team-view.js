@@ -2,6 +2,7 @@ import {C} from '/config.js';
 import {depthAt} from '/rules.js';
 import {fundEta as eta} from '/formatters.js';
 const $=id=>document.getElementById(id);
+let endingSeen=null;
 export function createTeamView(send,money,onPick){
  const rows=new Map();let picking=null;
  const full=value=>'$'+Math.round(value).toLocaleString();
@@ -29,6 +30,6 @@ export function createTeamView(send,money,onPick){
  }
  function consumePick(){picking=null;onPick(null);$('site-picker').textContent='Pick drill site';}
  function reset(){consumePick();$('ending').hidden=true;tab(false);}
- function ending(state,now){const t=state.team;if(!t?.won||now-t.wonAt<C.team.rippleMs){$('ending').hidden=true;return;}$('ending').hidden=false;$('end-time').textContent='Time to core: '+Math.floor(t.stats.timeToCore/C.team.etaMinuteSeconds)+' min '+Math.floor(t.stats.timeToCore%C.team.etaMinuteSeconds)+' sec';const list=$('end-awards');if(list.dataset.round===String(state.round))return;list.dataset.round=String(state.round);list.replaceChildren();for(const [label,key,format]of [['Deepest digger','deepestDigger',v=>{const m=depthAt(v+1);return m<C.view.km?Math.round(m)+' m':(m/C.view.km).toFixed(C.view.decimalPlaces)+' km';}],['Top contributor','topContributor',money],['Best find','bestFind',money],['Most time in the drill','mostTimeInDrill',v=>Math.floor(v)+' sec'],['Top hauler','topHauler',money]]){const dt=document.createElement('dt'),dd=document.createElement('dd'),award=t.stats[key];dt.textContent=label;dd.textContent=award?award.nickname+' · '+format(award.value):'No qualifying player';list.append(dt,dd);}}
+ function ending(state,now){const t=state.team;if(!t?.won){endingSeen=null;$('ending').hidden=true;return;}endingSeen??=now;if(now-Math.max(t.wonAt??now,endingSeen)<C.team.endingDelayMs){$('ending').hidden=true;return;}$('ending').hidden=false;$('end-time').textContent='Time to core: '+Math.floor(t.stats.timeToCore/C.team.etaMinuteSeconds)+' min '+Math.floor(t.stats.timeToCore%C.team.etaMinuteSeconds)+' sec';const list=$('end-awards');if(list.dataset.round===String(state.round))return;list.dataset.round=String(state.round);list.replaceChildren();for(const [label,key,format]of [['Deepest digger','deepestDigger',v=>{const m=depthAt(v+1);return m<C.view.km?Math.round(m)+' m':(m/C.view.km).toFixed(C.view.decimalPlaces)+' km';}],['Top contributor','topContributor',money],['Best find','bestFind',money],['Most time in the drill','mostTimeInDrill',v=>Math.floor(v)+' sec'],['Top hauler','topHauler',money]]){const dt=document.createElement('dt'),dd=document.createElement('dd'),award=t.stats[key];dt.textContent=label;dd.textContent=award?award.nickname+' · '+format(award.value):'No qualifying player';list.append(dt,dd);}}
  return {render,consumePick,reset,ending};
 }
