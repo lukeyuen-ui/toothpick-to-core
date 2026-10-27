@@ -76,9 +76,9 @@ function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/
 // The crew's average zone scales drill speed: green speeds it up, red stalls it.
 export function consoleZone(v){const K=C.console,d=Math.abs(v-0.5);return d<=K.green?'green':d<=K.yellow?'yellow':'red';}
 function consoleRandom(room){room.consoleSeed=((room.consoleSeed??(room.seed||1))*1103515245+12345)%2147483648;return room.consoleSeed/2147483648;}
-export function runConsole(room,crew,now,dt){const K=C.console,gauges=room.console??={},ids=new Set(crew.map(p=>p.publicId));for(const id of Object.keys(gauges))if(!ids.has(id))delete gauges[id];
+export function runConsole(room,crew,now,dt,surge=1){const K=C.console,gauges=room.console??={},ids=new Set(crew.map(p=>p.publicId));for(const id of Object.keys(gauges))if(!ids.has(id))delete gauges[id];
  for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind));gauges[p.publicId]={kind:K.kinds.find(k=>!used.has(k))||K.kinds[0],v:0.5,dir:consoleRandom(room)<0.5?-1:1,flipAt:now+K.flipMs};}
- if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,drift=K.drift*(1+K.crewDrift*(crew.length-1));
+ if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,drift=K.drift*surge*(1+K.crewDrift*(crew.length-1));
  for(const p of crew){const g=gauges[p.publicId];if(now>=g.flipAt){g.dir=consoleRandom(room)<0.5?-1:1;g.flipAt=now+K.flipMs*(0.5+consoleRandom(room));}const drag=1+K.redDrag*(red-(consoleZone(g.v)==='red'?1:0));g.v=Math.min(1,Math.max(0,g.v+(g.dir*drift*drag+(consoleRandom(room)-0.5)*K.jitter)*dt));}
  return crew.reduce((sum,p)=>sum+K.zoneSpeed[consoleZone(gauges[p.publicId].v)],0)/crew.length;}
 export function tuneConsole(room,p){const g=room.console?.[p.publicId];if(!p.boarded||!g)return;const step=C.console.tuneStep;g.v=Math.abs(g.v-0.5)<=step?0.5:g.v+(g.v<0.5?step:-step);}
@@ -88,11 +88,11 @@ export function runTeam(room,now,dt){
  for(const p of crew){p.drillSeconds+=dt;p.drillAt=++room.achievement;}
  const production=room.cells.filter(c=>c.pumpBuilt).length*T.pumpBarrelsPerSecond,demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
  const burn=Math.min(production,demand),ratio=demand?Math.min(1,production/demand):0;
- const panel=room.worldBreaker?1:runConsole(room,crew,now,dt),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
+ const panel=runConsole(room,crew,now,dt,room.worldBreaker?C.console.overdriveDrift:1),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
  if(speed||room.worldBreaker)for(const p of crew)p.lastWorked=now;
  if(production>burn)creditMachine(room,(production-burn)*T.barrelPrice*dt*incomeMultiplier(room),'oil');
  const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};const bore={...team,id:'bore',publicId:'bore'},digger=i=>i===room.site?team:bore;
- if(room.worldBreaker){const wb=room.worldBreaker,target=wb.startRow+Math.floor((C.finalRow-wb.startRow)*Math.min(1,(now-wb.startedAt)/T.worldBreakerMs));for(const i of boreCells(room)){for(let guard=0;guard<C.finalRow&&room.cells[i].row<target;guard++){const c=room.cells[i],before=c.row;c.damage={};c.hp=hp(c.row);room.broken.delete(i);hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),c.hp,true);if(room.cells[i].row===before)break;}}}
+ if(room.worldBreaker){const wb=room.worldBreaker,O=C.console,rate=count?1+O.overdriveBonus*Math.max(0,(panel-O.zoneSpeed.red)/(O.zoneSpeed.green-O.zoneSpeed.red)):1;wb.bonus=(wb.bonus||0)+(rate-1)*dt*C.tapWindowMs/T.worldBreakerMs;wb.charge=Math.min(1,(now-wb.startedAt)/T.worldBreakerMs+wb.bonus);wb.rate=rate;if(wb.charge<1)wb.endsAt=Math.round(now+(1-wb.charge)*T.worldBreakerMs/rate);else wb.endsAt=Math.min(wb.endsAt??now,now);const target=wb.startRow+Math.floor((C.finalRow-wb.startRow)*wb.charge);for(const i of boreCells(room)){for(let guard=0;guard<C.finalRow&&room.cells[i].row<target;guard++){const c=room.cells[i],before=c.row;c.damage={};c.hp=hp(c.row);room.broken.delete(i);hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),c.hp,true);if(room.cells[i].row===before)break;}}}
  else if(room.drill&&speed)for(const i of boreCells(room))if(i===room.site||room.cells[i].row<=room.cells[room.site].row)hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),hp(room.cells[i].row)/(T.drillSecondsPerBlock*C.tickHz)*speed,true);
  if(room.site!==null&&room.cells[room.site].row>=C.finalRow)win(room,room.worldBreaker?room.worldBreaker.endsAt:now);
  const alpha=1-Math.exp(-dt/C.incomeWindowSeconds);room.fundIncome+=(room.fundEarned/dt-room.fundIncome)*alpha;room.fundEarned=0;if(!room.won)autoBuy(room,now);

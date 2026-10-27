@@ -27,7 +27,7 @@ export function createCore(scene,assets){
   if(!won)seenAt=null;root.visible=site!=null&&(won||!!wb);if(!root.visible){beam.visible=false;return null;}
   const x=site%C.mapSize+0.5,z=Math.floor(site/C.mapSize)+0.5,clock=reduced?0:now/1000;heartMat.uniforms.time.value=clock;
   let y,scale,open,glow,heat;
-  if(!won){const t=Math.min(1,Math.max(0,(serverNow-wb.startedAt)/Math.max(1,wb.endsAt-wb.startedAt)));y=floorY-K.embed;scale=K.boreScale*(1+(reduced?0:0.04*Math.sin(clock*(3+9*t))));open=0;glow=0.35+0.55*t;heat=t*0.5;}
+  if(!won){const t=Math.min(1,Math.max(0,wb.charge??(serverNow-wb.startedAt)/Math.max(1,wb.endsAt-wb.startedAt)));y=floorY-K.embed;scale=K.boreScale*(1+(reduced?0:0.04*Math.sin(clock*(3+9*t))));open=0;glow=0.35+0.55*t;heat=t*0.5;}
   else{seenAt??=serverNow;const s=(serverNow-Math.max(team.wonAt??serverNow,seenAt))/1000;y=floorY-K.embed;scale=K.boreScale*(1+0.15*ease(s/K.openSeconds));open=ease((s-K.openAt)/K.openSeconds);glow=0.9+0.1*open;heat=0.5+0.5*open;}
   root.position.set(x,y,z);root.scale.setScalar(scale);spin.rotation.y=reduced?0:clock*0.25;heartMat.uniforms.heat.value=heat;
   for(const shard of shards){const d=shard.userData.dir;shard.position.copy(d).multiplyScalar(open*K.openDistance);shard.rotation.set(shard.userData.tumble.x*open,shard.userData.tumble.y*open,shard.userData.tumble.z*open);}
