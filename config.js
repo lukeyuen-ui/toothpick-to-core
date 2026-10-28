@@ -18,10 +18,12 @@ export const C = {
  oilPurpose:'Oil powers the plasma drill. Oil the drill does not burn sells every second: half to the team fund, half to active crew.',
  logistics:{coolantLead:4,pipeHeight:0.17,pipeRadius:0.035,flowCount:4,flowSpeed:1.5,flowRadius:0.055,hoistOreSize:0.08},
  quickValueMultiplier:60,quickMinimumSeconds:240,quickMaximumSeconds:420,
- // Hardcore: every block has hpMultiplier times the hit points, and ore, finds and oil pay a valueDivisor-th as much; every price stays the same.
+ // Hardcore, a two-week expedition: every block has hpMultiplier times the hit points, and ore, finds and oil pay a valueDivisor-th as much; every price stays the same.
  // Machines keep their power, so the excavator and the plasma drill also take hpMultiplier times as long per block. The World Breaker still runs sixty seconds.
- // The pacing bots (test/pacing.test.js) reach the core in minimumSeconds to maximumSeconds.
- hardcore:{hpMultiplier:3,valueDivisor:4,minimumSeconds:7200,maximumSeconds:10800},
+ // Ore that poor cannot buy the first lamps (every daylight row on the claim is worth about $4,900 before the divisor, and each digger needs a $150 Headlamp),
+ // so each explorer lands with startWallet: the Spoon, Trowel, Headlamp and a cargo pod, with change towards the Floodlamp.
+ // The pacing bots reach the core in minimumSeconds to maximumSeconds of nonstop play (PACING_FULL=1 node --test test/pacing.test.js).
+ hardcore:{hpMultiplier:200,valueDivisor:30,startWallet:1000,minimumSeconds:936000,maximumSeconds:1368000},
  cargoPods:[{name:'Pod I',icon:'🎒',cost:300,hold:12},{name:'Pod II',icon:'🎒',cost:12000,hold:36},{name:'Pod III',icon:'🎒',cost:600000,hold:100},{name:'Pod IV',icon:'🎒',cost:60000000,hold:300}],
  guide:{checkMs:650,cardWidth:225,markerHeight:1.7,markerBob:0.12,notes:[784,1047]},coreMeter:{coldColor:[119,200,236],hotColor:[237,120,67],depthWeight:0.7,totalWeight:0.3,maxBeforeFinale:0.95},
  mapSize:16, maxPlayers:4, codeLength:4, codeAlphabet:'ABCDEFGHJKLMNPQRSTUVWXYZ', idleMs:1800000,

@@ -9,10 +9,10 @@ import {home,isDepot,holdCapacity} from '../hauling-rules.js';
 
 function steer(bot,x,y,room,add){const p=bot.p,key=x+':'+y,unit=C.pacing.navStep,width=Math.round(C.mapSize/unit),goal=Math.floor(y)*C.mapSize+Math.floor(x);if(bot.routeKey!==key||!bot.route?.length){bot.routeKey=key;const safe=(px,py)=>{if(!validPosition(px,py))return false;const cx=Math.floor(px),cy=Math.floor(py),index=cy*C.mapSize+cx;return index===goal||!room.cells[index]?.row||Math.abs(px-cx-0.5)>=C.shafts.entryRadius||Math.abs(py-cy-0.5)>=C.shafts.entryRadius||index===p.rimCell;},segment=(tx,ty)=>{const n=Math.max(1,Math.ceil(Math.hypot(tx-p.x,ty-p.y)/C.movement.substep));for(let j=1;j<=n;j++)if(!safe(p.x+(tx-p.x)*j/n,p.y+(ty-p.y)*j/n))return false;return true;},parents=new Map(),queue=[];for(let ny=Math.floor(p.y/unit)-2;ny<=Math.ceil(p.y/unit)+2;ny++)for(let nx=Math.floor(p.x/unit)-2;nx<=Math.ceil(p.x/unit)+2;nx++){if(nx<1||ny<1||nx>=width||ny>=width||!safe(nx*unit,ny*unit)||!segment(nx*unit,ny*unit))continue;const id=ny*width+nx;parents.set(id,null);queue.push(id);}let end=null;for(let i=0;i<queue.length;i++){const id=queue[i],cx=id%width,cy=Math.floor(id/width);if(Math.hypot(cx*unit-x,cy*unit-y)<unit/2){end=id;break;}for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,nid=ny*width+nx;if(nx<1||ny<1||nx>=width||ny>=width||parents.has(nid)||!safe(nx*unit,ny*unit))continue;parents.set(nid,id);queue.push(nid);}}const points=[];while(end!=null){points.push({x:end%width*unit,y:Math.floor(end/width)*unit});end=parents.get(end);}bot.route=points.reverse();}while(bot.route.length&&Math.hypot(p.x-bot.route[0].x,p.y-bot.route[0].y)<C.damageEpsilon)bot.route.shift();const target=bot.route[0];if(!target){add(p,'move',{dx:0,dy:0});return;}const dx=target.x-p.x,dy=target.y-p.y,length=Math.max(Math.hypot(dx,dy),C.mobility[p.mobility].speed*C.tickSeconds);add(p,'move',{dx:dx/length,dy:dy/length});}
 
-export function simulate(seed=C.pacing.seed,count=2,{quick=false,hardcore=false}={}){
+export function simulate(seed=C.pacing.seed,count=2,{quick=false,hardcore=false,seconds=hardcore?C.hardcore.maximumSeconds:C.pacing.maximumSeconds}={}){
  const room=createRoom('PACE',seed,false,0,quick,hardcore),bots=Array.from({length:count},(_,i)=>{const p=join(room,'bot'+i,'Bot '+(i+1),0);p.publicId='bot'+i;return {p,work:null,nextTap:0,nextTrade:0};}),timeline={},upgrades=[];
  const record=(name,now)=>{timeline[name]??=now/C.tapWindowMs;};
- for(let now=C.tickMs,end=(hardcore?C.hardcore.maximumSeconds:C.pacing.maximumSeconds)*C.tapWindowMs;now<=end&&!room.won;now+=C.tickMs){
+ for(let now=C.tickMs,end=seconds*C.tapWindowMs;now<=end&&!room.won;now+=C.tickMs){
   const commands=[],add=(p,type,extra={})=>commands.push({player:p,message:{type,...extra}}),bothMech=bots.every(b=>b.p.tool===C.tools.length-1);
   for(const bot of bots){const p=bot.p;add(p,'move',{dx:0,dy:0});
    if(room.vote&&room.vote.voters.includes(p.publicId)&&!room.vote.ballots[p.publicId])add(p,'vote',{yes:true});
@@ -57,5 +57,12 @@ test('solo pooling seed 42 reaches the core inside the pacing window',()=>check(
 
 for(const count of [2,1])for(const seed of [5,42])test(`Quick ${count} explorers seed ${seed} finishes in eight to twelve minutes`,()=>check(seed,false,count,true));
 
-// Hardcore: tougher rock and poorer ore at the same prices. The bots take about two and a half hours, five to eight times a Full expedition.
-for(const count of [2,1])for(const seed of [5,42])test(`Hardcore ${count} explorers seed ${seed} reaches the core in two to three hours`,()=>check(seed,true,count,false,true));
+// Hardcore (C.hardcore): far tougher rock and far poorer ore at the same prices. These bots need about two weeks of nonstop play, which takes about a minute
+// of simulation per run, so the default suite checks the first day only. PACING_FULL=1 node --test test/pacing.test.js runs the four full expeditions.
+test('Hardcore: the starting wallet buys the first tools at once, and the first day reaches granite without stalling at a light gate',()=>{
+ for(const [count,seed] of [[2,5],[1,42]]){const {room,timeline}=simulate(seed,count,{hardcore:true,seconds:24*3600});assert.equal(room.hardcore,true);assert.equal(room.won,false);
+  assert.ok(timeline['first upgrade']<=3600,'first upgrade inside the first hour: '+timeline['first upgrade']);
+  for(const p of room.players)assert.ok(p.tool>=2&&p.lighting>=2&&p.pods>=1&&p.mobility>=1,'Trowel, Floodlamp, a pod and servos on day one: '+JSON.stringify({tool:p.tool,lighting:p.lighting,pods:p.pods,mobility:p.mobility}));
+  assert.ok(room.deepest>=C.graniteRow,'down to granite on day one: row '+room.deepest);}});
+const fullHardcore=process.env.PACING_FULL==='1'?false:'about two weeks of play each: run with PACING_FULL=1';
+for(const count of [2,1])for(const seed of [5,42])test(`Hardcore ${count} explorers seed ${seed} reaches the core in about two weeks`,{skip:fullHardcore},()=>check(seed,true,count,false,true));
