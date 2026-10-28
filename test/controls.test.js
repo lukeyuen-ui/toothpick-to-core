@@ -23,3 +23,12 @@ test('a kicked rope swings back and forth at its own slow rate and settles, the 
  const big={x:0,z:0,vx:0,vz:0};swayStep(big,10,K.ropeHz,K.ropeDamping);assert.ok([big.x,big.z,big.vx,big.vz].every(Number.isFinite));
  assert.ok(C.cab.ropePoints>=4,'a rope bends through a few points');
 });
+
+// Capsule vibration (physics pass): aboard the drill the capsule hums with its load in the same buzz the red zone raises; never two rumbles.
+test('the capsule hums with the drill load, the red zone raises the same buzz, the overdrive rattle replaces it, and reduced motion stills it',()=>{
+ const K=C.three.cockpit,peak=v=>v?Math.max(...v.map(Math.abs)):0;let hum=0,red=0,both=0;const out=[0,0,0];
+ for(let i=0;i<400;i++){const t=i/997;hum=Math.max(hum,peak(cabShake(false,0,false,t,K,Math.random,1)));red=Math.max(red,peak(cabShake(false,1,false,t,K,Math.random,0)));both=Math.max(both,peak(cabShake(false,1,false,t,K,Math.random,1,out)));}
+ assert.ok(hum>0&&hum<=K.redRumble*K.loadRumble*0.5+1e-9,'a low hum at full load: '+hum);assert.ok(red>hum,'the red zone raises it');assert.ok(Math.abs(both-red)<1e-9,'one buzz at the larger, never the sum');
+ assert.equal(cabShake(false,0,false,1,K,Math.random,0),null,'an idle drill is still');assert.equal(cabShake(false,0,true,1,K,Math.random,1),null,'reduced motion: no hum');
+ assert.equal(cabShake(false,0,false,0.3,K,Math.random,1,out),out,'fills the array it is given');const od=cabShake(true,0,false,1,K,()=>1,1);assert.ok(Math.abs(od[0]-K.overdriveShake*0.5)<1e-9,'the overdrive rattle takes over');
+});
