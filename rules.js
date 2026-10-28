@@ -70,7 +70,7 @@ export function toolPattern(room,p,x,y,tool,amount,shaftRow){const N=C.mapSize,c
  let reached=0;for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true,false,tool.pierce||0);continue;}const i=ny*N+nx,n=room.cells[i];
   if(tool.area){if(n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)&&!home(nx+0.5,ny+0.5)){reached++;hit(room,p,nx,ny,amount*force,true,true,tool.pierce||0);}continue;}
   if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)){reached++;hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true,tool.pierce||0);}}
- if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle. The mining mech carves its own 3x3 wherever it is.');}}
+ if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft&&!room.showcase){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle. The mining mech carves its own 3x3 wherever it is.');}}
 // pierce: how many extra rows damage left over after breaking a row may carry into, in the same hit (the tunnel borer bores down two layers at a time).
 export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,again=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
@@ -100,7 +100,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
   if(find){
    const vein=!!find.groupId&&room.finds.some(f=>f!==find&&f.groupId===find.groupId&&f.extracted);find.extracted=true;delete cell.surfaceSign;removeFindHints(room,find.id);
    if(find.type==='oil'){cell.oilSite=true;cell.oilRow=cell.row;cell.pumpBuilt=false;if(find.groupId){cell.oilField=find.groupId;room.oilFields[find.groupId]??={cells:room.finds.filter(f=>f.groupId===find.groupId).map(f=>f.cell)};}}
-   room.announcements.push({nickname:p.nickname,type:find.type,bonus,vein,...(find.type==='oil'?{cellLabel:String.fromCharCode('A'.charCodeAt(0)+x)+(y+1)}:{})});
+   if(!room.showcase||(!p.bot&&find.type!=='oil'))room.announcements.push({nickname:p.nickname,type:find.type,bonus,vein,...(find.type==='oil'?{cellLabel:String.fromCharCode('A'.charCodeAt(0)+x)+(y+1)}:{})});
    for(const who of room.players)updateDowsing(room,who);
   }
   const previousRow=cell.row;cell.row++;for(const who of room.players)if(who.shaft===index&&!who.belay&&who.depth+C.damageEpsilon>=previousRow)who.depth=cell.row;

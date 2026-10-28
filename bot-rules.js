@@ -64,7 +64,7 @@ function showcaseCrew(room,p,b,L,now,add){const S=C.showcase,N=C.mapSize;
  if(room.arc?.beat!=='dig'){if(p.shaft!=null)add('belay');return;}
  if(crewBots(room)[0]===p&&people(room).some(h=>h.connected&&h.tool===0))return;
  const spot=S.crewShafts[p.seat];if(!spot)return;const [x,y]=spot,cell=room.cells[y*N+x];
- if(p.shaft!=null){const floor=room.cells[p.shaft].row;if(floor<S.crewRow&&p.depth+C.damageEpsilon>=floor&&now>=b.nextTap){add('tap',{x:p.shaft%N,y:Math.floor(p.shaft/N)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
+ if(p.shaft!=null){const floor=room.cells[p.shaft].row,cap=room.arc.crewDeep&&crewBots(room).at(-1)===p?S.siteRow:S.crewRow;if(floor<cap&&p.depth+C.damageEpsilon>=floor&&now>=b.nextTap){add('tap',{x:p.shaft%N,y:Math.floor(p.shaft/N)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
  if(cell.row>C.shafts.surfaceReachRows){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){b.route=null;add('belayDown',{x,y});}else steer(b,p,x+0.5,y+0.5,room,add);}
  else if(!within(p,x,y))steer(b,p,x+0.5,y+0.5,room,add);
  else if(now>=b.nextTap){b.route=null;add('tap',{x,y});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}}

@@ -70,10 +70,12 @@ export const C = {
  // that shaft (minSiteRow deep at least, else their deepest crew shaft) and the rig drops into it once nobody hangs inside: people get haulMs to belay
  // up before the crew winches them, and every belay takes belaySeconds. Idle people are walked aboard after idleBoardMs. The fund starts empty; each row
  // the drill bores at the site's floor pays rowShare of the World Breaker's price (half of it to the fund, more with every row deeper, as ore does).
- // The crew proposes the finale proposeDelayMs after the fund covers it, once the console has run consoleMinMs. Bots dig crew shafts by seat
- // (crewShafts) down to crewRow and take the botSeats; people get the humanSeats first.
+ // The crew proposes the finale proposeDelayMs after the fund covers it, once the console has run consoleMinMs. Bots dig shallow crew pits by seat
+ // (crewShafts) down to crewRow, so the core meter and the depth readout follow the visitor's own shaft; if the first person has not dug, or has
+ // stopped digging, crewDeepMs after the mech, the last bot takes its pit down to siteRow so the drill still gets a deep shaft. Bots take the
+ // botSeats; people get the humanSeats first.
  showcase:{botLevel:'normal',mobility:2,toothpickTaps:3,throwDelayMs:1200,toothpickMs:12000,digPower:2,siteRow:146,siteDelayMs:1500,minSiteRow:40,digMs:45000,digCapMs:60000,diggingMs:3000,dropReach:2,
-  crewShafts:[[3,12],[8,2],[13,9],[9,13]],crewRow:146,fallback:[13,9],fallbackRow:140,belaySeconds:3,haulMs:5000,idleBoardMs:8000,boardCapMs:25000,
+  crewShafts:[[3,12],[8,2],[13,9],[9,13]],crewRow:24,crewDeepMs:15000,fallback:[13,9],fallbackRow:140,belaySeconds:3,haulMs:5000,idleBoardMs:8000,boardCapMs:25000,
   rowShare:0.2,proposeDelayMs:6000,consoleMinMs:25000,humanSeats:['HEAT','POWER','PRESSURE','ALIGN'],botSeats:['PRESSURE','ALIGN','POWER','HEAT'],
   oilRow:30,pumps:[[11,4],[12,4]],limitSeconds:600},
  // Bot seat habits: tuneAt is how far off centre HEAT and PRESSURE get before the bot reacts and tuneEveryMs its reaction time; a HEAT vent doubles up (overcools) with chance fumble;

@@ -47,7 +47,7 @@ export function runShowcase(room,now){if(!room.showcase||room.won)return;
 // Beat 1: three taps with the toothpick (or a short wait) and the nearest crewmate throws over the mech.
 function toothpick(room,p,now,voice){const S=C.showcase,t=p.tour;if((p.taps||0)>=S.toothpickTaps)t.tappedAt??=now;
  if(!(t.tappedAt!=null&&now-t.tappedAt>=S.throwDelayMs)&&now-t.joinedAt<S.toothpickMs)return;
- p.tool=MECH;p.autoElapsed=0;t.mechAt=now;say(room,voice,'Nobody digs to the core with a toothpick, '+p.nickname+'. Catch!');
+ p.tool=MECH;p.autoElapsed=0;p.target=null;t.mechAt=now;say(room,voice,'Nobody digs to the core with a toothpick, '+p.nickname+'. Catch!');
  privateToast(room,p,'Mining mech equipped. Its claws tear out a 3x3 with every hit.');}
 
 // Beat 2: the first mech hole beside you swallows you, so you are digging your own 3 by 3 shaft at once; the mech widens it as you go down.
@@ -59,7 +59,7 @@ function dropIn(room,p){const S=C.showcase,t=p.target;if(p.shaft!=null||p.belay|
 // or their own deepest crew shaft when the person never dug.
 function dig(room,arc,lead,voice,now){const S=C.showcase,mechAt=lead?.tour?.mechAt;if(mechAt==null)return;
  const own=lead.shaft??lead.tour.shaft,floor=own!=null?room.cells[own].row:0,since=now-mechAt,digging=own!=null&&now-(lead.lastWorked??-Infinity)<S.diggingMs;
- if(floor>=S.siteRow)arc.deepAt??=now;
+ if(floor>=S.siteRow)arc.deepAt??=now;if(since>=S.crewDeepMs&&!digging)arc.crewDeep=true;// a visitor who is not digging: a bot digs the drill a shaft
  if(room.vote||!(arc.deepAt!=null?now-arc.deepAt>=S.siteDelayMs:since>=S.digCapMs||(since>=S.digMs&&!digging)))return;
  let site=own!=null&&floor>=S.minSiteRow?own:deepest(room);if(room.cells[site].row<S.minSiteRow)site=fallback(room);
  propose(room,arc,voice,site,now);}
