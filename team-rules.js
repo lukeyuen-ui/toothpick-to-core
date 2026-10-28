@@ -31,7 +31,7 @@ export function teamAction(room,p,msg,now){
  if(msg.type==='reset'){if(room.won)resetPlanet(room,now);return;}
  if(room.won)return;
  // The drill cab radios the hub, so a crew aboard can chip in and propose from their seats.
- if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p)&&!p.boarded)return {type:'toast',text:'Trade at the hub'};
+ if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p)&&!p.boarded&&!(room.showcase&&p.bot))return {type:'toast',text:'Trade at the hub'};
  if(msg.type==='board'&&(p.shaft!=null||p.belay))return {type:'toast',text:'Belay up before boarding'};
  if(msg.type==='chip'){
   if(typeof msg.amount!=='string'||!Object.hasOwn(T.chipFractions,msg.amount))return;const fraction=T.chipFractions[msg.amount];
@@ -71,7 +71,7 @@ export function autoBuy(room,now){const goal=room.goal;if(!goal||requirement(roo
  if(goal.item==='worldBreaker'){for(const p of room.players)if(!p.departed&&Math.floor(p.y)*C.mapSize+Math.floor(p.x)===room.site){p.shaft=room.site;rimArrival(room,p);p.belay=null;p.drive=null;p.target=null;}room.worldBreaker={startedAt:now,startRow:room.cells[room.site].row,endsAt:now+T.worldBreakerMs};}
 }
 // The plasma drill bores a 3 by 3 shaft: the site first, then its eight neighbours (never ahead of the site). Extra blocks pay nothing.
-function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
+export function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
 // Drill console: every crew member aboard works one seat, and each seat (pressure, heat, alignment, power) is its own small game.
 // HEAT climbs on its own and each tap vents a burst, so tapping too often overcools. PRESSURE builds while the valve is shut and bleeds
 // while it is held, so the hold has to be feathered. ALIGN lets two axes wander apart until both pads are held, then pulls them together.
@@ -94,7 +94,7 @@ function stepGauge(room,g,now,dt,pace){const K=C.console,noise=()=>(consoleRando
   if(a<A.edge||a>1-A.edge)g.da=a<A.edge?1:-1;if(b<A.edge||b>1-A.edge)g.db=b<A.edge?1:-1;g.a=Math.min(1-A.edge,Math.max(A.edge,a));g.b=Math.min(1-A.edge,Math.max(A.edge,b));g.v=unit(0.5+(g.a-g.b)/2);}
  else if(g.kind==='POWER'){const P=K.power;g.speed+=(g.dir*K.drift*pace-g.speed)*(1-Math.exp(-P.ease*dt));g.target+=g.speed*dt;if(g.target<P.low||g.target>P.high){g.dir=g.target<P.low?1:-1;g.speed=-g.speed;g.target=Math.min(P.high,Math.max(P.low,g.target));}g.v=unit(0.5+g.level-g.target);}}
 export function runConsole(room,crew,now,dt,surge=1){const K=C.console,gauges=room.console??={},ids=new Set(crew.map(p=>p.publicId));for(const id of Object.keys(gauges))if(!ids.has(id))delete gauges[id];
- for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind));gauges[p.publicId]=newGauge(room,K.kinds.find(k=>!used.has(k))||K.kinds[0],now);}
+ for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind)),order=room.showcase?C.showcase[p.bot?'botSeats':'humanSeats']:K.kinds;gauges[p.publicId]=newGauge(room,order.find(k=>!used.has(k))||K.kinds[0],now);}
  if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,pace=surge*(1+K.crewDrift*(crew.length-1));
  for(const p of crew){const g=gauges[p.publicId];stepGauge(room,g,now,dt,pace*(1+K.redDrag*(red-(consoleZone(g.v)==='red'?1:0))));}
  return crew.reduce((sum,p)=>sum+K.zoneSpeed[consoleZone(gauges[p.publicId].v)],0)/crew.length;}

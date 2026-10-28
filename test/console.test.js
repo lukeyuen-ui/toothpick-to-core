@@ -8,6 +8,10 @@ import {validMessage,decodeMessage} from '../resilience.js';
 import {fillBots,botCommands,crewBots,workSeat} from '../bot-rules.js';
 import {setupShowcase,equipShowcase} from '../showcase-rules.js';
 import {operate} from './console-play.js';
+import {playShowcase} from './showcase-play.js';
+// A drill-ready room (the old showcase's starting point): the rig over a 3 by 3 bore at row 156, coolant, and two oil pumps.
+function lateGame(r){const N=C.mapSize,x=4,y=8;r.site=y*N+x;r.drill={index:r.site};r.coolant=true;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)Object.assign(r.cells[(y+dy)*N+x+dx],{row:156,hp:hp(156),damage:{}});
+ for(const i of [4*N+11,4*N+12])Object.assign(r.cells[i],{row:30,hp:hp(30),damage:{},oilSite:true,oilRow:30,pumpBuilt:true});return r;}
 
 // One seat on its own: four players sit down together so each kind exists, then only the seat under test keeps running.
 function seat(kind,seed=7){const room={seed,console:{}},crew=[0,1,2,3].map(i=>({publicId:'p'+i,boarded:true}));runConsole(room,crew,0,C.tickSeconds);const p=crew.find(q=>room.console[q.publicId].kind===kind);let now=0;
@@ -81,18 +85,17 @@ test('POWER bots chase the target with lag; easy bots lag more than hard ones',(
  const L=C.bots.levels;for(const key of ['tuneAt','tuneEveryMs','letGo','fumble','slip','slipMs','shake'])assert.ok(L.easy[key]>=L.normal[key]&&L.normal[key]>=L.hard[key],key+' gets sloppier as bots get easier');assert.ok(L.easy.follow<L.normal.follow&&L.normal.follow<L.hard.follow);});
 
 // Through a whole overdrive: a person plays one seat perfectly and normal bots work the other three, in each arrangement.
-test('normal bots keep every seat working through the overdrive, but never perfectly',()=>{const tally={};for(let k=0;k<4;k++){const r=createRoom('BOTS',30+k,false,0,true);r.botLevel='normal';setupShowcase(r);const p=join(r,'h','Ana',0);p.publicId='a';equipShowcase(r,p);fillBots(r,0);
+test('normal bots keep every seat working through the overdrive, but never perfectly',()=>{const tally={};for(let k=0;k<4;k++){const r=lateGame(createRoom('BOTS',30+k,false,0,true));r.botLevel='normal';const p=join(r,'h','Ana',0);p.publicId='a';fillBots(r,0);
   r.players.splice(r.players.indexOf(p),1);r.players.splice(k,0,p);for(const q of r.players){q.boarded=true;q.boarding=false;q.drive=null;}r.worldBreaker={startedAt:0,startRow:r.cells[r.site].row,endsAt:1e9};
   for(let now=0;now<40000;now+=C.tickMs){const cmds=[...botCommands(r,now).filter(c=>c.message.type!=='propose'),...operate(r).filter(c=>c.player===p)];step(r,cmds,now);if(now>=2000)for(const b of crewBots(r)){const g=r.console[b.publicId],t=tally[g.kind]??={n:0,green:0,yellow:0,red:0};t.n++;t[consoleZone(g.v)]++;}}}
  assert.deepEqual(Object.keys(tally).sort(),[...C.console.kinds].sort());for(const [kind,t] of Object.entries(tally)){const green=t.green/t.n,red=t.red/t.n;assert.ok(green>0.1&&green<0.97,kind+' green '+green);assert.ok(red<0.4,kind+' red '+red);}});
 
-test('a showcase with normal bots and a person working their own seat reaches the core in about a minute',()=>{const r=createRoom('SHOW',9,false,0,true);r.botLevel='normal';setupShowcase(r);const p=join(r,'h','Ana',0);p.publicId='a';equipShowcase(r,p);fillBots(r,0);let now=0;
- for(;now<C.showcase.limitSeconds*C.tapWindowMs&&!r.won;now+=C.tickMs){if(now%1000<C.tickMs)fillBots(r,now);const cmds=botCommands(r,now);if(now>=3000&&!p.boarded&&!p.boarding&&!p.drive)cmds.push({player:p,message:{type:'board'}});if(r.vote&&!r.vote.ballots[p.publicId])cmds.push({player:p,message:{type:'vote',yes:true}});cmds.push(...operate(r).filter(c=>c.player===p));step(r,cmds,now);}
- assert.ok(r.won);assert.ok(now>45000&&now<90000,'won after '+now/1000+' s');});
+test('in a showcase, a person who works their own seat rides the console for about 45 seconds and the overdrive cracks the core in under a minute',()=>{const {r,t}=playShowcase({seed:9,policy:'follow'});
+ assert.ok(r.won);assert.ok(t.breaker-t.boarded>=35&&t.breaker-t.boarded<=70,'console '+(t.breaker-t.boarded)+' s');assert.ok(t.won-t.breaker>=30&&t.won-t.breaker<=C.team.worldBreakerMs/C.tapWindowMs,'overdrive '+(t.won-t.breaker)+' s');});
 
 // The readout tells seated crew to propose the World Breaker in Command, so the confirm step has to work from the seat.
 test('a seated crew member far from the hub can confirm the World Breaker proposal; someone walking there cannot',async()=>{const {createConfirmation}=await import('../public/confirmation.js');
- const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);const p=join(r,'a','Ana',0);p.publicId='a';equipShowcase(r,p);[p.x,p.y]=[C.mapSize-1.5,C.mapSize-1.5];
+ const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);const p=join(r,'a','Ana',0);p.publicId='a';equipShowcase(r,p);[p.x,p.y]=[C.mapSize-1.5,C.mapSize-1.5];r.site=8*C.mapSize+4;r.drill={index:r.site};
  const nodes=Object.fromEntries(['confirm-panel','confirm-name','confirm-detail','confirm-price','confirm-wallet','confirm-status','confirm-yes','confirm-cancel','confirm-footprint'].map(id=>[id,{hidden:true,disabled:false,textContent:'',focus(){}}])),sent=[];
  const ui=createConfirmation({getContext:()=>{const state=snapshot(r,true);return {state,me:state.players.find(q=>q.id==='a'),connected:true};},send:m=>sent.push(m),money:n=>'$'+n,document:{getElementById:id=>nodes[id],activeElement:null}}),message={type:'propose',item:'worldBreaker'};
  ui.open(message);assert.equal(nodes['confirm-panel'].hidden,true,'walking far from the hub');p.boarded=true;ui.open(message);assert.equal(nodes['confirm-panel'].hidden,false,'aboard the drill');assert.equal(nodes['confirm-yes'].disabled,false);nodes['confirm-yes'].onclick();assert.deepEqual(sent,[message]);

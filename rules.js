@@ -10,6 +10,7 @@ import { C } from './config.js';
 import {applyMove,liveMove,slide,driveStep,validPosition} from './movement-rules.js';
 import {initialTeam,creditFund,markActive,teamAction,runTeam,board,catalog,resolveVote,tuneConsole,publicConsole} from './team-rules.js';
 import {isDepot,home,addCargo,hoistCargo,haulAlong,runConveyors,publicPiles,returnHome,crossedCells,privateToast} from './hauling-rules.js';
+import {runShowcase} from './showcase-rules.js';
 export function seeded(seed) { let state=seed>>>0; return ()=>{state=(Math.imul(state,C.seed.multiplier)+C.seed.increment)>>>0; return state/C.seed.modulus;}; }
 export function generateFinds(seed) {
  const random=seeded(seed),used=new Set(C.hauling.depotCells.map(([x,y])=>y*C.mapSize+x)),finds=[],D=C.deposits;
@@ -79,6 +80,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
  if(machineAt(room,x,y)?.damagerId!==p.id&&machineAt(room,x,y))return;
  if((room.broken.has(index)&&!again)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
  if(!p.isTeam){lightShaft(room,p,index);p.lastWorked=room.now;}
+ if(room.showcase&&!again&&C.tools[p.tool]?.area)amount*=C.showcase.digPower;// the showcase mech digs harder (see C.showcase)
  cell.richStart??=cell.row;const actual=Math.min(amount,cell.hp),leftover=amount-actual; cell.hp-=actual; cell.damage[p.id]=(cell.damage[p.id]||0)+actual; room.dirty.add(index);
  if(cell.hp<=hp(cell.row)*C.damageEpsilon) {
   const total=Object.values(cell.damage).reduce((a,b)=>a+b,0), value=cellPayout(cell)*incomeMultiplier(room);
@@ -92,7 +94,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
   }
   const teamFraction=(cell.damage[C.team.damagerId]||0)/total;
   for(const m of room.excavators){const f=(cell.damage[m.damagerId]||0)/total;if(f){stashExcavator(room,m,value*f,bonus*f);shares[m.damagerId]=(value+bonus)*f;bonuses[m.damagerId]=bonus*f;}}
-  if(teamFraction){const credited=(value+bonus)*teamFraction*(C.team.drillYield||1);creditMachine(room,credited,'drill');shares[C.team.damagerId]=credited;bonuses[C.team.damagerId]=bonus*teamFraction;}
+  if(teamFraction){const credited=(value+bonus)*teamFraction*(C.team.drillYield||1)*(room.drillScale??1);creditMachine(room,credited,'drill');shares[C.team.damagerId]=credited;bonuses[C.team.damagerId]=bonus*teamFraction;}
   if(!p.isTeam&&cell.row>p.deepestRow){p.deepestRow=cell.row;p.deepestAt=++room.achievement;}
   room.breakEvents.push({index,shares,bonuses,units,spilled,viaBelt});
   if(find){
@@ -111,7 +113,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
 const SIDES=[[1,0],[-1,0],[0,1],[0,-1]];
 export function collapseAround(room,index){const N=C.mapSize,M=C.pits.mergeRow,x=index%N,y=Math.floor(index/N);if(room.cells[index].row<M)return;for(const [dx,dy] of SIDES){const nx=x+dx,ny=y+dy;if(!validCell(nx,ny))continue;const i=ny*N+nx,c=room.cells[i];if(c.row>=M||isDepot(nx,ny)||i===room.site||machineAt(room,nx,ny)||room.players.some(p=>!p.departed&&(p.shaft===i||(p.shaft==null&&Math.floor(p.x)===nx&&Math.floor(p.y)===ny))))continue;const around=SIDES.map(([ax,ay])=>validCell(nx+ax,ny+ay)?room.cells[(ny+ay)*N+nx+ax].row:-1);if(around.some(r=>r<M))continue;c.row=Math.min(...around);c.hp=hp(c.row);c.damage={};room.dirty.add(i);room.broken.add(i);room.deepest=Math.max(room.deepest,c.row);}}
 export function action(room,p,message,now) {
- if(!p.connected||!validMessage(message)) return;
+ if(!p.connected||!validMessage(message)) return;p.inputAt=now;
  if(message.type==='layConveyor')return layConveyor(room,p,message);
  if(['buyExcavator','placeExcavator','toggleExcavator','takeExcavator'].includes(message.type))return excavatorAction(room,p,message,now);
  if(['chip','propose','proposeSite','proposeConveyor','vote','cancelVote','board','reset'].includes(message.type))return teamAction(room,p,message,now);
@@ -135,7 +137,7 @@ export function action(room,p,message,now) {
   if(!within(p,x,y)) {p.drive={x:x+0.5,y:y+0.5};p.target=null;return;}
   p.drive=null;
   const reason=machineAt(room,x,y)?'Keep out. Excavator running.':isDepot(x,y)?'Depot. Bring cargo here.':shaftGate(room,p,x,y)||gate(p,room.cells[y*C.mapSize+x].row,room); if(reason) {p.target=null; return {type:'toast',text:reason,x,y};}
-  p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap,false,false,tool.pierce||0);
+  p.taps=(p.taps||0)+1;p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap,false,false,tool.pierce||0);
   toolPattern(room,p,x,y,tool,tool.tap,shaftRow);
  } else if(message.type==='buy') {
   if(!atHub(p))return {type:'toast',text:'Trade at the hub'};
@@ -181,16 +183,17 @@ export function step(room,commands,now,dt=C.tickSeconds) {
  runExcavators(room,now,dt);
  runConveyors(room,dt);
  runTeam(room,now,dt);
+ if(room.showcase)runShowcase(room,now);
  if(!room.won)for(const p of room.players)if(p.connected)haulAlong(room,p);
  for(const p of room.players){const alpha=1-Math.exp(-dt/C.incomeWindowSeconds);p.income+=(p.earned/dt-p.income)*alpha;p.earned=0;p.beltIncome+=((p.beltEarned||0)/dt-p.beltIncome)*alpha;p.beltEarned=0;}
 }
-export function publicPlayer(p) { const {aim,controlTimes,token,tapTimes,autoElapsed,earned,id,detectorCell,lastActive,bestFindAt,contributedAt,deepestAt,drillAt,deliveredAt,hold,holdFullNotified,rimCell,shaftEntry,surfaceCell,shaftApproach,lastWorked,beltEarned,moveAt,drivePath,driveKey,...safe}=p; return {...safe,hold:{units:hold.units,value:hold.value},id: p.publicId}; }
+export function publicPlayer(p) { const {aim,controlTimes,token,tapTimes,inputAt,tour,autoElapsed,earned,id,detectorCell,lastActive,bestFindAt,contributedAt,deepestAt,drillAt,deliveredAt,hold,holdFullNotified,rimCell,shaftEntry,surfaceCell,shaftApproach,lastWorked,beltEarned,moveAt,drivePath,driveKey,...safe}=p; return {...safe,hold:{units:hold.units,value:hold.value},id: p.publicId}; }
 function wireCells(room,indices){return [...indices].map(index=>{const c=room.cells[index];return {index,row:c.row,hp:c.hp,thin:isThin(c),surfaceSign:c.surfaceSign||null,oilSite:!!c.oilSite,pumpBuilt:!!c.pumpBuilt,litDepth:c.litDepth||0,shaftLights:!!c.shaftLights,damage:Object.fromEntries(Object.entries(c.damage).map(([id,amount])=>[id===C.team.damagerId?id:room.players.find(p=>p.id===id)?.publicId,amount]))};});}
 function delta(previous,next){const patch={};for(const [key,value]of Object.entries(next))if(JSON.stringify(previous?.[key])!==JSON.stringify(value))patch[key]=value;return patch;}
 export function snapshot(room,full=false) {
  full=full||room.resetEvent;
  const metadata={code:room.code,fast:room.fast,quick:room.quick,showcase:!!room.showcase,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
- const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil'].map(key=>[key,room[key]]));team.console=publicConsole(room);team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
+ const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil','arc'].map(key=>[key,room[key]]));team.console=publicConsole(room);team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
  const players=room.players.map(publicPlayer),hintStrings=Object.fromEntries(Object.entries(room.hints).map(([key,value])=>[key,JSON.stringify(value)]));
  const piles=publicPiles(room),belts=room.belts;
  const envelope={type:full?'full':'diff',tick:room.tick,serverNow:room.now};

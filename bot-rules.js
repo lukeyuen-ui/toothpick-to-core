@@ -15,8 +15,6 @@ export const people=room=>room.players.filter(p=>!p.bot&&!p.departed);
 export const crewBots=room=>room.players.filter(p=>p.bot&&!p.departed);
 function removeBot(room,bot,now){disconnect(room,bot,now);bot.leaveAt=now;expireDepartures(room,now);brains.delete(bot);}
 
-// In a showcase the bots wait until a person has ridden the drill for a few seconds before proposing the finale.
-function showcaseReady(room,now){if(!room.showcase)return true;if(people(room).some(h=>h.boarded&&h.connected))room.showcaseBoardedAt??=now;return room.showcaseBoardedAt!=null&&now-room.showcaseBoardedAt>=C.showcase.boardedMs;}
 // A person joining a full room takes a bot's seat.
 export function makeRoomForPerson(room,now){const seated=room.players.filter(p=>!p.departed).length,bot=crewBots(room).pop();if(seated>=C.maxPlayers&&bot)removeBot(room,bot,now);}
 
@@ -35,10 +33,11 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(room.vote&&room.vote.voters.includes(p.publicId)&&!room.vote.ballots[p.publicId]){b.voteAt??=now+L.voteDelayMs*(0.5+Math.random());if(now>=b.voteAt){add('vote',{yes:true});b.voteAt=null;}}else b.voteAt=null;
  if(now<b.napUntil)return;if(Math.random()<L.napChance){b.napUntil=now+L.napMs*(0.5+Math.random());return;}
  if(p.belay||p.boarding||p.drive||p.returning)return;
+ if(room.showcase){showcaseCrew(room,p,b,L,now,add);return;}
  const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps));
  // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
  if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
-  const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&showcaseReady(room,now)?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
+  const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
  if(p.boarded){if(!crewWanted){add('board');return;}const g=room.console?.[p.publicId];if(g)workSeat(g,b,L,now,add);return;}
  if(crewWanted){if(p.shaft!=null)add('returnHome');else add('board');return;}
  const full=p.hold.units>=holdCapacity(p),blocked=p.shaft!=null&&(gate(p,room.cells[p.shaft].row,room)||room.cells[p.shaft].row>lightReach(room,p));
@@ -47,7 +46,7 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
   if(now>=b.nextTrade){b.nextTrade=now+L.tradeEveryMs;const options=[{kind:'pods',item:C.cargoPods[p.pods]},{kind:'tool',item:C.tools[p.tool+1]},{kind:'mobility',item:C.mobility[p.mobility+1]},{kind:'lighting',item:C.lighting[p.lighting]}].filter(o=>o.item&&p.wallet>=o.item.cost*L.spare).sort((a,c)=>a.item.cost-c.item.cost);if(options.length){add('buy',{kind:options[0].kind});return;}}
   const chipKey=room.goal?.key+':'+p.deliveredValue;if(room.goal&&p.wallet>0&&b.chipKey!==chipKey){add('chip',{amount:'half'});b.chipKey=chipKey;return;}
 }
- const upgrade=[C.cargoPods[p.pods],C.tools[p.tool+1],C.mobility[p.mobility+1],C.lighting[p.lighting]].some(item=>item&&p.wallet>=item.cost*L.spare),pending=!room.vote&&!room.goal&&(room.site==null||!room.coolant||!room.drill||(!room.worldBreaker&&showcaseReady(room,now)));
+ const upgrade=[C.cargoPods[p.pods],C.tools[p.tool+1],C.mobility[p.mobility+1],C.lighting[p.lighting]].some(item=>item&&p.wallet>=item.cost*L.spare),pending=!room.vote&&!room.goal&&(room.site==null||!room.coolant||!room.drill||!room.worldBreaker);
  if(!atHub(p)&&now>=(b.nextShop||0)&&(upgrade||(room.goal&&p.wallet>0&&b.chipKey!==room.goal.key+':'+p.deliveredValue))){b.nextShop=now+L.tradeEveryMs*4;b.route=null;add('returnHome');return;}
  if(p.shaft!=null){if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row&&now>=b.nextTap){add('tap',{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
  if(b.work==null||(room.drill&&b.work===room.site)||gate(p,room.cells[b.work].row,room)||room.cells[b.work].row>lightReach(room,p,b.work)){let best=null,distance=Infinity;for(let i=0;i<room.cells.length;i++){const x=i%C.mapSize,y=Math.floor(i/C.mapSize);if(isDepot(x,y)||home(x+0.5,y+0.5)||(room.site!=null&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i))continue;const d=Math.hypot(x+0.5-p.x,y+0.5-p.y)+Math.random()*C.bots.wander;if(d<distance){distance=d;best=i;}}b.work=best;}
@@ -55,6 +54,20 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){b.route=null;add('move',{dx:0,dy:0});add('belayDown',{x,y});}else steer(b,p,x+0.5,y+0.5,room,add);}
  else if(!within(p,x,y))steer(b,p,x+0.5,y+0.5,room,add);
  else if(now>=b.nextTap){b.route=null;add('move',{dx:0,dy:0});add('tap',{x,y});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}}
+
+// In a showcase the director (showcase-rules.js) makes every proposal and the bots are its crew. Before the rig each digs a crew shaft picked by its seat
+// (the first bot waits by the newcomer until the mech changes hands); while the site is chosen they climb out and hold still; once the rig is in they
+// board and work their seats.
+function showcaseCrew(room,p,b,L,now,add){const S=C.showcase,N=C.mapSize;
+ if(p.boarded){const g=room.console?.[p.publicId];if(g)workSeat(g,b,L,now,add);return;}
+ if(room.drill){add(p.shaft!=null?'belay':'board');return;}
+ if(room.arc?.beat!=='dig'){if(p.shaft!=null)add('belay');return;}
+ if(crewBots(room)[0]===p&&people(room).some(h=>h.connected&&h.tool===0))return;
+ const spot=S.crewShafts[p.seat];if(!spot)return;const [x,y]=spot,cell=room.cells[y*N+x];
+ if(p.shaft!=null){const floor=room.cells[p.shaft].row;if(floor<S.crewRow&&p.depth+C.damageEpsilon>=floor&&now>=b.nextTap){add('tap',{x:p.shaft%N,y:Math.floor(p.shaft/N)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
+ if(cell.row>C.shafts.surfaceReachRows){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){b.route=null;add('belayDown',{x,y});}else steer(b,p,x+0.5,y+0.5,room,add);}
+ else if(!within(p,x,y))steer(b,p,x+0.5,y+0.5,room,add);
+ else if(now>=b.nextTap){b.route=null;add('tap',{x,y});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}}
 
 // Each bot plays its seat the way a person might, late and loose by skill: HEAT vents only once the needle is already high and sometimes twice,
 // PRESSURE opens the valve when high and lets go late, ALIGN grips both pads but slips off now and then, POWER chases the target band with lag and a shaky hand.

@@ -15,7 +15,7 @@ const rooms=new Map(),sockets=new Map(),queues=new Map();
 const ended='That expedition has ended. Start a new one.';
 const routes=new Map([['/',['public/index.html','text/html']],['/favicon.svg',['public/favicon.svg','image/svg+xml']],['/cover.png',['public/cover.png','image/png']],['/cover.html',['public/cover.html','text/html']],['/config.js',['config.js','text/javascript']],['/manifest.webmanifest',['public/manifest.webmanifest','application/manifest+json']],['/icon-192.png',['public/icon-192.png','image/png']],['/icon-512.png',['public/icon-512.png','image/png']]]);
 for(const file of ['core-scene.js','client.js','protocol.js','team-view.js','renderer.js','audio.js','renderer3d.js','input.js','feedback.js','scene-assets.js','cab-scene.js','control-math.js','cover.js','scene-preview.js','confirmation.js','pit-geometry.js','explorer-models.js','supply-view.js','goals.js','logistics-view.js','wording.js','glow.js','quality.js','flora.js','dawn.js','console-view.js'])routes.set('/'+file,['public/'+file,'text/javascript']);
-for(const file of ['rules.js','team-rules.js','hauling-rules.js','formatters.js','shaft-rules.js','movement-rules.js','presence-rules.js','resilience.js','economy-rules.js','excavator-rules.js','obstacles.js','personal-conveyors.js','lighting-rules.js'])routes.set('/'+file,[file,'text/javascript']);
+for(const file of ['rules.js','team-rules.js','hauling-rules.js','formatters.js','shaft-rules.js','movement-rules.js','presence-rules.js','resilience.js','economy-rules.js','excavator-rules.js','obstacles.js','personal-conveyors.js','lighting-rules.js','showcase-rules.js'])routes.set('/'+file,[file,'text/javascript']);
 const server=http.createServer(async(req,res)=>{
  let url;try{url=new URL(req.url,'http://localhost');}catch{res.writeHead(400);res.end();return;}
  const json=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
@@ -40,7 +40,7 @@ wss.on('connection',ws=>{
    let room;if(msg.type==='create'){const code=makeCode();room=createRoom(code,randomBytes(4).readUInt32LE(),msg.fast===true,now,msg.quick===true);room.botLevel=BOT_LEVELS.includes(msg.bots)?msg.bots:'off';if(msg.showcase===true)setupShowcase(room);rooms.set(code,room);queues.set(code,[]);}else{room=rooms.get(String(msg.code||'').toUpperCase());if(!room||now-room.lastActivity>=C.idleMs){send(ws,{type:'error',code:'ended',text:ended});return;}}
    const token=typeof msg.token==='string'&&room.players.some(p=>p.token===msg.token)?msg.token:randomBytes(24).toString('hex');let p;
    if(!room.players.some(q=>q.token===token&&!q.departed))makeRoomForPerson(room,now);
-   try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();equipShowcase(room,p);fillBots(room,now);
+   try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();equipShowcase(room,p,now);fillBots(room,now);
    for(const [other,b]of sockets)if(b.player===p){sockets.delete(other);other.close();}
    sockets.set(ws,{room,player:p,detectors:detectorMask(p)});send(ws,{type:'welcome',token,id:p.publicId,build:BUILD});send(ws,snapshotForPlayer(room,snapshot(room,true),p));return;
   }
