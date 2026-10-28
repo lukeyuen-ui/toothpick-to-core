@@ -70,26 +70,26 @@ function paintDecals(c,w,h){const s=w/1024;c.clearRect(0,0,w,h);c.save();c.scale
  triangle(D.warn,(cx,top,bot)=>{c.fillRect(cx-5,top+34,10,40);c.fillRect(cx-5,bot-26,10,10);});
  triangle(D.volt,(cx,top,bot)=>{c.beginPath();c.moveTo(cx+6,top+30);c.lineTo(cx-14,top+66);c.lineTo(cx,top+66);c.lineTo(cx-8,bot-12);c.lineTo(cx+16,top+56);c.lineTo(cx+2,top+56);c.closePath();c.fill();});
  // Company roundel: an orange ring round a pick.
- {const r=D.logo,cx=r[0]+64,cy=r[1]+64;c.fillStyle='#f3f1ea';c.beginPath();c.arc(cx,cy,60,0,Math.PI*2);c.fill();c.lineWidth=12;c.strokeStyle='#e5702a';c.beginPath();c.arc(cx,cy,46,0,Math.PI*2);c.stroke();c.strokeStyle='#23282c';c.lineWidth=8;c.beginPath();c.moveTo(cx-24,cy+24);c.lineTo(cx+20,cy-20);c.stroke();c.beginPath();c.moveTo(cx-6,cy-30);c.quadraticCurveTo(cx+18,cy-26,cx+30,cy-4);c.stroke();}
+ {const r=D.logo,cx=r[0]+64,cy=r[1]+64;c.fillStyle='#f3f1ea';c.beginPath();c.arc(cx,cy,60,0,Math.PI*2);c.fill();c.lineWidth=12;c.strokeStyle='#e8802a';c.beginPath();c.arc(cx,cy,46,0,Math.PI*2);c.stroke();c.strokeStyle='#23282c';c.lineWidth=8;c.beginPath();c.moveTo(cx-24,cy+24);c.lineTo(cx+20,cy-20);c.stroke();c.beginPath();c.moveTo(cx-6,cy-30);c.quadraticCurveTo(cx+18,cy-26,cx+30,cy-4);c.stroke();}
  // Gauge face: ticks, a green and a red band, needle and cap.
  const gauge=(r,needle)=>{const cx=r[0]+r[2]/2,cy=r[1]+r[3]/2,R=Math.min(r[2],r[3])/2-6;c.fillStyle='#f4f2ea';c.beginPath();c.arc(cx,cy,R,0,Math.PI*2);c.fill();c.lineWidth=5;c.strokeStyle='#2a2f33';c.stroke();c.lineWidth=7;c.strokeStyle='#58b947';c.beginPath();c.arc(cx,cy,R-14,Math.PI*0.85,Math.PI*1.6);c.stroke();c.strokeStyle='#d8432e';c.beginPath();c.arc(cx,cy,R-14,Math.PI*1.85,Math.PI*2.15);c.stroke();c.strokeStyle='#2a2f33';c.lineWidth=2;for(let k=0;k<=10;k++){const a=Math.PI*0.75+k/10*Math.PI*1.5;c.beginPath();c.moveTo(cx+Math.cos(a)*(R-6),cy+Math.sin(a)*(R-6));c.lineTo(cx+Math.cos(a)*(R-(k%5?14:20)),cy+Math.sin(a)*(R-(k%5?14:20)));c.stroke();}c.lineWidth=4;c.strokeStyle='#c22d1f';c.beginPath();c.moveTo(cx,cy);c.lineTo(cx+Math.cos(needle)*(R-18),cy+Math.sin(needle)*(R-18));c.stroke();c.fillStyle='#2a2f33';c.beginPath();c.arc(cx,cy,6,0,Math.PI*2);c.fill();};
  gauge(D.gauge,Math.PI*1.25);gauge(D.dial,Math.PI*0.55);
- text(D.rig,'TPK-01   PLASMA DRILL',46,'#2a3034');c.fillStyle='#e5702a';c.fillRect(D.rig[0]+40,D.rig[1]+56,D.rig[2]-80,5);text(D.crew,'CREW 4 MAX',36,'#f2f2ec');text(D.hatch,'HATCH  ▶ PULL',34,'#e5702a');text(D.nostep,'NO STEP',30,'#23282c');
+ text(D.rig,'TPK-01   PLASMA DRILL',46,'#2a3034');c.fillStyle='#e8802a';c.fillRect(D.rig[0]+40,D.rig[1]+56,D.rig[2]-80,5);text(D.crew,'CREW 4 MAX',36,'#f2f2ec');text(D.hatch,'HATCH  ▶ PULL',34,'#e8802a');text(D.nostep,'NO STEP',30,'#23282c');
  box(D.o2,'#3f9b52');text(D.o2,'O2',32,'#ffffff');box(D.n2,'#2f6fb4');text(D.n2,'N2',32,'#ffffff');
  {const r=D.serial;box(r,'#d9d9d2');text([r[0],r[1],120,r[3]],'SN 0451-K',22,'#23282c',{font:'600',align:'left',inset:8});c.fillStyle='#23282c';for(let k=0;k<26;k++){const bw=1+((k*37)%3);c.fillRect(r[0]+120+k*2.6,r[1]+8,bw,r[3]-16);}}
  text(D.hab,'HAB-1   PRESSURIZED',38,'#2c6190');text(D.airlock,'◀ AIRLOCK ▶',30,'#23282c');text(D.ex,'EX-200   SWING RADIUS',36,'#23282c');text(D.oil,'OIL WELL   PSI',34,'#23282c');text(D.lift,'⚓ LIFT POINT',30,'#23282c');
  ['01','02','03','04'].forEach((n,k)=>text(D['num'+(k+1)],n,40,'#f2f2ec'));
  // Louvred vent: dark slots in a frame.
  {const r=D.vent;box(r,'#2a3034');c.fillStyle='#0d1012';for(let k=0;k<6;k++)c.fillRect(r[0]+12,r[1]+10+k*14,r[2]-24,8);c.fillStyle='#4a5358';for(let k=0;k<6;k++)c.fillRect(r[0]+12,r[1]+18+k*14,r[2]-24,2);}
- {const r=D.arrow;c.fillStyle='#e5702a';c.beginPath();c.moveTo(r[0]+8,r[1]+12);c.lineTo(r[0]+40,r[1]+32);c.lineTo(r[0]+8,r[1]+52);c.lineTo(r[0]+20,r[1]+32);c.closePath();c.fill();}
- text(D.tpk,'TOOTHPICK MINING CO',30,'#e5702a');text(D.press,'⚠ PRESSURE VESSEL',32,'#d8432e');box(D.orange,'#e5702a');
+ {const r=D.arrow;c.fillStyle='#e8802a';c.beginPath();c.moveTo(r[0]+8,r[1]+12);c.lineTo(r[0]+40,r[1]+32);c.lineTo(r[0]+8,r[1]+52);c.lineTo(r[0]+20,r[1]+32);c.closePath();c.fill();}
+ text(D.tpk,'TOOTHPICK MINING CO',30,'#e8802a');text(D.press,'⚠ PRESSURE VESSEL',32,'#d8432e');box(D.orange,'#e8802a');
  // Control panel: a screen, buttons and a key switch.
  {const r=D.panel;box(r,'#2a3034');c.fillStyle='#0b1a1f';c.fillRect(r[0]+10,r[1]+10,140,64);c.fillStyle='#4fd17f';c.fillRect(r[0]+18,r[1]+20,90,6);c.fillRect(r[0]+18,r[1]+34,60,6);c.fillStyle='#80d8ff';c.fillRect(r[0]+18,r[1]+48,110,6);
   const colors=['#d8432e','#e8b21c','#58b947','#2f6fb4'];colors.forEach((col,k)=>{c.fillStyle=col;c.beginPath();c.arc(r[0]+176+(k%2)*34,r[1]+26+Math.floor(k/2)*34,11,0,Math.PI*2);c.fill();});c.fillStyle='#c9ced0';c.fillRect(r[0]+10,r[1]+84,236,16);c.fillStyle='#23282c';for(let k=0;k<9;k++)c.fillRect(r[0]+16+k*26,r[1]+88,16,8);}
  {const r=D.keypad;box(r,'#2a3034');c.fillStyle='#d9d9d2';for(let k=0;k<12;k++)c.fillRect(r[0]+14+(k%3)*34,r[1]+10+Math.floor(k/3)*24,26,18);}
  c.restore();}
 export function createLook(scene,{low=false}={}){const n=low?128:256,tex=wearTextures(n),kinds={
-  paint:{orm:tex.paint,normal:tex.detail,rough:1,metal:1,ns:0.2},gloss:{orm:tex.paint,normal:tex.detail,rough:0.55,metal:1,ns:0.14},metal:{orm:tex.metal,normal:tex.detail,rough:1,metal:1,ns:0.32},
+  paint:{orm:tex.paint,normal:tex.detail,rough:0.9,metal:1,ns:0.12},gloss:{orm:tex.paint,normal:tex.detail,rough:0.55,metal:1,ns:0.08},metal:{orm:tex.metal,normal:tex.detail,rough:1,metal:1,ns:0.32},
   rubber:{orm:tex.paint,normal:tex.detail,rough:1.6,metal:0,ns:0.6},fabric:{orm:tex.paint,normal:tex.fabric,rough:1.7,metal:0,ns:0.35}};
  const make=(kind,color='#ffffff')=>{const k=kinds[kind]||kinds.paint;const m=new T.MeshStandardMaterial({color,vertexColors:true,map:tex.albedo,roughnessMap:k.orm,metalnessMap:k.orm,roughness:k.rough,metalness:k.metal,normalMap:k.normal,normalScale:new T.Vector2(k.ns,k.ns)});m.name='Finish '+kind;return m;};
  const shared=new Map(),own=new Map(),handles=new Map();
@@ -126,7 +126,7 @@ export function makeFactory(scene,assets,{low=false}={}){
  // keypad and steps, round viewports in heavy frames, vents and markings, an equipment cabinet piped into the hull, a solar panel on a
  // tracker post, a guyed radio mast with its red light and a whip antenna, and the turning dish with its feed horn.
  function depot(){const root=new T.Group();root.name='Rounded habitat';root.position.set(C.mapSize/2,0,C.mapSize/2);const f=finish,P=parts(),G=parts(),dk=(name,w,h,x,y,z,ry=0,rx=0)=>P.add(decal,decalQuad(decalUV(name),w,h),x,y,z,rx,ry,0);
-  const white=f('gloss','#eef0ee'),blue=f('gloss','#2c6190'),orange=f('gloss','#e5702a'),grey=f('paint','#a2abaf'),slab=f('paint','#555e62'),seam=f('paint','#2b3135'),graphite=f('paint','#3a4145'),steel=f('metal','#b9c0c3'),dark=f('metal','#4b5357'),rubber=f('rubber','#1c1f22'),glowMat=mat('#ffd5a0',true),amber=mat('#ffb347',true);
+  const white=f('gloss','#eef0ee'),blue=f('gloss','#2c6190'),orange=f('gloss','#e8802a'),grey=f('paint','#a2abaf'),slab=f('paint','#555e62'),seam=f('paint','#2b3135'),graphite=f('paint','#3a4145'),steel=f('metal','#b9c0c3'),dark=f('metal','#4b5357'),rubber=f('rubber','#1c1f22'),glowMat=mat('#ffd5a0',true),amber=mat('#ffb347',true);
   // Landing pad: a bevelled slab in four panels, orange edge bands, corner bolts.
   P.add(slab,roundBox(2.03,0.08,2.03,0.02),0,0.04,0);P.add(seam,roundBox(2.0,0.004,0.014,0.002),0,0.081,0);P.add(seam,roundBox(0.014,0.004,2.0,0.002),0,0.081,0);for(const s of [-1,1])P.add(orange,roundBox(0.06,0.012,1.8,0.004),s*0.965,0.084,0);
   for(const x of [-0.9,-0.08,0.08,0.9])for(const z of [-0.9,-0.08,0.08,0.9])P.add(steel,bolt(0.013,0.008),x,0.08,z);
@@ -170,7 +170,7 @@ export function makeFactory(scene,assets,{low=false}={}){
  // wellhead and the counterweight), a gearbox and motor sit at the back, the polished rod runs down into the wellhead with its gauge and
  // flow line. Only the beam rocks.
  function pump(index){const root=new T.Group();root.position.set(index%C.mapSize+0.5,0,Math.floor(index/C.mapSize)+0.5);const f=finish,P=parts(),Bm=parts();
-  const white=f('paint','#e3e6e3'),orange=f('gloss','#e2692a'),graphite=f('paint','#394045'),steel=f('metal','#b5bcbf'),dark=f('metal','#4b5357'),rubber=f('rubber','#1c1f22');
+  const white=f('paint','#e3e6e3'),orange=f('gloss','#e8802a'),graphite=f('paint','#394045'),steel=f('metal','#b5bcbf'),dark=f('metal','#4b5357'),rubber=f('rubber','#1c1f22');
   const puddle=new T.Mesh(new T.CircleGeometry(0.45,seg(24)),mat('#121e23'));puddle.rotation.x=-Math.PI/2;puddle.position.y=0.014;root.add(puddle);
   P.add(graphite,roundBox(0.5,0.07,0.86,0.015),0,0.05,0.04);for(const x of [-0.21,0.21])for(const z of [-0.33,0.03,0.41])P.add(steel,bolt(0.012,0.008),x,0.085,z);
   for(const s of [-1,1])P.add(white,roundBox(0.045,0.86,0.045,0.01),s*0.14,0.5,0.0,0,0,s*0.16);P.add(white,roundBox(0.3,0.04,0.04,0.01),0,0.5,0);P.add(dark,roundCylinder(0.04,0.2,0.01,seg(12)),0,0.86,0,0,0,Math.PI/2);
@@ -188,7 +188,7 @@ export function makeFactory(scene,assets,{low=false}={}){
  // lens and heat fins. Static pieces merge per material, so the whole rig is a handful of draw calls.
  function drill(index){const root=new T.Group();root.name='Plasma drill rig';root.position.set(index%C.mapSize+0.5,0,Math.floor(index/C.mapSize)+0.5);
  const D=C.three.cockpit,R=D.frameHalf,top=D.crownY,G=D.glassY,PX=D.podHalfX,PZ=D.podHalfZ,RY=D.roofY,CR=D.cutterRadius,f=finish,step=low?2:1;
- const white=f('paint','#d8dbd8'),graphite=f('paint','#373e43'),orange=f('gloss','#e2692a'),yellow=f('paint','#e0b021'),steel=f('metal','#b3babd'),dark=f('metal','#4b5358'),rubber=f('rubber','#1b1e21'),rope=f('metal','#8a9295'),lampLens=mat('#fff1cf',true),beacon=mat('#ff3b2f',true);
+ const white=f('paint','#d8dbd8'),graphite=f('paint','#373e43'),orange=f('gloss','#e8802a'),yellow=f('paint','#e0b021'),steel=f('metal','#b3babd'),dark=f('metal','#4b5358'),rubber=f('rubber','#1b1e21'),rope=f('metal','#8a9295'),lampLens=mat('#fff1cf',true),beacon=mat('#ff3b2f',true);
  const B=bolt(0.014,0.01),along=(path,gap,fn)=>{let acc=gap/2;for(let i=0;i<path.length;i++){const a=path[i],b=path[(i+1)%path.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);while(acc<l){const t=acc/l,nx=a[2]+(b[2]-a[2])*t,nz=a[3]+(b[3]-a[3])*t,nl=Math.hypot(nx,nz)||1;fn(a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t,nx/nl,nz/nl);acc+=gap;}acc-=l;}};
  const F=parts(),fd=(name,w,h,x,y,z,ry=0,rx=0)=>F.add(decal,decalQuad(decalUV(name),w,h),x,y,z,rx,ry,0),line=(P,h,a,b,r)=>P.add(h,hose([a,b],r,1,seg(6)));
  // Base: girders on bolted foot pads, hazard tape down their outer faces.
@@ -217,6 +217,12 @@ export function makeFactory(scene,assets,{low=false}={}){
  F.add(steel,roundCylinder(0.012,0.22,0.003,seg(8)),0,top+0.36,0);const beam=parts();beam.add(beacon,lathe([[0,0],[0.03,0],[0.032,0.02],[0.02,0.045],[0,0.05]],seg(12)),0,top+0.47,0);
  fd('lift',0.3,0.1,0,top+0.155,0.171);fd('logo',0.14,0.14,0.221,top+0.155,0,Math.PI/2);fd('logo',0.14,0.14,-0.221,top+0.155,0,-Math.PI/2);
  for(const sx of [-1,1])for(const sz of [-1,1]){const cx=sx*(PX-0.08),cz=sz*(PZ-0.03);F.add(dark,sheave,cx,top-0.11,cz,Math.PI/2,0,0);for(const d of [-0.028,0.028])F.add(dark,roundBox(0.15,0.15,0.008,0.004),cx,top-0.09,cz+d);line(F,rope,[cx-sx*0.0,top-0.06,cz],[sx*0.16,top+0.2,sz*0.1],0.008);}
+ // Travelling block stowed under the crown on four lines, its hook and swivel, and the kelly hose looping down to a standpipe on the
+ // back column.
+ {const ty=top-0.36;F.add(yellow,roundBox(0.2,0.3,0.14,0.05,2),0,ty,0);for(const x of [-0.05,0.05])F.add(dark,lathe([[0,-0.06],[0.07,-0.06,true],[0.09,-0.045],[0.09,0.045],[0.07,0.06,true],[0,0.06]],seg(14)),x,ty+0.06,0,0,0,Math.PI/2,1,0.35,1);
+  for(const x of [-0.06,0.06])for(const z of [-0.04,0.04])line(F,rope,[x,ty+0.14,z],[x*1.4,top+0.12,z*2],0.006);
+  F.add(steel,roundCylinder(0.035,0.12,0.01,seg(12)),0,ty-0.2,0);F.add(dark,lathe([[0,-0.02],[0.05,-0.02,true],[0.05,0.06,true],[0,0.06]],seg(12)),0,ty-0.3,0);F.add(graphite,lathe(profileCircle(0.016,seg(6)).map(([u,v])=>[0.05+u,v]).concat([[0.066,0]]),seg(14),0,Math.PI*1.4),0,ty-0.38,0,Math.PI/2,0,0);
+  F.add(rubber,hose([[0,ty-0.27,0.04],[0.1,ty-0.45,0.25],[0.3,ty-0.75,0.6],[R-0.35,1.45,R-0.25],[R-0.12,1.62,R-0.11],[R-0.09,1.7,R-0.09]].map(([x,y,z])=>[-x,y,-z]),0.022,seg(32),seg(8)));F.add(steel,roundCylinder(0.03,1.5,0.008,seg(10)),-(R-0.09),0.95,-(R-0.09)+0.0);}
  // Front and back beams carry the rig's name.
  fd('rig',1.5,0.12,0,top,R+0.0715);fd('rig',1.5,0.12,0,top,-R-0.0715,Math.PI);
  // Drawworks on the ground outside the -x girder: skid, pillow-block stands, the orange drum wound with rope, motor and gearbox; the
@@ -309,7 +315,7 @@ export function makeFactory(scene,assets,{low=false}={}){
  scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,jets,jetGroup,seats,pads,seatSpots,consoles,stations,cabin,plasmaLight:glow};}
  // Conveyor parts for the renderer's instanced belts: a side rail (white with an orange pinstripe, on a foot) and a flanged roller.
  // One finish each, so each stays one instanced mesh.
- const conveyor={rail:(()=>{const P=parts(),w=finish('paint','#e9ebe7'),o=finish('paint','#e2692a'),g=finish('paint','#394045');P.add(w,roundBox(0.035,0.1,1.0,0.012));P.add(w,roundBox(0.05,0.014,1.0,0.005),0,0.052,0);for(const s of [-1,1])P.add(o,roundBox(0.004,0.018,0.94,0.002),s*0.0185,0.012,0);P.add(g,roundBox(0.09,0.05,0.12,0.012),0,-0.07,0);for(const s of [-1,1])P.add(g,bolt(0.01,0.007),s*0.03,-0.045,0);return P.build(new T.Group(),{grime:0.2,uvScale:3})[0].geometry;})(),
+ const conveyor={rail:(()=>{const P=parts(),w=finish('paint','#e9ebe7'),o=finish('paint','#e8802a'),g=finish('paint','#394045');P.add(w,roundBox(0.035,0.1,1.0,0.012));P.add(w,roundBox(0.05,0.014,1.0,0.005),0,0.052,0);for(const s of [-1,1])P.add(o,roundBox(0.004,0.018,0.94,0.002),s*0.0185,0.012,0);P.add(g,roundBox(0.09,0.05,0.12,0.012),0,-0.07,0);for(const s of [-1,1])P.add(g,bolt(0.01,0.007),s*0.03,-0.045,0);return P.build(new T.Group(),{grime:0.2,uvScale:3})[0].geometry;})(),
   roller:(()=>{const P=parts(),m=finish('metal','#aab2b5'),d=finish('metal','#4b5357');P.add(m,lathe([[0.05,-0.22],[0.06,-0.215],[0.06,0.215],[0.05,0.22]],seg(14)));for(const s of [-1,1])P.add(d,lathe([[0,-0.012],[0.068,-0.012,true],[0.068,0.012,true],[0,0.012]],seg(14)),0,s*0.225,0);P.add(d,roundCylinder(0.016,0.52,0.004,seg(8)));return P.build(new T.Group(),{grime:0.1,uvScale:3})[0].geometry.rotateZ(Math.PI/2);})(),
   railMaterial:finish('paint').material,rollerMaterial:finish('metal').material};
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries,finish,decal,decalUV,low,seg,look,conveyor};

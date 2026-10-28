@@ -30,7 +30,7 @@ export function createCabScene(scene,camera,factory,assets){
   for(const line of state.team.conveyorLines||[]){const i=line.source;if(!state.cells[i].row||hoists.has(i))continue;const root=new T.Group();root.position.set(i%N+0.5,0,Math.floor(i/N)+0.5);
    // Hoist gantry over the shaft: braced white legs on foot plates, an orange cross beam, the sheave the cable runs over and a winch
    // motor; the skip is a tapered bucket with a rim. The gantry and the skip are one merged piece each.
-   const fin=(k,c)=>factory.finish?factory.finish(k,c):factory.mat(c),G=parts(),w=fin('paint','#e6e8e4'),o=fin('gloss','#e2692a'),g=fin('paint','#394045'),d=fin('metal','#4b5357');
+   const fin=(k,c)=>factory.finish?factory.finish(k,c):factory.mat(c),G=parts(),w=fin('paint','#e6e8e4'),o=fin('gloss','#e8802a'),g=fin('paint','#394045'),d=fin('metal','#4b5357');
    for(const side of [-1,1]){G.add(w,roundBox(0.06,0.9,0.08,0.014),side*0.38,0.45,0);G.add(g,roundBox(0.16,0.025,0.16,0.006),side*0.38,0.0125,0);rod(G,w,[side*0.38,0.12,-0.04],[side*0.38,0.62,-0.3],0.014,8);rod(G,w,[side*0.38,0.12,0.04],[side*0.38,0.62,0.3],0.014,8);}
    G.add(o,roundBox(0.9,0.08,0.12,0.018),0,0.92,0);G.add(d,lathe([[0,-0.02],[0.05,-0.02,true],[0.06,-0.012],[0.05,0],[0.06,0.012],[0.05,0.02,true],[0,0.02]],12),0,0.85,0,Math.PI/2,0,0);G.add(w,roundBox(0.12,0.12,0.16,0.025),0.3,0.82,0.1);G.add(g,roundBox(0.06,0.06,0.03,0.01),0.3,0.82,0.19);
    G.build(root,{ground:0,grime:0.25,uvScale:3});
