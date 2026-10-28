@@ -25,12 +25,28 @@ const COMPOSITE='uniform sampler2D tScene;uniform sampler2D tBloomA;uniform samp
  'c*=1.0-vignette*smoothstep(0.55,1.45,length(d*vec2(aspect,1.0))/max(aspect,1.0)*2.0);gl_FragColor=vec4(c,1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n'+
  'vec3 g=gl_FragColor.rgb;float luma=dot(g,vec3(0.2126,0.7152,0.0722));g=mix(vec3(luma),g,saturation);g=g*mix(shadowTint,highlightTint,smoothstep(0.1,0.75,luma))+lift*(1.0-luma);g=(g-0.5)*contrast+0.5;'+
  'if(grain>0.0)g+=(noise(gl_FragCoord.xy+grainSeed)-0.5)*grain;gl_FragColor.rgb=g+(noise(gl_FragCoord.xy)-0.5)/255.0;}';
+// Everything in a scene drawn once, in a frame nobody sees (renderer3d.js start-up warm-up). ANGLE on Metal (Chrome on a Mac) builds a
+// program's render pipeline only at its first real draw, one per blend mode, vertex layout and target; a compile links programs but draws
+// nothing, so whatever first showed mid-game (a mech hit's debris, dust and spoil, the rubble round the hole, the crew's belt and its ore,
+// lamp motes, the shadow depth of each) built its pipelines in that frame. revealAll shows, for one render, every mesh, point cloud, line
+// and sprite under root: hidden ones with their parents, culled ones unculled, every instanced mesh with one instance and every empty draw
+// range with one point, line or triangle. Lights keep the state they had (one inside a shown group is hidden for the pass), so the light
+// count, and so every program, stays the same. Returns the function that puts back every property it changed.
+export function revealAll(root){
+ const live=new Set(),shown=[],lights=[],culled=[],counts=[],ranges=[];root.traverseVisible(o=>{if(o.isLight)live.add(o);});
+ root.traverse(o=>{if(!(o.isMesh||o.isPoints||o.isLine||o.isSprite)||!o.material)return;for(let p=o;p;p=p.parent)if(!p.visible){p.visible=true;shown.push(p);}if(o.frustumCulled){o.frustumCulled=false;culled.push(o);}
+  if(o.isInstancedMesh&&o.count!==1){counts.push([o,o.count]);o.count=1;}const range=o.geometry?.drawRange;if(range&&range.count===0){range.count=o.isPoints?1:o.isLine?2:3;ranges.push(range);}});
+ root.traverse(o=>{if(o.isLight&&o.visible&&!live.has(o)){o.visible=false;lights.push(o);}});
+ return ()=>{for(const o of shown)o.visible=false;for(const o of lights)o.visible=true;for(const o of culled)o.frustumCulled=true;for(const [o,count] of counts)o.count=count;for(const range of ranges)range.count=0;};
+}
 export function createGlow(gl,{strength=0.5,threshold=0.85,knee=0.45,vignette=0.22,saturation=1.05,contrast=1.03,lift=[0,0,0],shadowTint=[1,1,1],highlightTint=[1,1,1],samples=4}={}){
  const uniforms={strength:{value:strength},threshold:{value:threshold},knee:{value:knee},flash:{value:0},aberration:{value:0},vignette:{value:vignette},saturation:{value:saturation},contrast:{value:contrast},grain:{value:0},grainSeed:{value:new T.Vector2()},lift:{value:new T.Vector3(...lift)},shadowTint:{value:new T.Vector3(...shadowTint)},highlightTint:{value:new T.Vector3(...highlightTint)}};
  // compile() warms shader programs ahead of time (asynchronously where the browser can), bound to the same target the scene renders
  // into, so the warmed variants are exactly the ones the next frames use.
  const warm=(object,camera,target)=>{try{return Promise.resolve(typeof gl.compileAsync==='function'?gl.compileAsync(object,camera,target):gl.compile?.(object,camera,target)).catch(()=>{});}catch{return Promise.resolve();}};
- const plain={active:false,bloom:false,uniforms,render(scene,camera){gl.render(scene,camera);return gl.info?.render?.calls||0;},compile:warm,setSize(){},setBloom(){},dispose(){}};
+ // warmDraw() renders revealAll's frame where this frame's scene will be drawn (the canvas here, the scene target below), so call it before the
+ // frame's own render, which draws over it.
+ const plain={active:false,bloom:false,uniforms,render(scene,camera){gl.render(scene,camera);return gl.info?.render?.calls||0;},compile:warm,warmDraw(scene,camera){const restore=revealAll(scene);try{gl.render(scene,camera);}finally{restore();}},setSize(){},setBloom(){},dispose(){}};
  if(!gl?.capabilities?.isWebGL2||typeof gl.getContext!=='function'||typeof gl.setRenderTarget!=='function'||typeof gl.getDrawingBufferSize!=='function')return plain;
  const raw=gl.getContext(),size=new T.Vector2(),msaa=Math.min(samples,gl.capabilities.maxSamples||0);
  const make=(type,w,h,depth,count)=>{const rt=new T.WebGLRenderTarget(w,h,{type,format:T.RGBAFormat,depthBuffer:depth,stencilBuffer:false,samples:count,minFilter:T.LinearFilter,magFilter:T.LinearFilter,generateMipmaps:false});if(type===T.UnsignedByteType)rt.texture.colorSpace=T.SRGBColorSpace;return rt;};
@@ -53,5 +69,6 @@ export function createGlow(gl,{strength=0.5,threshold=0.85,knee=0.45,vignette=0.
    for(const [a,b] of levels){blurMat.uniforms.tInput.value=source.texture;blurMat.uniforms.dir.value.set(1/a.width,0);draw(blurMat,a);blurMat.uniforms.tInput.value=a.texture;blurMat.uniforms.dir.value.set(0,1/a.height);draw(blurMat,b);source=b;}}
   const keep=uniforms.strength.value;if(!bloom)uniforms.strength.value=0;draw(compositeMat,null);uniforms.strength.value=keep;return calls;}
  setSize();
- return {active:true,get bloom(){return bloom;},uniforms,render,compile(object,camera,target){gl.setRenderTarget(scene);const done=warm(object,camera,target);gl.setRenderTarget(null);return done;},setSize,setBloom(on){bloom=!!on;},dispose(){for(const rt of [scene,bright,...levels.flat()])rt.dispose();triangle.dispose();brightMat.dispose();blurMat.dispose();compositeMat.dispose();}};
+ return {active:true,get bloom(){return bloom;},uniforms,render,compile(object,camera,target){gl.setRenderTarget(scene);const done=warm(object,camera,target);gl.setRenderTarget(null);return done;},
+  warmDraw(sceneToDraw,camera){const restore=revealAll(sceneToDraw);try{gl.setRenderTarget(scene);gl.render(sceneToDraw,camera);}finally{gl.setRenderTarget(null);restore();}},setSize,setBloom(on){bloom=!!on;},dispose(){for(const rt of [scene,bright,...levels.flat()])rt.dispose();triangle.dispose();brightMat.dispose();blurMat.dispose();compositeMat.dispose();}};
 }
