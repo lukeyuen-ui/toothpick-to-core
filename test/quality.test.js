@@ -14,6 +14,13 @@ test('presets: high, balanced and low get cheaper in every dimension',()=>{
  assert.deepEqual([QUALITY.high.kick,QUALITY.balanced.kick,QUALITY.low.kick],[true,true,false],'no camera kick on low');
  assert.equal(QUALITY.low.puffs,0,'low throws no dust puffs');
  assert.deepEqual([QUALITY.high.env,QUALITY.balanced.env,QUALITY.low.env],[true,true,false],'low skips the reflection map and keeps its old cost');
+ assert.deepEqual([QUALITY.high.grain,QUALITY.balanced.grain,QUALITY.low.grain],[true,false,false],'film grain on high only');
+});
+
+test('post: bloom, vignette and the grade come from C.look.post; grain starts off until a preset asks for it',async()=>{
+ const {C}=await import('../config.js'),{createGlow}=await import('../public/glow.js'),P=C.look.post,u=createGlow(null,P).uniforms;
+ assert.equal(u.threshold.value,P.threshold);assert.ok(P.threshold>1,'sunlit white paint stays under the bloom threshold');assert.ok(P.vignette>0&&P.vignette<0.2,'a light vignette');
+ assert.equal(u.grain.value,0);assert.deepEqual(u.lift.value.toArray(),P.lift);assert.ok(P.shadowTint[2]>P.shadowTint[0],'shade graded cool');
 });
 
 test('pickQuality: the URL beats the saved choice, unknown values mean auto, and auto starts at high',()=>{
