@@ -4,10 +4,10 @@ import {C}from '../config.js';
 import {createRoom,join,step,hp,payout,snapshot,scanDetectors,gate}from '../rules.js';
 import {creditFund,teamAction,win,resetPlanet}from '../team-rules.js';
 import {mergeSnapshot}from '../public/protocol.js';
+import {operate} from './console-play.js';
 function setup(count=2){const r=createRoom('TEST',42,false,0);r.finds=[];for(let i=0;i<count;i++){const p=join(r,'secret-'+i,'P'+i,0);p.publicId='p'+i;p.x=p.y=6.5;p.lastActive=0;}return r;}
 const command=(p,type,data={})=>({player:p,message:{type,...data}});
 function tick(r,commands=[],now=r.now+C.tickMs){step(r,commands,now);}
-const operate=r=>r.players.filter(p=>p.boarded&&Math.abs((r.console?.[p.publicId]?.v??0.5)-0.5)>0.04).map(p=>({player:p,message:{type:'tune'}}));
 
 function propose(r,item='coolant',p=r.players[0],extra={}){return command(p,'propose',{item,...extra});}
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-6,`${a} != ${b}`);
@@ -33,6 +33,6 @@ test('World Breaker bores a 3 by 3 shaft to the core; the side blocks pay nothin
 test('drill console: distinct gauges, neglect drifts to red and stalls, tuning recentres, leaving removes the gauge',async()=>{const {consoleZone}=await import('../team-rules.js');const drillRoom=crew=>{const r=setup(4);r.site=200;r.drill={index:200};r.coolant=true;r.cells[200]={row:150,hp:hp(150),damage:{}};for(let i=0;i<4;i++){r.cells[i].pumpBuilt=true;r.players[i].boarded=i<crew;}return r;};
  const r=drillRoom(2);tick(r);assert.deepEqual(new Set(Object.values(r.console).map(g=>g.kind)).size,2);assert.equal(r.oil.console,1);
  for(let i=0;i<200;i++)tick(r);assert.ok(Object.values(r.console).some(g=>consoleZone(g.v)!=='green'),'neglected needles wander out of the green');assert.ok(r.oil.console<1);assert.ok(r.oil.speed<C.team.crewSpeed[2]);
- const p=r.players[0],g=r.console[p.publicId];g.v=0.9;tick(r,[{player:p,message:{type:'tune'}}]);assert.ok(r.console[p.publicId].v<0.9,'tuning pulls the needle back');
+ const p=r.players[0],g=r.console[p.publicId];assert.equal(g.kind,'PRESSURE');g.v=0.9;tick(r,[{player:p,message:{type:'tune',hold:true}}]);assert.ok(r.console[p.publicId].v<0.9,'opening the valve pulls the needle back');
  p.boarded=false;tick(r);assert.equal(r.console[p.publicId],undefined);
  const drift=n=>{const q=drillRoom(n);for(let i=0;i<5;i++)tick(q);return Object.values(q.console).reduce((s,g)=>s+Math.abs(g.v-0.5),0)/n;};assert.ok(C.console.drift*(1+C.console.crewDrift*3)>C.console.drift);assert.ok(Number.isFinite(drift(4)));});

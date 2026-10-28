@@ -31,7 +31,7 @@ export function teamAction(room,p,msg,now){
  if(msg.type==='reset'){if(room.won)resetPlanet(room,now);return;}
  if(room.won)return;
  // The drill cab radios the hub, so a crew aboard can chip in and propose from their seats.
- if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p)&&!p.boarded)return {type:'toast',text:'Trade at the hub'};
+ if(['chip','propose','proposeSite','proposeConveyor'].includes(msg.type)&&!atHub(p)&&!p.boarded&&!(room.showcase&&p.bot))return {type:'toast',text:'Trade at the hub'};
  if(msg.type==='board'&&(p.shaft!=null||p.belay))return {type:'toast',text:'Belay up before boarding'};
  if(msg.type==='chip'){
   if(typeof msg.amount!=='string'||!Object.hasOwn(T.chipFractions,msg.amount))return;const fraction=T.chipFractions[msg.amount];
@@ -71,18 +71,42 @@ export function autoBuy(room,now){const goal=room.goal;if(!goal||requirement(roo
  if(goal.item==='worldBreaker'){for(const p of room.players)if(!p.departed&&Math.floor(p.y)*C.mapSize+Math.floor(p.x)===room.site){p.shaft=room.site;rimArrival(room,p);p.belay=null;p.drive=null;p.target=null;}room.worldBreaker={startedAt:now,startRow:room.cells[room.site].row,endsAt:now+T.worldBreakerMs};}
 }
 // The plasma drill bores a 3 by 3 shaft: the site first, then its eight neighbours (never ahead of the site). Extra blocks pay nothing.
-function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
-// Drill console: every crew member aboard keeps one gauge (pressure, heat, alignment, power) in the green.
-// Needles wander; tuning nudges yours back to the middle. More crew and any red gauge make every needle wander faster.
+export function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(room.site/N),cells=[room.site];for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy;if((dx||dy)&&nx>=0&&ny>=0&&nx<N&&ny<N&&!isDepot(nx,ny))cells.push(ny*N+nx);}return cells;}
+// Drill console: every crew member aboard works one seat, and each seat (pressure, heat, alignment, power) is its own small game.
+// HEAT climbs on its own and each tap vents a burst, so tapping too often overcools. PRESSURE builds while the valve is shut and bleeds
+// while it is held, so the hold has to be feathered. ALIGN lets two axes wander apart until both pads are held, then pulls them together.
+// POWER has a target band that wanders and a throttle that has to ride inside it.
+// Every seat still reports one needle v in [0,1] with 0.5 perfect, so drill speed, the zones, the overdrive bonus, the cockpit screens
+// and the bots read all four alike. More crew, any red gauge and the overdrive raise the pace of every seat.
 // The crew's average zone scales drill speed: green speeds it up, red stalls it.
 export function consoleZone(v){const K=C.console,d=Math.abs(v-0.5);return d<=K.green?'green':d<=K.yellow?'yellow':'red';}
+// How deep a needle sits in the red: 0 anywhere short of red, rising from the red line to 1 at the end stop. The drill cab's
+// red-zone rumble and vignette scale with it.
+export function consoleRedDepth(v){const K=C.console;return consoleZone(v)==='red'?Math.min(1,(Math.abs(v-0.5)-K.yellow)/(0.5-K.yellow)):0;}
 function consoleRandom(room){room.consoleSeed=((room.consoleSeed??(room.seed||1))*1103515245+12345)%2147483648;return room.consoleSeed/2147483648;}
+const unit=x=>Math.min(1,Math.max(0,x)),sign=room=>consoleRandom(room)<0.5?-1:1;
+function newGauge(room,kind,now){const g={kind,v:0.5,dir:sign(room),rate:1,flipAt:now+C.console.flipMs};if(kind==='PRESSURE')g.hold=false;if(kind==='ALIGN')Object.assign(g,{a:0.5,b:0.5,da:g.dir,db:sign(room),hold:false});if(kind==='POWER')Object.assign(g,{level:0.5,target:0.5,speed:0});return g;}
+function stepGauge(room,g,now,dt,pace){const K=C.console,noise=()=>(consoleRandom(room)-0.5)*K.jitter*dt;
+ // Each flip re-rolls the wander directions and how hard heat and pressure climb, so no seat settles into a rhythm.
+ if(now>=g.flipAt){g.dir=sign(room);g.rate=1+K.swing*(consoleRandom(room)*2-1);if(g.kind==='ALIGN'){g.da=sign(room);g.db=sign(room);}g.flipAt=now+K.flipMs*(0.5+consoleRandom(room));}
+ if(g.kind==='HEAT')g.v=unit(g.v+K.heat.rise*g.rate*pace*dt+noise());
+ else if(g.kind==='PRESSURE')g.v=unit(g.v+(g.hold?-K.pressure.fall:K.pressure.rise*g.rate)*pace*dt+noise());
+ else if(g.kind==='ALIGN'){const A=K.align,apart=Math.sign(g.a-g.b)||g.da,move=(x,dir,away)=>x+(dir*K.drift*(g.hold?A.steady:1)+(g.hold?0:away*A.spread))*pace*dt+noise();let a=move(g.a,g.da,apart),b=move(g.b,g.db,-apart);
+  if(g.hold){const mid=(a+b)/2,pull=1-Math.exp(-A.pull*dt);a+=(mid-a)*pull;b+=(mid-b)*pull;}
+  // The axes bounce off the edges of the graph, so the gap tops out a little short of the needle's end stops.
+  if(a<A.edge||a>1-A.edge)g.da=a<A.edge?1:-1;if(b<A.edge||b>1-A.edge)g.db=b<A.edge?1:-1;g.a=Math.min(1-A.edge,Math.max(A.edge,a));g.b=Math.min(1-A.edge,Math.max(A.edge,b));g.v=unit(0.5+(g.a-g.b)/2);}
+ else if(g.kind==='POWER'){const P=K.power;g.speed+=(g.dir*K.drift*pace-g.speed)*(1-Math.exp(-P.ease*dt));g.target+=g.speed*dt;if(g.target<P.low||g.target>P.high){g.dir=g.target<P.low?1:-1;g.speed=-g.speed;g.target=Math.min(P.high,Math.max(P.low,g.target));}g.v=unit(0.5+g.level-g.target);}}
 export function runConsole(room,crew,now,dt,surge=1){const K=C.console,gauges=room.console??={},ids=new Set(crew.map(p=>p.publicId));for(const id of Object.keys(gauges))if(!ids.has(id))delete gauges[id];
- for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind));gauges[p.publicId]={kind:K.kinds.find(k=>!used.has(k))||K.kinds[0],v:0.5,dir:consoleRandom(room)<0.5?-1:1,flipAt:now+K.flipMs};}
- if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,drift=K.drift*surge*(1+K.crewDrift*(crew.length-1));
- for(const p of crew){const g=gauges[p.publicId];if(now>=g.flipAt){g.dir=consoleRandom(room)<0.5?-1:1;g.flipAt=now+K.flipMs*(0.5+consoleRandom(room));}const drag=1+K.redDrag*(red-(consoleZone(g.v)==='red'?1:0));g.v=Math.min(1,Math.max(0,g.v+(g.dir*drift*drag+(consoleRandom(room)-0.5)*K.jitter)*dt));}
+ for(const p of crew)if(!gauges[p.publicId]){const used=new Set(Object.values(gauges).map(g=>g.kind)),order=room.showcase?C.showcase[p.bot?'botSeats':'humanSeats']:K.kinds;gauges[p.publicId]=newGauge(room,order.find(k=>!used.has(k))||K.kinds[0],now);}
+ if(!crew.length)return 1;const red=crew.filter(p=>consoleZone(gauges[p.publicId].v)==='red').length,pace=surge*(1+K.crewDrift*(crew.length-1));
+ for(const p of crew){const g=gauges[p.publicId];stepGauge(room,g,now,dt,pace*(1+K.redDrag*(red-(consoleZone(g.v)==='red'?1:0))));}
  return crew.reduce((sum,p)=>sum+K.zoneSpeed[consoleZone(gauges[p.publicId].v)],0)/crew.length;}
-export function tuneConsole(room,p){const g=room.console?.[p.publicId];if(!p.boarded||!g)return;const step=C.console.tuneStep;g.v=Math.abs(g.v-0.5)<=step?0.5:g.v+(g.v<0.5?step:-step);}
+// A bare tune taps the HEAT vent; hold opens the PRESSURE valve or grips both ALIGN pads; level sets the POWER throttle. Input for another seat does nothing.
+export function tuneConsole(room,p,m={}){const g=room.console?.[p.publicId];if(!p.boarded||!g)return;
+ if(typeof m.hold==='boolean'){if('hold' in g)g.hold=m.hold;}else if(Number.isFinite(m.level)){if(g.kind==='POWER'){g.level=unit(m.level);g.v=unit(0.5+g.level-g.target);}}else if(g.kind==='HEAT')g.v=unit(g.v-C.console.tuneStep);}
+// The wire carries only what the console draws, rounded: the needle plus each seat's valve, axes or throttle.
+const round=x=>Math.round(x*1000)/1000;
+export function publicConsole(room){return Object.fromEntries(Object.entries(room.console||{}).map(([id,g])=>[id,{kind:g.kind,v:round(g.v),...('hold' in g?{hold:g.hold}:{}),...(g.kind==='ALIGN'?{a:round(g.a),b:round(g.b)}:{}),...(g.kind==='POWER'?{level:round(g.level),target:round(g.target)}:{})}]));}
 export function runTeam(room,now,dt){
  resolveVote(room,now);autoBuy(room,now);
  const crew=room.players.filter(p=>p.connected&&p.boarded&&room.drill),count=crew.length,blocked=room.drill?gate({isTeam:true},room.cells[room.site].row,room):null;
@@ -106,7 +130,7 @@ export function runTeam(room,now,dt){
 }
 function award(room,valueKey,timeKey,positive=true){const candidates=room.players.filter(p=>positive?p[valueKey]>0:p[valueKey]>=0).sort((a,b)=>b[valueKey]-a[valueKey]||a[timeKey]-b[timeKey]);const p=candidates[0];return p?{id:p.publicId,nickname:p.nickname,value:p[valueKey]}:null;}
 export function win(room,now){if(room.won)return;room.won=true;room.vote=null;room.wonAt=now;for(const p of room.players){p.drive=null;p.target=null;p.boarding=false;}room.stats={timeToCore:(now-room.createdAt)/C.tapWindowMs,deepestDigger:award(room,'deepestRow','deepestAt',false),topContributor:award(room,'contributed','contributedAt'),bestFind:award(room,'bestFind','bestFindAt'),mostTimeInDrill:award(room,'drillSeconds','drillAt'),topHauler:award(room,'deliveredValue','deliveredAt')};room.endEvent={stats:room.stats,wonAt:now,site:room.site};}
-export function resetPlanet(room,now){const players=room.players,seed=Math.floor(room.random()*C.seed.modulus),round=room.round+1;Object.assign(room,createRoom(room.code,seed,room.fast,now,room.quick));room.round=round;room.wire=undefined;
+export function resetPlanet(room,now){const players=room.players,seed=Math.floor(room.random()*C.seed.modulus),round=room.round+1;Object.assign(room,createRoom(room.code,seed,room.fast,now,room.quick));room.round=round;room.wire=undefined;if(room.showcase)room.arc=null;
  for(const old of [...players.filter(p=>!p.departed),...players.filter(p=>p.departed)]){const gone=old.departed,connected=old.connected,leaveAt=old.leaveAt,disconnectedAt=old.disconnectedAt;const fresh=gone?join(createRoom(room.code,seed,room.fast,now,room.quick),old.token,old.nickname,now):join(room,old.token,old.nickname,now);fresh.publicId=old.publicId;fresh.color=old.color;fresh.seat=old.seat;[fresh.x,fresh.y]=C.spawnSeats[old.seat];const dx=fresh.x-C.mapSize/2,dy=fresh.y-C.mapSize/2,len=Math.hypot(dx,dy);fresh.facing={dx:dx/len,dy:dy/len};Object.assign(old,fresh);old.connected=connected;old.departed=!!gone;if(!connected&&!gone){old.leaveAt=leaveAt;old.disconnectedAt=disconnectedAt;}if(gone)room.players.push(old);else room.players[room.players.length-1]=old;}
  room.resetEvent=true;for(let i=0;i<room.cells.length;i++)room.dirty.add(i);
 }
