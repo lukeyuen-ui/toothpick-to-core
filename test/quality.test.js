@@ -13,6 +13,7 @@ test('presets: high, balanced and low get cheaper in every dimension',()=>{
  for(const key of ['flora','embers','debris','puffs'])assert.ok(QUALITY.high[key]>QUALITY.balanced[key]&&QUALITY.balanced[key]>QUALITY.low[key],key);
  assert.deepEqual([QUALITY.high.kick,QUALITY.balanced.kick,QUALITY.low.kick],[true,true,false],'no camera kick on low');
  assert.equal(QUALITY.low.puffs,0,'low throws no dust puffs');
+ assert.deepEqual([QUALITY.high.env,QUALITY.balanced.env,QUALITY.low.env],[true,true,false],'low skips the reflection map and keeps its old cost');
 });
 
 test('pickQuality: the URL beats the saved choice, unknown values mean auto, and auto starts at high',()=>{
@@ -32,7 +33,7 @@ test('settings: pixel ratio never exceeds the device or the level cap; touch scr
  assert.equal(pickQuality({saved:'low',dpr:3}).settings.pixelRatio,1);
  assert.equal(qualitySettings('high',{dpr:NaN}).pixelRatio,1);
  assert.equal(qualitySettings('high').shadowMapSize,2048);assert.equal(qualitySettings('high',{touch:true}).shadowMapSize,1024);
- assert.equal(qualitySettings('balanced').shadowMapSize,2048);assert.equal(qualitySettings('balanced',{touch:true}).shadowMapSize,1024);
+ assert.equal(qualitySettings('balanced').shadowMapSize,1024,'balanced halves the map for harder, cheaper shadows');assert.equal(qualitySettings('balanced',{touch:true}).shadowMapSize,512);
  assert.equal(qualitySettings('nope').level,'high');
 });
 
