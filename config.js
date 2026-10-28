@@ -122,12 +122,20 @@ export const C = {
  // it into the day's (dawn). lampHaze: dust in a shaft's air lit by your own lamp, added along the view through the beam (colour,
  // strength, and the distance in world units over which it builds). motes: the dust in the beam glows additively at this size.
  // plasma: the drill's jets, bolts and impact glows keep a saturated colour so they read hot without washing out to white.
+ // regolith: dust throws light back toward the sun (the opposition surge), brightening the ground round your shadow's direction:
+ // the sun on dust and rock is scaled by 1 + surge * cos(phase)^power; roughness for all the dust and rock surfaces. finish: what
+ // the factory's plain parts become by tone (neutral greys metal, near-white paint, saturated paint, dark rubber; suits, gloves and
+ // crew stations fabric), with env their reflection strength; authored materials keep their values and take env.metal or
+ // env.other. scuff: metal roughness varies by up to this share, scuffScale cycles per world unit. craters: the small dimples
+ // shade by the sun, lit on the inner wall facing it and shaded under the sunward rim (colours, strength).
  look:{sun:{color:'#fff1e0',intensity:6.2},sky:{color:'#a9b2dc',ground:'#6e6c78',intensity:2.1},exposure:1.1,
   shadow:{margin:1.5,forest:6.5,top:3.6,bottom:-6.2,bias:-0.0005,normalBias:0.04},
   env:{size:64,zenith:'#070a16',horizon:'#262f52',ground:'#8b8a98',glow:'#ffe2bd',day:{zenith:'#3c80d6',horizon:'#cfe6f6',ground:'#56773f',glow:'#fff1d2'}},
   night:{zenith:'#05060c',horizon:'#1d2236',band:'#262c44',bandNormal:[0.35,0.55,0.76],bandWidth:0.17},
   haze:{color:'#8d90a8',near:14,far:95},lampHaze:{color:'#ffe9cc',strength:0.07,build:0.35},motes:{color:'#fff0d8',size:0.012},
-  plasma:{jet:'#a6e8ff',hit:'#6fd0ff',jetOver:'#ff8ae6',hitOver:'#ff5fd2',jetOpacity:0.75,boltOpacity:0.85,hitOpacity:0.4,glowOpacity:0.75}},
+  plasma:{jet:'#a6e8ff',hit:'#6fd0ff',jetOver:'#ff8ae6',hitOver:'#ff5fd2',jetOpacity:0.75,boltOpacity:0.85,hitOpacity:0.4,glowOpacity:0.75},
+  regolith:{surge:0.35,power:8,roughness:0.95},craters:{lit:'#f6f4fc',shade:'#47456a',strength:0.42},
+  finish:{metal:{roughness:0.34,metalness:0.7,env:1},white:{roughness:0.42,metalness:0,env:0.55},paint:{roughness:0.5,metalness:0,env:0.6},rubber:{roughness:0.86,metalness:0,env:0.25},fabric:{roughness:0.9,metalness:0,env:0.3},env:{metal:1,other:0.6},scuff:0.45,scuffScale:6}},
  pits:{inset:0.11,corner:0.32,innerCorner:0.2,edgeNoise:0.022,lift:0.022,lipWidth:0.075,spoil:0.28,spoilTint:[1.04,0.9,0.76],spoilClumps:0.14,lipShade:0.62,floorShade:0.55,floorBias:0.03,wallClumps:0.16,strataWobble:0.45,blendRows:1,rimTexels:8,seamGlow:0.2,segments:32,radius:0.36,mergeRow:1,rubblePerCell:8,rubbleDensity:5,rubbleSize:0.028,gravelPerCell:16,gravelDensity:12,gravelSize:0.012,gravelReach:0.42,targetRadius:0.43,targetGlowRadius:0.47},
  // Surface ground (public/ground-detail.js): one baked texture over the claim and the dunes ring gives a broad brightness mottle, darker
  // patches of fine dust, pale streaks and crater ejecta, warm and cool greys, the bump strength, and ground worn round the hub, along
