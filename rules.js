@@ -30,10 +30,14 @@ export function generateFinds(seed) {
 export function layerAt(row) { let start=0; for(const layer of C.layers) { if(row<start+layer.rows) return {...layer,start,progress:(row-start)/layer.rows}; start+=layer.rows; } return {...C.layers.at(-1),start:C.innerRow,progress:1}; }
 export function depthAt(row) { if(row>=C.finalRow) return C.layers.at(-1).to; const l=layerAt(row); return l.from+(l.to-l.from)*l.progress; }
 export function hp(row) { return Math.round(C.hpBase*C.hpGrowth**row)*(row>=C.innerRow?C.innerMultiplier:1); }
+// Hardcore rock is tougher: each block of a hardcore room (or a client's copy of its state) has C.hardcore.hpMultiplier times the hit points.
+export function rockToughness(room){return room?.hardcore?C.hardcore.hpMultiplier:1;}
+export function rockHp(room,row){return hp(row)*rockToughness(room);}
 export function payout(row) { return C.payoutGrowth**row*(row>=C.innerRow?C.innerMultiplier:1); }
-export function createRoom(code,seed,fast,now,quick=false) {
- const finds=generateFinds(seed),cells=Array.from({length:C.mapSize*C.mapSize},()=>({row:0,damage:{},hp:hp(0)}));for(const f of finds)if(f.surface)cells[f.cell].surfaceSign=f.type;
- return {...initialTeam(),oilFields:{},excavators:[],excavatorSequence:0,machineShares:[],piles:{},belts:{},conveyorLines:[],beltProgress:0,cargoSequence:0,deliveries:[],privateToasts:{},now,code,seed,fast,quick,createdAt:now,lastActivity:now,players:[],cells,finds,hints:{},breakEvents:[],announcements:[],tick:0,deepest:0,dirty:new Set(),broken:new Set(),random:seeded(seed)};
+export function createRoom(code,seed,fast,now,quick=false,hardcore=false) {
+ hardcore=!!hardcore&&!quick;// Quick and Hardcore never mix
+ const finds=generateFinds(seed),cells=Array.from({length:C.mapSize*C.mapSize},()=>({row:0,damage:{},hp:rockHp({hardcore},0)}));for(const f of finds)if(f.surface)cells[f.cell].surfaceSign=f.type;
+ return {...initialTeam(),oilFields:{},excavators:[],excavatorSequence:0,machineShares:[],piles:{},belts:{},conveyorLines:[],beltProgress:0,cargoSequence:0,deliveries:[],privateToasts:{},now,code,seed,fast,quick,hardcore,createdAt:now,lastActivity:now,players:[],cells,finds,hints:{},breakEvents:[],announcements:[],tick:0,deepest:0,dirty:new Set(),broken:new Set(),random:seeded(seed)};
 }
 export function join(room,token,nickname,now) {
  expireDepartures(room,now);let p=room.players.find(p=>p.token===token);
@@ -43,7 +47,7 @@ export function join(room,token,nickname,now) {
   
   let [spawnX,spawnY]=C.spawnSeats[seat];if(!validPosition(spawnX,spawnY,room)){const candidates=[];for(let y=0;y<C.mapSize;y++)for(let x=0;x<C.mapSize;x++)if(!room.cells[y*C.mapSize+x].row&&validPosition(x+0.5,y+0.5,room))candidates.push({x:x+0.5,y:y+0.5,d:Math.hypot(x+0.5-spawnX,y+0.5-spawnY)});candidates.sort((a,b)=>a.d-b.d);if(candidates[0]){spawnX=candidates[0].x;spawnY=candidates[0].y;}}
   const outward=Math.hypot(spawnX-C.mapSize/2,spawnY-C.mapSize/2);
-  p={id:token,token,nickname:cleanNickname(nickname),seat,color:C.colors[seat],x:spawnX,y:spawnY,hold:{value:0,units:0,lots:[]},holdFullNotified:false,pods:0,beltsBuilt:0,beltIncome:0,beltEarned:0,excavatorKits:0,firstCargo:false,returning:false,shaft:null,depth:0,belay:null,rimCell:null,shaftEntry:null,surfaceCell:null,shaftApproach:null,lighting:0,deepCoach:false,move:{dx:0,dy:0},moveAt:-Infinity,facing:{dx:(spawnX-C.mapSize/2)/outward,dy:(spawnY-C.mapSize/2)/outward},drivePath:null,driveKey:null,deliveredValue:0,deliveredAt:Infinity,wallet:0,lifetime:0,income:0,earned:0,tool:0,mobility:0,metal:0,diamond:0,dowsing:0,bestFind:0,bestFindAt:Infinity,contributed:0,contributedAt:Infinity,deepestRow:-1,deepestAt:Infinity,drillSeconds:0,drillAt:Infinity,boarded:false,boarding:false,lastActive:-Infinity,lastWorked:-Infinity,rods:{bearing:null,onPocket:false},aim:null,oilAim:-1,detectorCell:null,target:null,drive:null,autoElapsed:0,tapTimes:[],connected:true};
+  p={id:token,token,nickname:cleanNickname(nickname),seat,color:C.colors[seat],x:spawnX,y:spawnY,hold:{value:0,units:0,lots:[]},holdFullNotified:false,pods:0,beltsBuilt:0,beltIncome:0,beltEarned:0,excavatorKits:0,firstCargo:false,returning:false,shaft:null,depth:0,belay:null,rimCell:null,shaftEntry:null,surfaceCell:null,shaftApproach:null,lighting:0,deepCoach:false,move:{dx:0,dy:0},moveAt:-Infinity,facing:{dx:(spawnX-C.mapSize/2)/outward,dy:(spawnY-C.mapSize/2)/outward},drivePath:null,driveKey:null,deliveredValue:0,deliveredAt:Infinity,wallet:room.hardcore?C.hardcore.startWallet:0,lifetime:0,income:0,earned:0,tool:0,mobility:0,metal:0,diamond:0,dowsing:0,bestFind:0,bestFindAt:Infinity,contributed:0,contributedAt:Infinity,deepestRow:-1,deepestAt:Infinity,drillSeconds:0,drillAt:Infinity,boarded:false,boarding:false,lastActive:-Infinity,lastWorked:-Infinity,rods:{bearing:null,onPocket:false},aim:null,oilAim:-1,detectorCell:null,target:null,drive:null,autoElapsed:0,tapTimes:[],connected:true};
   room.players.push(p);
  }
  if(!validPosition(p.x,p.y,room)){p.shaft??=Math.floor(p.y)*C.mapSize+Math.floor(p.x);rimArrival(room,p);p.belay=null;}p.seat=seat;p.color=C.colors[seat];p.connected=true;p.departed=false;p.leaveAt=null;p.disconnectedAt=null;room.lastActivity=now; return p;
@@ -84,7 +88,7 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
  if(!p.isTeam){lightShaft(room,p,index);p.lastWorked=room.now;}
  if(room.showcase&&!again&&C.tools[p.tool]?.area)amount*=C.showcase.digPower;// the showcase mech digs harder (see C.showcase)
  cell.richStart??=cell.row;const actual=Math.min(amount,cell.hp),leftover=amount-actual; cell.hp-=actual; cell.damage[p.id]=(cell.damage[p.id]||0)+actual; room.dirty.add(index);
- if(cell.hp<=hp(cell.row)*C.damageEpsilon) {
+ if(cell.hp<=rockHp(room,cell.row)*C.damageEpsilon) {
   const total=Object.values(cell.damage).reduce((a,b)=>a+b,0), value=cellPayout(cell)*incomeMultiplier(room);
   const find=room.finds.find(f=>!f.extracted&&f.cell===index&&f.row===cell.row);
   const bonus=find?(C.findBonuses[find.type]||0)*payout(cell.row)*incomeMultiplier(room):0, shares={},bonuses={},units={},spilled={},viaBelt={};
@@ -106,14 +110,14 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
    for(const who of room.players)updateDowsing(room,who);
   }
   const previousRow=cell.row;cell.row++;for(const who of room.players)if(who.shaft===index&&!who.belay&&who.depth+C.damageEpsilon>=previousRow)who.depth=cell.row;
-  if(!p.isTeam){if(cell.row>C.shafts.surfaceReachRows)p.deepCoach=true;lightShaft(room,p,index);}cell.damage={}; cell.hp=hp(cell.row); room.deepest=Math.max(room.deepest,cell.row); room.broken.add(index);
+  if(!p.isTeam){if(cell.row>C.shafts.surfaceReachRows)p.deepCoach=true;lightShaft(room,p,index);}cell.damage={}; cell.hp=rockHp(room,cell.row); room.deepest=Math.max(room.deepest,cell.row); room.broken.add(index);
   collapseAround(room,index);
   if(pierce>0&&leftover>0&&cell.row)hit(room,p,x,y,leftover,indirect,shaftBlast,pierce-1,true);
  }
 }
 // A block left standing between four dug holes caves in, so the holes become one big hole you can keep digging. The fallen rock pays nothing.
 const SIDES=[[1,0],[-1,0],[0,1],[0,-1]];
-export function collapseAround(room,index){const N=C.mapSize,M=C.pits.mergeRow,x=index%N,y=Math.floor(index/N);if(room.cells[index].row<M)return;for(const [dx,dy] of SIDES){const nx=x+dx,ny=y+dy;if(!validCell(nx,ny))continue;const i=ny*N+nx,c=room.cells[i];if(c.row>=M||isDepot(nx,ny)||i===room.site||machineAt(room,nx,ny)||room.players.some(p=>!p.departed&&(p.shaft===i||(p.shaft==null&&Math.floor(p.x)===nx&&Math.floor(p.y)===ny))))continue;const around=SIDES.map(([ax,ay])=>validCell(nx+ax,ny+ay)?room.cells[(ny+ay)*N+nx+ax].row:-1);if(around.some(r=>r<M))continue;c.row=Math.min(...around);c.hp=hp(c.row);c.damage={};room.dirty.add(i);room.broken.add(i);room.deepest=Math.max(room.deepest,c.row);}}
+export function collapseAround(room,index){const N=C.mapSize,M=C.pits.mergeRow,x=index%N,y=Math.floor(index/N);if(room.cells[index].row<M)return;for(const [dx,dy] of SIDES){const nx=x+dx,ny=y+dy;if(!validCell(nx,ny))continue;const i=ny*N+nx,c=room.cells[i];if(c.row>=M||isDepot(nx,ny)||i===room.site||machineAt(room,nx,ny)||room.players.some(p=>!p.departed&&(p.shaft===i||(p.shaft==null&&Math.floor(p.x)===nx&&Math.floor(p.y)===ny))))continue;const around=SIDES.map(([ax,ay])=>validCell(nx+ax,ny+ay)?room.cells[(ny+ay)*N+nx+ax].row:-1);if(around.some(r=>r<M))continue;c.row=Math.min(...around);c.hp=rockHp(room,c.row);c.damage={};room.dirty.add(i);room.broken.add(i);room.deepest=Math.max(room.deepest,c.row);}}
 export function action(room,p,message,now) {
  if(!p.connected||!validMessage(message)) return;p.inputAt=now;
  if(message.type==='layConveyor')return layConveyor(room,p,message);
@@ -197,7 +201,7 @@ function wireCells(room,indices){return [...indices].map(index=>{const c=room.ce
 function delta(previous,next){const patch={};for(const [key,value]of Object.entries(next))if(JSON.stringify(previous?.[key])!==JSON.stringify(value))patch[key]=value;return patch;}
 export function snapshot(room,full=false) {
  full=full||room.resetEvent;
- const metadata={code:room.code,fast:room.fast,quick:room.quick,showcase:!!room.showcase,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
+ const metadata={code:room.code,fast:room.fast,quick:room.quick,hardcore:!!room.hardcore,showcase:!!room.showcase,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
  const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil','arc'].map(key=>[key,room[key]]));team.console=publicConsole(room);team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
  const players=room.players.map(publicPlayer),hintStrings=Object.fromEntries(Object.entries(room.hints).map(([key,value])=>[key,JSON.stringify(value)]));
  const piles=publicPiles(room),belts=room.belts;
