@@ -7,6 +7,8 @@ import {setupShowcase} from '../showcase-rules.js';
 import {addPile,conveyorQuote} from '../hauling-rules.js';
 import {validMessage,decodeMessage} from '../resilience.js';
 import {serializeRoom,restoreRoom,claimSaved,encodeSave,decodeSave,makeSaveCode,saveDue,markSaved,saveMessage,SaveError,SAVE_TEXT,CODE_PREFIX} from '../save-rules.js';
+import {createSaveView,savedAgo,saveDepth} from '../public/save-view.js';
+import {readFile} from 'node:fs/promises';
 
 const cmd=(p,type,extra={})=>({player:p,message:{type,...extra}});
 const json=v=>JSON.parse(JSON.stringify(v));
@@ -140,3 +142,51 @@ test('the wire takes a long create only when it carries a save code, and only be
  const big=JSON.stringify({type:'create',resume:'A'.repeat(100000),nickname:'Ada'}),padded=JSON.stringify({type:'create',nickname:'x'.repeat(100000)});
  assert.equal(decodeMessage(big),null,'ordinary limit');assert.equal(decodeMessage(big,false,C.save.maxCodeBytes+C.maxPayload).resume.length,100000);assert.equal(decodeMessage(padded,false,C.save.maxCodeBytes+C.maxPayload),null,'long but not a save code');
  assert.equal(decodeMessage(JSON.stringify({type:'create',resume:'A'.repeat(C.save.maxCodeBytes+C.maxPayload)}),false,C.save.maxCodeBytes+C.maxPayload),null,'past the cap');});
+
+// The lobby and hub halves on the client (public/save-view.js), driven through fake elements the way goals and supply are tested.
+class Element{constructor(){this.textContent='';this.hidden=false;this.disabled=false;this.open=false;this.value='';this.classes=new Set();this.classList={toggle:(name,on)=>on?this.classes.add(name):this.classes.delete(name)};this.selected=false;}focus(){}select(){this.selected=true;}}
+function lobby({clipboardFails=false,storageFails=false}={}){const ids=['resume-panel','resume-summary','resume-saved','resume-detail','resume-start','resume-copy','resume-code-text','resume-paste','resume-paste-go','resume-status','save-row','save-age','save-copy','save-text'],elements=Object.fromEntries(ids.map(id=>[id,new Element()])),values=new Map(),copied=[],toasts=[],resumed=[];let time=1e12;
+ const storage={getItem:k=>values.get(k)??null,setItem:(k,v)=>{if(storageFails)throw Error('quota');values.set(k,v);},removeItem:k=>values.delete(k)};
+ const clipboard=()=>({writeText:async text=>{if(clipboardFails)throw Error('denied');copied.push(text);}});
+ const make=()=>createSaveView({document:{getElementById:id=>elements[id]},storage,clipboard,toast:t=>toasts.push(t),resume:(code,saved)=>resumed.push({code,saved}),now:()=>time});
+ return {elements,values,copied,toasts,resumed,make,tick:ms=>{time+=ms;}};}
+const message=(room='ABCD',row=40)=>({type:'save',code:'TPC1.body.tag-'+room,savedAt:5,row,meta:{room,nickname:'Ada',round:0,crew:['Ada']}});
+const settle=()=>new Promise(r=>setTimeout(r,0));
+
+test('the lobby offers the latest hardcore save: when, how deep and as whom, with Resume, Copy and a paste field for a crewmate\'s code',async()=>{
+ const t=lobby(),e=t.elements;let view=t.make();view.renderLobby();
+ assert.equal(e['resume-summary'].textContent,'Have a hardcore save code?');assert.equal(e['resume-saved'].hidden,true);assert.equal(e['resume-panel'].classes.has('saved'),false);
+ view.accept(message());view.accept(message());assert.deepEqual(t.toasts,['Saved. Hardcore expeditions can be resumed from the lobby after a restart.'],'the first save of a room says what saving is for, once');
+ const kept=JSON.parse(t.values.get(C.save.storageKey));assert.deepEqual({...kept,savedAt:0},{code:'TPC1.body.tag-ABCD',savedAt:0,row:40,nickname:'Ada',room:'ABCD'});
+ t.tick(3*60000);view=t.make();view.renderLobby();// a reload after a restart
+ assert.equal(e['resume-summary'].textContent,'Resume hardcore expedition');assert.equal(e['resume-saved'].hidden,false);assert.equal(e['resume-panel'].open,true);assert.equal(e['resume-panel'].classes.has('saved'),true);
+ assert.equal(e['resume-detail'].textContent,'Saved 3 min ago · '+saveDepth(40)+' deep · as Ada');
+ e['resume-start'].onclick();assert.deepEqual(t.resumed.map(r=>[r.code,r.saved.room]),[['TPC1.body.tag-ABCD','ABCD']]);
+ e['resume-copy'].onclick();await settle();assert.deepEqual(t.copied,['TPC1.body.tag-ABCD']);assert.equal(e['resume-status'].textContent,'Save code copied');assert.equal(e['resume-code-text'].hidden,true,'a copy that worked shows no code box');
+ e['resume-paste-go'].onclick();assert.equal(e['resume-status'].textContent,'Paste a save code first');assert.equal(t.resumed.length,1);
+ e['resume-paste'].value='  TPC1.from\n  a.crewmate  ';let prevented=false;e['resume-paste'].onkeydown({key:'Enter',preventDefault(){prevented=true;}});assert.equal(prevented,true,'Enter in the paste field resumes instead of joining a room code');assert.deepEqual(t.resumed.at(-1),{code:'TPC1.froma.crewmate',saved:null},'chat line breaks are stripped and no seat token is sent for a pasted code');
+ e['resume-paste'].value='x'.repeat(C.save.maxCodeBytes+1);e['resume-paste-go'].onclick();assert.equal(e['resume-status'].textContent,'That is too long to be a save code');
+ view.finished('ABCD');view.renderLobby();assert.equal(t.values.has(C.save.storageKey),false,'reaching the core clears the save');assert.equal(e['resume-saved'].hidden,true);});
+
+test('a refused clipboard shows the code selected instead, and a full browser storage says so',async()=>{
+ const t=lobby({clipboardFails:true}),e=t.elements,view=t.make();view.accept(message('WXYZ'));view.renderLobby();e['resume-copy'].onclick();await settle();
+ assert.equal(e['resume-code-text'].hidden,false);assert.equal(e['resume-code-text'].value,'TPC1.body.tag-WXYZ');assert.equal(e['resume-code-text'].selected,true);assert.equal(e['resume-status'].textContent,'Press Ctrl+C or Cmd+C to copy the selected code');
+ const full=lobby({storageFails:true});full.make().accept(message());assert.match(full.toasts[0],/storage is full or blocked/);});
+
+test('in a hardcore room the hub shows when the last save arrived and copies it; the code never reaches the HUD',async()=>{
+ const t=lobby(),e=t.elements,view=t.make(),state=(extra={})=>({code:'ABCD',hardcore:true,showcase:false,team:{won:false},...extra});
+ view.renderHub(state());assert.equal(e['save-row'].hidden,false);assert.equal(e['save-age'].textContent,'First save within a minute');assert.equal(e['save-copy'].disabled,true);
+ view.accept(message());view.renderHub(state());assert.equal(e['save-age'].textContent,'Saved just now');assert.equal(e['save-copy'].disabled,false);
+ t.tick(2*3600000);view.renderHub(state());assert.equal(e['save-age'].textContent,'Saved 2 hours ago');
+ e['save-copy'].onclick();await settle();assert.deepEqual(t.copied,['TPC1.body.tag-ABCD']);assert.equal(t.toasts.at(-1),'Save code copied');assert.equal(e['save-text'].hidden,true,'nothing of the code shows in the hub');
+ view.renderHub(state({code:'QRST'}));assert.equal(e['save-copy'].disabled,true,'a save from another room is not this room\'s');
+ for(const other of [state({hardcore:false}),state({showcase:true}),state({team:{won:true}})]){view.renderHub(other);assert.equal(e['save-row'].hidden,true);}
+ for(const [ms,text] of [[0,'just now'],[44000,'just now'],[90000,'2 min ago'],[59*60000,'59 min ago'],[3600000,'1 hour ago'],[35*3600000,'35 hours ago'],[48*3600000,'2 days ago']])assert.equal(savedAgo(ms),text);});
+
+test('the save code UI ships: lobby panel, hub row, the module route and its styles, and no long dashes in the copy',async()=>{
+ const html=await readFile(new URL('../public/index.html',import.meta.url),'utf8'),server=await readFile(new URL('../server.js',import.meta.url),'utf8'),view=await readFile(new URL('../public/save-view.js',import.meta.url),'utf8'),client=await readFile(new URL('../public/client.js',import.meta.url),'utf8'),{SAVE_STYLE}=await import('../config.js');
+ for(const id of ['resume-panel','resume-start','resume-copy','resume-paste','resume-paste-go','save-row','save-copy'])assert.match(html,new RegExp('id="'+id+'"'));
+ assert.match(html,/<input id="nickname"[^>]*><details id="resume-panel">/,'the panel sits under the callsign it resumes with');assert.ok([...html.matchAll(/<button id="(resume|save)-[a-z-]+" type="button"/g)].length>=4,'panel buttons never submit the join form');
+ assert.match(server,/'save-view\.js'/);assert.match(server,/\+SAVE_STYLE[+)]/);assert.match(SAVE_STYLE,/#save-row:not\(\[hidden\]\)/);
+ assert.match(client,/message\.type==='save'\)\{saves\.accept\(message\)/);assert.match(client,/send\(\{type:'export'\}\)/);
+ for(const text of [html.match(/<details id="resume-panel">.*?<\/details>/)[0],view,SAVE_STYLE])assert.doesNotMatch(text,/[\u2013\u2014]/);});

@@ -5,7 +5,7 @@ import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {randomBytes,randomInt,randomUUID} from 'node:crypto';
 import {WebSocketServer,WebSocket} from 'ws';
-import {C,STYLE,M2_STYLE,M3_STYLE,HAUL_STYLE,THREE_STYLE,CAB_STYLE,SHIP_STYLE,POLISH_STYLE,FIELD_STYLE,EXPLORER_STYLE,BUILD2_STYLE,GUIDE_ANIMATION,BUILD4_STYLE,CORE_HUB_STYLE,SHORT_STYLE,GFX_STYLE,DRILL_STYLE,CONSOLE_STYLE} from './config.js';
+import {C,STYLE,M2_STYLE,M3_STYLE,HAUL_STYLE,THREE_STYLE,CAB_STYLE,SHIP_STYLE,POLISH_STYLE,FIELD_STYLE,EXPLORER_STYLE,BUILD2_STYLE,GUIDE_ANIMATION,BUILD4_STYLE,CORE_HUB_STYLE,SHORT_STYLE,GFX_STYLE,DRILL_STYLE,CONSOLE_STYLE,SAVE_STYLE} from './config.js';
 import {createRoom,join,step,snapshot,snapshotForPlayer,depthAt} from './rules.js';
 import {disconnect} from './presence-rules.js';
 import {decodeMessage,escapeHtml,allowAction} from './resilience.js';
@@ -16,12 +16,12 @@ const rooms=new Map(),sockets=new Map(),queues=new Map();
 const ended='That expedition has ended. Start a new one.';
 if(usingDefaultSecret())console.warn('SAVE_SECRET is not set: hardcore save codes are signed with the built-in default key, so anyone who reads the source could forge one. Set SAVE_SECRET to a long random string; codes signed with the default key then stop working.');
 const routes=new Map([['/',['public/index.html','text/html']],['/favicon.svg',['public/favicon.svg','image/svg+xml']],['/cover.png',['public/cover.png','image/png']],['/cover.html',['public/cover.html','text/html']],['/config.js',['config.js','text/javascript']],['/manifest.webmanifest',['public/manifest.webmanifest','application/manifest+json']],['/icon-192.png',['public/icon-192.png','image/png']],['/icon-512.png',['public/icon-512.png','image/png']]]);
-for(const file of ['core-scene.js','client.js','protocol.js','team-view.js','renderer.js','audio.js','renderer3d.js','input.js','feedback.js','scene-assets.js','cab-scene.js','control-math.js','cover.js','scene-preview.js','confirmation.js','pit-geometry.js','explorer-models.js','supply-view.js','goals.js','logistics-view.js','wording.js','glow.js','quality.js','flora.js','dawn.js','console-view.js'])routes.set('/'+file,['public/'+file,'text/javascript']);
+for(const file of ['core-scene.js','client.js','protocol.js','team-view.js','renderer.js','audio.js','renderer3d.js','input.js','feedback.js','scene-assets.js','cab-scene.js','control-math.js','cover.js','scene-preview.js','confirmation.js','pit-geometry.js','explorer-models.js','supply-view.js','goals.js','logistics-view.js','wording.js','glow.js','quality.js','flora.js','dawn.js','console-view.js','save-view.js'])routes.set('/'+file,['public/'+file,'text/javascript']);
 for(const file of ['rules.js','team-rules.js','hauling-rules.js','formatters.js','shaft-rules.js','movement-rules.js','presence-rules.js','resilience.js','economy-rules.js','excavator-rules.js','obstacles.js','personal-conveyors.js','lighting-rules.js','showcase-rules.js'])routes.set('/'+file,[file,'text/javascript']);
 const server=http.createServer(async(req,res)=>{
  let url;try{url=new URL(req.url,'http://localhost');}catch{res.writeHead(400);res.end();return;}
  const json=(status,data)=>{res.writeHead(status,{'Content-Type':'application/json','Cache-Control':'no-store'});res.end(JSON.stringify(data));};
- if(url.pathname==='/style.css'){res.writeHead(200,{'Content-Type':'text/css','Cache-Control':'no-store'});res.end(STYLE+M2_STYLE+M3_STYLE+HAUL_STYLE+THREE_STYLE+CAB_STYLE+SHIP_STYLE+POLISH_STYLE+FIELD_STYLE+EXPLORER_STYLE+BUILD2_STYLE+GUIDE_ANIMATION+BUILD4_STYLE+CORE_HUB_STYLE+SHORT_STYLE+GFX_STYLE+DRILL_STYLE+CONSOLE_STYLE);return;}
+ if(url.pathname==='/style.css'){res.writeHead(200,{'Content-Type':'text/css','Cache-Control':'no-store'});res.end(STYLE+M2_STYLE+M3_STYLE+HAUL_STYLE+THREE_STYLE+CAB_STYLE+SHIP_STYLE+POLISH_STYLE+FIELD_STYLE+EXPLORER_STYLE+BUILD2_STYLE+GUIDE_ANIMATION+BUILD4_STYLE+CORE_HUB_STYLE+SHORT_STYLE+GFX_STYLE+DRILL_STYLE+SAVE_STYLE+CONSOLE_STYLE);return;}
  if(url.pathname==='/health'){json(200,{ok:true,rooms:rooms.size,players:[...rooms.values()].reduce((n,r)=>n+r.players.filter(p=>p.connected).length,0)});return;}
  const roomMatch=/^\/room\/([A-Za-z]{4})$/.exec(url.pathname);if(roomMatch){const r=rooms.get(roomMatch[1].toUpperCase());if(!r||Date.now()-r.lastActivity>=C.idleMs)json(404,{error:'That room has ended'});else json(200,{code:r.code,crew:r.players.filter(p=>p.connected&&!p.bot).length,bots:r.players.filter(p=>p.bot&&!p.departed).length,depth:depthAt(r.deepest)});return;}
  let route=routes.get(url.pathname);if(/^\/vendor\/[a-zA-Z0-9._-]+$/.test(url.pathname))route=['public'+url.pathname,url.pathname.endsWith('.js')?'text/javascript':'text/plain'];if(!route){res.writeHead(404);res.end('Not found');return;}
