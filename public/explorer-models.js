@@ -162,7 +162,7 @@ export function seatShoulder(side,target=new T.Vector3()){const K=C.three.cockpi
 // helmet with a neck ring, side pods, a gold reflective visor and its rim. Greys and darks are vertex tints on the suit's own two
 // materials, so a suit stays a few draw calls. The mining mech adds a hydraulic exoskeleton over it: graphite armour plates with
 // glowing trim, chrome pistons, hoses, joint drums, arm lamps and three-finger claws.
-const ring=(r,t,n=8)=>{const p=profileCircle(t,n).map(([u,v])=>[r+u,v]);p.push(p[0]);return p;};
+const ring=(r,t,n=6)=>{const p=profileCircle(t,n).map(([u,v])=>[r+u,v]);p.push(p[0]);return p;};
 // White (or tinted) vertex colours for a geometry that has none, so the vertex-coloured finishes light it.
 function painted(g,r=1,gr=1,b=1){const n=g.attributes.position.count,c=new Float32Array(n*3);for(let i=0;i<n;i++){c[i*3]=r;c[i*3+1]=gr;c[i*3+2]=b;}g.setAttribute('color',new T.BufferAttribute(c,3));return g;}
 export function astronaut(factory,player,scene){const root=new T.Group(),body=new T.Group();root.add(body);root.position.set(player.x,0,player.y);root.name='Explorer '+player.nickname;
@@ -172,56 +172,56 @@ export function astronaut(factory,player,scene){const root=new T.Group(),body=ne
  const P=parts(),A=parts();
  // Torso: hard upper torso, a folded soft waist on a bearing ring, shoulder bearings, the chest control box and its umbilicals.
  P.add(fabric,roundBox(0.36,0.2,0.26,0.085,2),0,0.665,0);
- P.add(fabric,lathe([[0,0.44],[0.118,0.44],[0.142,0.458],[0.151,0.488],[0.146,0.503],[0.155,0.522],[0.15,0.542],[0.157,0.562],[0.148,0.585],[0,0.59]],seg(20)),0,0,0,0,0,0,1,1,0.8);
- P.add(grey,lathe(ring(0.162,0.016),seg(20)),0,0.537,0,0,0,0,1,1,0.82);
+ P.add(fabric,lathe([[0,0.44],[0.118,0.44],[0.142,0.458],[0.151,0.488],[0.146,0.503],[0.155,0.522],[0.15,0.542],[0.157,0.562],[0.148,0.585],[0,0.59]],seg(14)),0,0,0,0,0,0,1,1,0.8);
+ P.add(grey,lathe(ring(0.162,0.016),seg(14)),0,0.537,0,0,0,0,1,1,0.82);
  for(const s of [-1,1])P.add(grey,lathe(ring(0.07,0.013),seg(14)),s*0.19,0.71,0,0,0,Math.PI/2);
- P.add(boot,roundBox(0.2,0.1,0.06,0.02,2),0,0.65,-0.15);if(factory.decal)P.add(factory.decal,decalQuad(uv('panel'),0.17,0.074),0,0.65,-0.1815,0,Math.PI,0);
- for(const s of [-1,1])P.add(grey,hose([[s*0.08,0.62,-0.17],[s*0.17,0.6,-0.11],[s*0.205,0.6,0.01],[s*0.15,0.63,0.13]],0.014,seg(14),seg(6)));
+ P.add(boot,roundBox(0.2,0.1,0.06,0.02),0,0.65,-0.15);if(factory.decal)P.add(factory.decal,decalQuad(uv('panel'),0.17,0.074),0,0.65,-0.1815,0,Math.PI,0);
+ for(const s of [-1,1])P.add(grey,hose([[s*0.08,0.62,-0.17],[s*0.17,0.6,-0.11],[s*0.205,0.6,0.01],[s*0.15,0.63,0.13]],0.014,seg(10),seg(5)));
  A.add(accent,roundBox(0.27,0.032,0.02,0.008),0,0.738,-0.128);
  // Mobility gear: exo struts down the legs, then hover thrusters under the pack.
  if(player.mobility>=1)for(const side of [-1,1]){P.add(grey,roundCylinder(0.012,0.3,0.004,seg(8)),side*0.165,0.39,0.02);for(const y of [0.27,0.5])P.add(grey,roundBox(0.04,0.03,0.04,0.008),side*0.165,y,0.02);}
  const thrust=parts();if(player.mobility>=2)for(const side of [-1,1]){P.add(packDark,lathe([[0.02,-0.09],[0.045,-0.085,true],[0.05,-0.02],[0.045,0.06],[0.035,0.075],[0,0.08]],seg(14)),side*0.1,0.53,0.27);thrust.add(factory.mat(player.mobility===3?'#7fd7ec':'#9de2c3',true),lathe([[0.022,-0.095],[0.044,-0.095],[0.044,-0.088],[0.022,-0.088]],seg(14)),side*0.1,0.53,0.27);}
  // Life-support pack: a grey shell with frame bands, twin oxygen tanks with valve caps and labels. Cargo pods enlarge it.
  const pack=new T.Group();pack.name='Life support pack';pack.position.set(0,0.635,0.2);body.add(pack);const K=parts();
- K.add(packGrey,roundBox(0.28,0.33,0.14,0.045,2),0,0,0);for(const y of [-0.15,0.15])K.add(packDark,roundBox(0.3,0.035,0.155,0.012),0,y,0);
- for(const s of [-1,1]){K.add(shell,lathe([[0,-0.14],[0.03,-0.137],[0.042,-0.125],[0.045,-0.11],[0.045,0.11],[0.042,0.125],[0.03,0.137],[0,0.14]],seg(16)),s*0.075,0,0.085);K.add(packDark,lathe([[0,0],[0.016,0,true],[0.016,0.024,true],[0.011,0.03],[0,0.03]],seg(10)),s*0.075,0.135,0.085);if(factory.decal)K.add(factory.decal,decalQuad(uv('o2'),0.05,0.02),s*0.075,0.02,0.1315);}
+ K.add(packGrey,roundBox(0.28,0.33,0.14,0.045),0,0,0);for(const y of [-0.15,0.15])K.add(packDark,roundBox(0.3,0.035,0.155,0.012),0,y,0);
+ for(const s of [-1,1]){K.add(shell,lathe([[0,-0.14],[0.03,-0.137],[0.042,-0.125],[0.045,-0.11],[0.045,0.11],[0.042,0.125],[0.03,0.137],[0,0.14]],seg(12)),s*0.075,0,0.085);K.add(packDark,lathe([[0,0],[0.016,0,true],[0.016,0.024,true],[0.011,0.03],[0,0.03]],seg(10)),s*0.075,0.135,0.085);if(factory.decal)K.add(factory.decal,decalQuad(uv('o2'),0.05,0.02),s*0.075,0.02,0.1315);}
  K.build(pack,{ground:-0.17,grime:0.15,uvScale:7});pack.scale.set(1+pods*0.12,1+pods*0.12,1+pods*0.2);
  // Legs: thigh, knee and shin with fabric folds, an accent band at the knee, an ankle bearing, a chunky boot on a sole.
  for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*0.10,HIP,0);const L=parts(),La=parts();
-  L.add(fabric,lathe([[0,-0.27],[0.064,-0.27],[0.068,-0.24],[0.07,-0.2],[0.074,-0.175],[0.08,-0.155],[0.08,-0.14],[0.075,-0.12],[0.076,-0.09],[0.072,-0.075],[0.077,-0.05],[0.078,-0.02],[0.074,0.01],[0.06,0.03],[0,0.035]],seg(16)));
-  La.add(accent,lathe([[0.079,-0.02],[0.084,-0.015],[0.084,0.015],[0.079,0.02]],seg(16)),0,-0.148,0);L.add(grey,lathe(ring(0.068,0.011),seg(14)),0,-0.252,0);
-  L.add(boot,roundBox(0.135,0.085,0.21,0.035,2),0,-0.302,-0.035);L.add(sole,roundBox(0.145,0.022,0.225,0.008),0,-0.343,-0.035);L.add(sole,roundBox(0.12,0.05,0.035,0.012),0,-0.315,-0.135);
+  L.add(fabric,lathe([[0,-0.27],[0.064,-0.27],[0.068,-0.24],[0.07,-0.2],[0.074,-0.175],[0.08,-0.155],[0.08,-0.14],[0.075,-0.12],[0.076,-0.09],[0.072,-0.075],[0.077,-0.05],[0.078,-0.02],[0.074,0.01],[0.06,0.03],[0,0.035]],seg(12)));
+  La.add(accent,lathe([[0.079,-0.02],[0.084,-0.015],[0.084,0.015],[0.079,0.02]],seg(12)),0,-0.148,0);L.add(grey,lathe(ring(0.068,0.011),seg(14)),0,-0.252,0);
+  L.add(boot,roundBox(0.135,0.085,0.21,0.035),0,-0.302,-0.035);L.add(sole,roundBox(0.145,0.022,0.225,0.008),0,-0.343,-0.035);L.add(sole,roundBox(0.12,0.05,0.035,0.012),0,-0.315,-0.135);
   L.build(leg,{ground:-0.35,grime:0.3,uvScale:7});La.build(leg,{ground:-0.35,grime:0.1,uvScale:7});body.add(leg);legs.push(leg);
   // Arms: a folded sleeve with an elbow, an accent band, a wrist bearing and a chunky glove with its thumb.
   const arm=new T.Group();arm.position.set(side*SHOULDER[0],SHOULDER[1],0);const B=parts(),Ba=parts();
   B.add(fabric,lathe([[0,-0.215],[0.05,-0.215],[0.051,-0.19],[0.054,-0.16],[0.06,-0.135],[0.058,-0.12],[0.055,-0.1],[0.057,-0.08],[0.055,-0.06],[0.058,-0.02],[0.064,0.01],[0.06,0.035],[0,0.05]],seg(14)));
   Ba.add(accent,lathe([[0.056,-0.022],[0.06,-0.017],[0.06,0.017],[0.056,0.022]],seg(14)),0,-0.04,0);B.add(grey,lathe(ring(0.053,0.01),seg(12)),0,-0.205,0);
-  B.add(glove,roundBox(0.08,0.085,0.07,0.03,2),0,-0.258,-0.004);B.add(glove,roundBox(0.03,0.052,0.03,0.013),side*0.03,-0.24,-0.04,0.45,0,-side*0.3);
+  B.add(glove,roundBox(0.08,0.085,0.07,0.03),0,-0.258,-0.004);B.add(glove,roundBox(0.03,0.052,0.03,0.013),side*0.03,-0.24,-0.04,0.45,0,-side*0.3);
   B.build(arm,{ground:-0.3,grime:0.12,uvScale:7});Ba.build(arm,{grime:0,uvScale:7});body.add(arm);arms.push(arm);}
  // Helmet on the neck pivot (a seated crewmate bows it): the shell, neck ring, side pods, a gold reflective visor with its rim, the lamp
  // housing and beacon in the player's colour, and the headlamp.
  const head=new T.Group();head.name='Explorer head';head.position.y=NECK;body.add(head);
- const helmet=new T.Mesh(painted(new T.SphereGeometry(HELMET_RADIUS,seg(32),seg(24))),shell.material);helmet.position.y=HELMET-NECK;helmet.castShadow=helmet.receiveShadow=true;head.add(helmet);
+ const helmet=new T.Mesh(painted(new T.SphereGeometry(HELMET_RADIUS,seg(28),seg(18))),shell.material);helmet.position.y=HELMET-NECK;helmet.castShadow=helmet.receiveShadow=true;head.add(helmet);
  const H=parts(),Ha=parts(),hc=HELMET-NECK,vr=HELMET_RADIUS+0.006,ph0=Math.PI*1.5-0.98,ph1=Math.PI*1.5+0.98,th0=0.78,th1=1.92,sp=(ph,th,r=vr)=>[-r*Math.cos(ph)*Math.sin(th),hc+r*Math.cos(th),r*Math.sin(ph)*Math.sin(th)];
- H.add(shellGrey,lathe([[0.118,-0.035],[0.152,-0.035,true],[0.156,-0.005],[0.15,0.02],[0.13,0.03],[0.118,0.03,true],[0.118,-0.035]],seg(24)),0,0,0);
- for(const s of [-1,1])H.add(shellGrey,roundCylinder(0.052,0.03,0.01,seg(16)),s*0.212,hc,0.01,0,0,Math.PI/2);
- {const rim=[];const n=seg(10);for(let k=0;k<=n;k++)rim.push(sp(ph0+(ph1-ph0)*k/n,th0,vr+0.004));for(let k=1;k<=n;k++)rim.push(sp(ph1,th0+(th1-th0)*k/n,vr+0.004));for(let k=1;k<=n;k++)rim.push(sp(ph1-(ph1-ph0)*k/n,th1,vr+0.004));for(let k=1;k<n;k++)rim.push(sp(ph0,th1-(th1-th0)*k/n,vr+0.004));rim.push(rim[0]);H.add(shellGrey,hose(rim,0.011,seg(64),seg(6)));}
+ H.add(shellGrey,lathe([[0.118,-0.035],[0.152,-0.035,true],[0.156,-0.005],[0.15,0.02],[0.13,0.03],[0.118,0.03,true],[0.118,-0.035]],seg(16)),0,0,0);
+ for(const s of [-1,1])H.add(shellGrey,roundCylinder(0.052,0.03,0.01,seg(12)),s*0.212,hc,0.01,0,0,Math.PI/2);
+ {const rim=[];const n=seg(10);for(let k=0;k<=n;k++)rim.push(sp(ph0+(ph1-ph0)*k/n,th0,vr+0.004));for(let k=1;k<=n;k++)rim.push(sp(ph1,th0+(th1-th0)*k/n,vr+0.004));for(let k=1;k<=n;k++)rim.push(sp(ph1-(ph1-ph0)*k/n,th1,vr+0.004));for(let k=1;k<n;k++)rim.push(sp(ph0,th1-(th1-th0)*k/n,vr+0.004));rim.push(rim[0]);H.add(shellGrey,hose(rim,0.011,seg(40),seg(5)));}
  Ha.add(accent,roundBox(0.12,0.035,0.09,0.012),0,1.18-NECK,0);H.build(head,{grime:0.08,uvScale:7});Ha.build(head,{grime:0,uvScale:7});
- const visor=new T.Mesh(new T.SphereGeometry(vr,seg(32),seg(16),ph0,ph1-ph0,th0,th1-th0),new T.MeshStandardMaterial({color:'#c9a45c',metalness:0.95,roughness:0.12,emissive:'#6a5126',emissiveIntensity:0.32}));visor.position.y=hc;visor.name='Gold visor';head.add(visor);
+ const visor=new T.Mesh(new T.SphereGeometry(vr,seg(14),seg(10),ph0,ph1-ph0,th0,th1-th0),new T.MeshStandardMaterial({color:'#c9a45c',metalness:0.95,roughness:0.12,emissive:'#6a5126',emissiveIntensity:0.32}));visor.position.y=hc;visor.name='Gold visor';head.add(visor);
  const beacon=new T.Mesh(roundBox(0.06,0.04,0.05,0.012),factory.mat(player.color,true));beacon.position.y=1.215-NECK;head.add(beacon);
  const lampMesh=new T.Mesh(roundBox(0.085,0.034,0.026,0.01),factory.mat('#f6efd7',true));lampMesh.position.set(0,1.142-NECK,-0.15);lampMesh.rotation.x=-0.75;head.add(lampMesh);
  P.build(body,{ground:0,grime:0.22,uvScale:7});A.build(body,{grime:0,uvScale:7});thrust.build(body,{shadows:false});
  const plain=body.children.length;if(player.tool===C.tools.length-1){// Mining mech: a black hydraulic exoskeleton with yellow trim, arm lamps and claws.
  const armor=finishOf(factory,'paint','#1f2428'),edge=finishOf(factory,'paint','#3a4248'),chrome=finishOf(factory,'metal','#d4dadd'),iron=finishOf(factory,'metal','#565e63'),hoseH=finishOf(factory,'rubber','#15181a'),trim=factory.mat('#f2c230',true),lamp=factory.mat('#ffd25a',true),M=parts(),G=parts();
  // Chest armour with a chamfered breastplate, glowing chevrons, a back pack with exhaust stacks and cooling fins.
- M.add(armor,roundBox(0.6,0.42,0.44,0.07,2),0,0.75,0.02);M.add(edge,roundBox(0.46,0.3,0.05,0.04),0,0.74,-0.205);G.add(trim,roundBox(0.22,0.045,0.02,0.01),0,0.82,-0.232);G.add(trim,roundBox(0.045,0.11,0.02,0.01),0,0.71,-0.232);
+ M.add(armor,roundBox(0.6,0.42,0.44,0.07),0,0.75,0.02);M.add(edge,roundBox(0.46,0.3,0.05,0.04),0,0.74,-0.205);G.add(trim,roundBox(0.22,0.045,0.02,0.01),0,0.82,-0.232);G.add(trim,roundBox(0.045,0.11,0.02,0.01),0,0.71,-0.232);
  for(const s of [-1,1]){M.add(iron,lathe([[0,-0.12],[0.05,-0.12,true],[0.05,0.1,true],[0.042,0.12],[0,0.12]],seg(14)),s*0.14,0.74,0.28);for(let k=0;k<4;k++)M.add(edge,roundBox(0.012,0.12,0.09,0.004),s*(0.2+k*0.02),0.74,0.27);}
  for(const side of [-1,1]){
   // Shoulder: a pauldron over a joint drum, a piston from the chest to the upper arm.
-  M.add(armor,roundBox(0.25,0.21,0.33,0.06,2),side*0.42,0.94,0.02);G.add(trim,roundBox(0.02,0.06,0.2,0.006),side*0.548,0.96,0.02);M.add(iron,roundCylinder(0.085,0.08,0.015,seg(16)),side*0.34,0.82,0.02,0,0,Math.PI/2);
+  M.add(armor,roundBox(0.25,0.21,0.33,0.06),side*0.42,0.94,0.02);G.add(trim,roundBox(0.02,0.06,0.2,0.006),side*0.548,0.96,0.02);M.add(iron,roundCylinder(0.085,0.08,0.015,seg(12)),side*0.34,0.82,0.02,0,0,Math.PI/2);
   M.add(armor,roundBox(0.17,0.22,0.2,0.045),side*0.45,0.67,-0.02);M.add(iron,roundCylinder(0.07,0.2,0.012,seg(14)),side*0.45,0.53,-0.02,0,0,Math.PI/2);M.add(armor,roundBox(0.18,0.22,0.22,0.045),side*0.45,0.42,-0.04);
   for(const dx of [-0.07,0.07]){M.add(iron,roundCylinder(0.016,0.14,0.004,seg(10)),side*0.45+dx,0.62,-0.13);M.add(chrome,roundCylinder(0.009,0.16,0.003,seg(8)),side*0.45+dx,0.49,-0.13);}
-  M.add(hoseH,hose([[side*0.3,0.86,0.2],[side*0.5,0.8,0.13],[side*0.56,0.6,0.05],[side*0.54,0.42,-0.05]],0.016,seg(16),seg(6)));
+  M.add(hoseH,hose([[side*0.3,0.86,0.2],[side*0.5,0.8,0.13],[side*0.56,0.6,0.05],[side*0.54,0.42,-0.05]],0.016,seg(12),seg(6)));
   G.add(lamp,roundBox(0.07,0.06,0.03,0.012),side*0.45,0.38,-0.155);G.add(lamp,roundBox(0.07,0.06,0.03,0.012),side*0.45,0.47,-0.155);
   // Claw: three jointed fingers on a wrist drum under the forearm.
   M.add(iron,roundCylinder(0.05,0.12,0.012,seg(14)),side*0.45,0.3,-0.06,0,0,Math.PI/2);for(const [fx,fz,a] of [[-0.05,-0.12,0.35],[0.05,-0.12,0.35],[0,0.0,-0.35]]){M.add(edge,roundBox(0.035,0.11,0.04,0.01),side*0.45+fx,0.24,-0.06+fz*0.6,a,0,0);M.add(chrome,lathe([[0,-0.07],[0.014,-0.02],[0.02,0,true],[0,0.004]],seg(8)),side*0.45+fx,0.17,-0.06+fz,a*1.6,0,0);}
@@ -235,6 +235,45 @@ export function astronaut(factory,player,scene){const root=new T.Group(),body=ne
  body.traverse(mesh=>{if(!mesh.isMesh||!mesh.material?.color)return;const hex=mesh.material.color.getHexString(),suit=hex===new T.Color(white).getHexString(),stripe=hex===new T.Color(player.color).getHexString();if(suit||stripe){mesh.material=mesh.material.clone();mesh.material.emissive.copy(mesh.material.color);mesh.material.emissiveIntensity=suit?C.explorerPolish.suitEmission:C.explorerPolish.stripeEmission;}});
  const name=factory.label(player.nickname,player.color);name.position.y=C.three.roverNameHeight;root.add(name);body.scale.setScalar(C.three.roverScale);scene.add(root);
  return {root,body,head,sled,mech:body.children.slice(plain),podTier:pods,moving:[],walk:{legs,arms},boom,tool,name,beacon,tier:player.mobility,toolTier:player.tool,x:player.x,y:player.y,lastX:player.x,lastY:player.y,angle:0};}
-export function excavatorModel(factory,scene,m){const root=new T.Group(),rig=new T.Group();root.add(rig);root.name='Placed excavator '+m.id;for(const side of [-1,1]){factory.box(rig,'#35484c',0.42,0.38,2.45,side*1.03,0.25,0);for(let n=0;n<6;n++)factory.cylinder(rig,'#8e9d91',0.16,0.17,side*1.03,0.22,-1+n*0.4);}factory.box(rig,'#d3d5bd',2.3,0.28,2.2,0,0.53,0);factory.box(rig,'#edeede',0.8,0.8,0.9,-0.62,1.02,-0.32);factory.box(rig,'#5c8998',0.67,0.36,0.025,-0.62,1.15,-0.79);factory.box(rig,'#e0d8a9',0.45,0.25,0.45,0.68,0.82,0.55);const hopper=factory.box(rig,'#e2c378',0.48,0.55,0.45,0.69,1.09,0.55);const boom=new T.Group();boom.position.set(0.35,0.84,-0.35);factory.box(boom,'#b8c5bb',0.18,0.18,1.35,0,0.35,-0.5);const stick=factory.box(boom,'#8d9b91',0.1,1,0.1,0,0.07,-1.25);const bucket=factory.box(boom,'#738b8c',0.65,0.35,0.48,0,0.07,-1.25);rig.add(boom);for(const side of [-1,1])factory.box(rig,'#f0e9bf',0.16,0.08,0.04,side*0.84,0.72,-1.14,true);const hazard=new T.Group(),ring=new T.Mesh(new T.RingGeometry(2.0,2.1,64).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e8b555',transparent:true,opacity:0.45,side:T.DoubleSide,depthWrite:false}));ring.position.y=0.035;hazard.add(ring);const lights=[];for(let i=0;i<8;i++){const a=i/8*Math.PI*2;const l=factory.box(hazard,'#ffc069',0.06,0.07,0.06,Math.cos(a)*2.03,0.07,Math.sin(a)*2.03,true);lights.push(l);}scene.add(root,hazard);return {root,rig,boom,stick,bucket,hopper,hazard,ring,lights};}
-
+// A rounded rod (a strut, a piston barrel or rod) from point a to point b.
+const _ry=new T.Vector3(0,1,0),_rd=new T.Vector3(),_rq=new T.Quaternion(),_rm=new T.Matrix4(),_rp=new T.Vector3(),_rs=new T.Vector3(1,1,1);
+export function rod(P,h,a,b,r,segments=10){_rd.set(b[0]-a[0],b[1]-a[1],b[2]-a[2]);const len=_rd.length();_rq.setFromUnitVectors(_ry,_rd.divideScalar(len||1));_rp.set((a[0]+b[0])/2,(a[1]+b[1])/2,(a[2]+b[2])/2);return P.addMatrix(h,roundCylinder(r,len,Math.min(r*0.3,len*0.2),segments),_rm.compose(_rp,_rq,_rs));}
+// The excavator: crawler tracks (belts with grousers round the idler, sprocket and rollers) under a slewing white house with an orange
+// band, the cab with tinted glass and a beacon, the engine cover and exhaust, a counterweight with hazard tape, a hopper bin whose load
+// rises with the hopper, and an orange two-piece boom with its hydraulic cylinders and hoses, the stick and a toothed bucket.
+export function excavatorModel(factory,scene,m){const root=new T.Group(),rig=new T.Group();root.add(rig);root.name='Placed excavator '+m.id;const seg=n=>factory.seg?factory.seg(n):n,f=(k,c)=>finishOf(factory,k,c),P=parts(),dk=(name,w,h,x,y,z,ry=0,rx=0)=>{if(factory.decal)P.add(factory.decal,decalQuad(factory.decalUV(name),w,h),x,y,z,rx,ry,0);};
+ const white=f('gloss','#eceee9'),orange=f('gloss','#e2692a'),graphite=f('paint','#33393d'),glass=f('gloss','#1b2a33'),steel=f('metal','#b8bfc2'),dark=f('metal','#4a5256'),rubber=f('rubber','#1a1c1e'),yellow=f('paint','#e0b021');
+ // Undercarriage: per side a track frame, the belt with grousers, rollers, an idler and a sprocket; a carbody and the slew ring.
+ const belt=sweep([[-0.03,-0.2],[0.03,-0.2],[0.03,0.2],[-0.03,0.2]],roundRect(0.19,1.15,0.19,seg(8))),grouser=new T.BoxGeometry(0.42,0.035,0.04),wheel=lathe([[0,-0.07],[0.13,-0.07,true],[0.15,-0.05],[0.15,0.05],[0.13,0.07,true],[0,0.07]],seg(16));
+ const track=[];{const path=roundRect(0.19,1.15,0.19,seg(8));let acc=0;for(let i=0;i<path.length;i++){const a=path[i],b=path[(i+1)%path.length],l=Math.hypot(b[0]-a[0],b[1]-a[1]);while(acc<l){const t=acc/l;track.push([a[0]+(b[0]-a[0])*t+a[2]*0.045,a[1]+(b[1]-a[1])*t+a[3]*0.045,Math.atan2(a[3],a[2])]);acc+=0.115;}acc-=l;}}
+ for(const side of [-1,1]){const x=side*1.03;P.add(rubber,belt,x,0.25,0,0,0,Math.PI/2);for(const [u,v,a] of track)P.add(rubber,grouser,x,0.25+u,v,a,0,0);
+  P.add(graphite,roundBox(0.24,0.2,1.9,0.04),x,0.25,0);for(const z of [-0.96,0.96])P.add(dark,wheel,x,0.25,z,0,0,Math.PI/2,1.15,1.6,1.15);for(let n=0;n<5;n++)P.add(steel,wheel,x,0.18,-0.66+n*0.33,0,0,Math.PI/2,0.62,1.3,0.62);P.add(graphite,roundBox(0.3,0.05,0.5,0.015),x,0.43,0.4);}
+ P.add(graphite,roundBox(1.7,0.22,1.0,0.05),0,0.32,0);P.add(dark,lathe([[0.5,-0.04],[0.62,-0.04,true],[0.62,0.04,true],[0.5,0.04,true],[0.5,-0.04]],seg(28)),0,0.46,0);
+ // House: the deck with its orange band and markings, the counterweight, engine cover with exhaust, handrails.
+ P.add(white,roundBox(2.3,0.26,2.2,0.06,2),0,0.6,0);for(const s of [-1,1])P.add(orange,roundBox(0.012,0.06,2.0,0.004),s*1.152,0.62,0);P.add(orange,roundBox(2.1,0.06,0.012,0.004),0,0.62,-1.102);
+ dk('ex',1.1,0.18,1.157,0.62,0,Math.PI/2);dk('ex',1.1,0.18,-1.157,0.62,0,-Math.PI/2);dk('logo',0.24,0.24,0,0.62,-1.107,Math.PI);
+ P.add(graphite,roundBox(2.1,0.36,0.3,0.08,2),0,0.91,0.95);dk('hazard',1.6,0.12,0,0.91,1.102);
+ P.add(white,roundBox(0.9,0.34,0.7,0.06,2),-0.55,0.9,0.45);dk('vent',0.5,0.16,-0.55,1.072,0.45,0,-Math.PI/2);P.add(dark,lathe([[0,0],[0.045,0,true],[0.045,0.3],[0.05,0.31],[0.05,0.34,true],[0,0.34]],seg(12)),-0.25,1.02,0.65);
+ {const rail=sweep(profileCircle(0.016,seg(8)),[[1.09,-0.95],[1.09,-0.1],[1.09,0.75]],false),post=roundCylinder(0.016,0.3,0.004,seg(8));P.add(yellow,rail,0,1.03,0);for(const z of [-0.95,-0.1,0.75])P.add(yellow,post,1.09,0.88,z);}
+ // Cab: rounded shell, tinted windscreen and side windows with frames, roof beacon and mirror.
+ P.add(white,roundBox(0.8,0.8,0.9,0.08,2),-0.62,1.13,-0.32);P.add(glass,roundBox(0.66,0.42,0.02,0.02),-0.62,1.2,-0.772);for(const s of [-1,1])P.add(glass,roundBox(0.02,0.36,0.6,0.02),-0.62+s*0.402,1.22,-0.36);P.add(graphite,roundBox(0.84,0.05,0.94,0.02),-0.62,1.55,-0.32);P.add(dark,roundBox(0.05,0.05,0.12,0.01),-0.2,1.3,-0.72);
+ const glow=parts();glow.add(factory.mat('#ffb347',true),lathe([[0,0],[0.045,0],[0.05,0.03],[0.03,0.06],[0,0.065]],seg(12)),-0.4,1.575,-0.1);for(const side of [-1,1])glow.add(factory.mat('#f0e9bf',true),roundBox(0.16,0.08,0.04,0.015),side*0.84,0.72,-1.12);
+ // Hopper bin: walls with an orange rim; its load (hopper) rises from the floor of the bin.
+ for(const [w,d,x,z] of [[0.52,0.04,0,-0.24],[0.52,0.04,0,0.24],[0.04,0.52,-0.24,0],[0.04,0.52,0.24,0]])P.add(white,roundBox(w,0.48,d,0.012),0.68+x,0.98,0.5+z);P.add(orange,sweep(profileRect(0.05,0.03,0.008,2),roundRect(0.26,0.26,0.04,seg(4))),0.68,1.23,0.5);
+ const hopper=parts().add(f('paint','#c9ae6d'),roundBox(0.44,0.46,0.44,0.03).clone().translate(0,0.23,0)).build(rig)[0];hopper.position.set(0.68,0.75,0.5);
+ // Boom: two orange box sections, a lift cylinder from the deck, a stick cylinder on top, hoses along it; stick and bucket hang off it.
+ const boom=new T.Group();boom.position.set(0.35,0.84,-0.35);const B=parts();
+ B.add(orange,roundBox(0.18,0.2,0.82,0.04),0,0.275,-0.3,0.742,0,0);B.add(orange,roundBox(0.17,0.18,0.79,0.04),0,0.335,-0.925,-0.585,0,0);B.add(dark,roundCylinder(0.07,0.24,0.012,seg(14)),0,0.55,-0.6,0,0,Math.PI/2);B.add(dark,roundCylinder(0.06,0.22,0.012,seg(14)),0,0.1,-1.25,0,0,Math.PI/2);
+ for(const s of [-1,1]){rod(B,graphite,[s*0.13,-0.12,0.22],[s*0.13,0.05,0.0],0.05,seg(12));rod(B,steel,[s*0.13,0.05,0.0],[s*0.13,0.18,-0.36],0.028,seg(10));}rod(B,graphite,[0,0.66,-0.55],[0,0.52,-0.88],0.045,seg(12));rod(B,steel,[0,0.52,-0.88],[0,0.36,-1.12],0.025,seg(10));
+ for(const s of [-1,1])B.add(rubber,hose([[s*0.07,0.05,0.12],[s*0.08,0.42,-0.3],[s*0.08,0.62,-0.62],[s*0.07,0.3,-1.05],[s*0.06,0.14,-1.2]],0.014,seg(24),seg(6)));
+ B.build(boom,{ground:-0.84,grime:0.15,uvScale:2});rig.add(boom);
+ const stick=parts().add(orange,roundBox(0.12,1,0.12,0.02)).build(boom)[0];stick.position.set(0,0.07,-1.25);
+ const bucket=new T.Group();bucket.position.set(0,0.07,-1.25);boom.add(bucket);const K=parts();
+ K.add(graphite,roundBox(0.6,0.3,0.05,0.015),0,0.0,0.2);K.add(graphite,roundBox(0.6,0.05,0.42,0.015),0,-0.15,0);for(const s of [-1,1])K.add(graphite,roundBox(0.04,0.32,0.44,0.012),s*0.31,0,0);K.add(orange,roundBox(0.64,0.05,0.06,0.012),0,0.15,0.18);K.add(dark,roundCylinder(0.04,0.66,0.01,seg(12)),0,0.15,0.2,0,0,Math.PI/2);
+ for(let n=0;n<5;n++)K.add(steel,lathe([[0,-0.07],[0.025,-0.02],[0.03,0,true],[0,0.004]],seg(8)),-0.24+n*0.12,-0.16,-0.22,Math.PI/2-0.4,0,0);K.build(bucket,{grime:0.4,uvScale:2.5});
+ P.build(rig,{ground:0,grime:0.3,uvScale:1.8});glow.build(rig,{shadows:false});
+ const hazard=new T.Group(),ring=new T.Mesh(new T.RingGeometry(2.0,2.1,64).rotateX(-Math.PI/2),new T.MeshBasicMaterial({color:'#e8b555',transparent:true,opacity:0.45,side:T.DoubleSide,depthWrite:false}));ring.position.y=0.035;hazard.add(ring);
+ // Eight hazard beacons round the dig: one merged mesh; lights lists it once per beacon for the renderer's pulse.
+ const L=parts(),beacon=lathe([[0,0],[0.04,0],[0.042,0.03],[0.03,0.06],[0,0.07]],seg(10));for(let i=0;i<8;i++){const a=i/8*Math.PI*2;L.add(factory.mat('#ffc069',true),beacon,Math.cos(a)*2.03,0.035,Math.sin(a)*2.03);}const lamp=L.build(hazard,{shadows:false})[0],lights=Array.from({length:8},()=>lamp);
+ scene.add(root,hazard);return {root,rig,boom,stick,bucket,hopper,hazard,ring,lights};}
 export function explorerGloves(factory){const root=new T.Group();root.name='Tool grip gloves';const E=C.explorerPolish,material=factory.mat('#dfe6df'),cuff=factory.mat('#758b8d'),fingerGeometry=new T.CapsuleGeometry(E.fingerRadius,E.fingerLength,2,4),thumbGeometry=new T.CapsuleGeometry(E.thumbRadius,E.thumbLength,2,5);for(const side of [-1,1]){const hand=new T.Group();hand.name=side<0?'Left grip glove':'Right grip glove';hand.position.set(side*E.gloveSpacing,-0.012,0.012);const palm=new T.Mesh(new T.BoxGeometry(...E.glovePalm),material);palm.name='Glove palm';hand.add(palm);const wrist=new T.Mesh(new T.BoxGeometry(...E.gloveCuff),cuff);wrist.position.y=-E.glovePalm[1]/2;hand.add(wrist);for(let i=0;i<4;i++){const finger=new T.Mesh(fingerGeometry,material);finger.name='Curled glove finger';finger.position.set((i-1.5)*E.fingerRadius*2,-0.001,-E.glovePalm[2]/2);finger.rotation.x=-0.9;hand.add(finger);}const thumb=new T.Mesh(thumbGeometry,material);thumb.name='Glove thumb';thumb.position.set(-side*E.glovePalm[0]/2,0,-0.003);thumb.rotation.z=side*0.8;hand.add(thumb);hand.rotation.z=side*-0.22;root.add(hand);}return root;}
