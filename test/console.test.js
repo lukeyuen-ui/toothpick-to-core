@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFile} from 'node:fs/promises';
 import {C,CONSOLE_STYLE} from '../config.js';
 import {createRoom,join,step,snapshot,hp} from '../rules.js';
-import {runConsole,tuneConsole,consoleZone} from '../team-rules.js';
+import {runConsole,tuneConsole,consoleZone,consoleRedDepth} from '../team-rules.js';
 import {validMessage,decodeMessage} from '../resilience.js';
 import {fillBots,botCommands,crewBots,workSeat} from '../bot-rules.js';
 import {setupShowcase,equipShowcase} from '../showcase-rules.js';
@@ -105,3 +105,13 @@ test('the console UI ships: tall pads that never scroll or zoom, the graph, the 
  for(const id of ['console-graph','console-pads','console-pad-left','console-tune','drill-road'])assert.match(html,new RegExp('id="'+id+'"'));assert.match(server,/CONSOLE_STYLE\);return;/);assert.match(server,/'console-view\.js'/);
  assert.match(CONSOLE_STYLE,/\.console-pad\{[^}]*min-height:54px/);assert.match(CONSOLE_STYLE,/\.console-pad\{[^}]*touch-action:none/);assert.match(CONSOLE_STYLE,/#console-graph\{[^}]*touch-action:none/);assert.match(view,/setPointerCapture/);assert.match(goals,/road to the World Breaker/);
  for(const text of [view,CONSOLE_STYLE,goals])assert.doesNotMatch(text,/[\u2013\u2014]/);});
+
+test('a red needle says how deep it sits, from the red line to the end stop, by the zones the drill itself uses',()=>{const K=C.console;
+ for(let i=0;i<=200;i++){const v=i/200,d=consoleRedDepth(v);assert.equal(d>0,consoleZone(v)==='red',String(v));assert.ok(d>=0&&d<=1);}
+ assert.equal(consoleRedDepth(0),1);assert.equal(consoleRedDepth(1),1);assert.equal(consoleRedDepth(0.5+K.yellow),0);assert.ok(Math.abs(consoleRedDepth(0.5-(K.yellow+0.5)/2)-0.5)<1e-9,'halfway to the end stop');});
+
+test('the red zone ships: your own red gauge pulses the view edges and rumbles the seat, a crewmate\'s flashes their row, reduced motion keeps them still',async()=>{const view=await readFile(new URL('../public/console-view.js',import.meta.url),'utf8'),client=await readFile(new URL('../public/client.js',import.meta.url),'utf8'),renderer=await readFile(new URL('../public/renderer3d.js',import.meta.url),'utf8');
+ assert.match(CONSOLE_STYLE,/#map-wrap::before\{[^}]*pointer-events:none[^}]*var\(--red/);assert.match(CONSOLE_STYLE,/#map-wrap\.red-zone::before\{[^}]*animation:red-zone/);assert.match(CONSOLE_STYLE,/#console-crew \.red\{[^}]*animation:crew-red/);
+ assert.match(CONSOLE_STYLE,/prefers-reduced-motion:reduce\)\{#map-wrap\.red-zone::before,#console-crew \.red\{animation:none\}/);
+ assert.match(view,/import \{consoleZone,consoleRedDepth\} from '\/team-rules\.js'/);assert.doesNotMatch(view,/K\.yellow\?'yellow'/,'the view takes the zones from the rules, it does not redefine them');assert.match(view,/alarm\(consoleRedDepth\(g\.v\)\)/);assert.match(view,/flashUntil\.set\(id,now\+C\.three\.cockpit\.redFlashMs\)/);
+ assert.match(client,/red:depth=>renderer\?\.redZone\?\.\(depth\)/);assert.match(renderer,/cabShake\(!!state\.team\.worldBreaker,redLevel,reduced/);});

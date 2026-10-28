@@ -37,7 +37,7 @@ for(const event of ['pointerdown','keydown'])window.addEventListener(event,()=>{
 $('sound-toggle').onclick=()=>sound.toggle();
 const guide=createGuide({chime:()=>sound.guideChime(),getRenderer:()=>renderer});
 const feedback=createFeedback($('world-feedback'),money);
-const consoleView=createConsoleView({send,pulse:()=>renderer?.tunePulse?.(),touch:touchInput});
+const consoleView=createConsoleView({send,pulse:()=>renderer?.tunePulse?.(),red:depth=>renderer?.redZone?.(depth),touch:touchInput});
 function ensureRenderer(){if(renderer)return;let canvas=$('map');if(create3D){try{renderer=create3D(canvas,$('minimap'),$('rods'),money,{quality:graphicsQuality()});}catch(error){console.warn('WebGL unavailable; using 2D.',error);const replacement=canvas.cloneNode();canvas.replaceWith(replacement);canvas=replacement;}}if(!renderer)renderer=createRenderer(canvas,$('minimap'),$('rods'),money);canvas.dataset.view=renderer.is3d?'3d':'2d';inputs=installInput({getRenderer:()=>renderer,getMe:()=>state?.players.find(p=>p.id===myId),send,tap:tapCell,belay:belayAction,toggleHub:interactHub,isHubOpen:()=>hubOpen,confirmKey:(e,key)=>confirmation.key(e,key),notify:showToast,onInput:dismissControls,toggleSound:()=>sound.toggle(),consoleKey:(e,key,down)=>consoleView.key(e,key,down)});inputs.stop();$('start-controls').hidden=controlsSeen;}
 const depth=value=>value<C.view.km?Math.floor(value)+' m':(value/C.view.km).toFixed(C.view.decimalPlaces)+' km';
 // The drill's pace in words: seconds, then minutes, then hours (hardcore rock can take hours a row).

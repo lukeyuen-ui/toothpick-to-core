@@ -1,4 +1,5 @@
 import {C} from '/config.js';
+import {consoleZone,consoleRedDepth} from '/team-rules.js';
 // Drill console seats. The server owns every needle; this view only sends the seat's own control (a HEAT vent tap, a held
 // PRESSURE valve or pair of ALIGN pads, a POWER throttle level) and smooths what it draws between the 10 Hz updates.
 const K=C.console;
@@ -7,15 +8,18 @@ const SEATS={
  PRESSURE:{words:['BLED DRY','LOW','STEADY','BUILDING','OVERPRESSURE'],pad:['HOLD TO BLEED','let go to build','hold Space'],help:['Pressure builds while the valve is shut. Hold the pad to bleed it off and let go before it drops too far.','Pressure builds while the valve is shut. Hold Space or the pad to bleed it off and let go before it drops too far.']},
  ALIGN:{words:['OFF AXIS','SLIPPING','LOCKED','SLIPPING','OFF AXIS'],pad:['HOLD','drill axis','hold A'],right:['HOLD','bore axis','hold D'],help:['Hold both pads, one thumb each, to pull the drill axis onto the bore axis. Let go and they wander apart.','Hold A and D together to pull the drill axis onto the bore axis. Let go and they wander apart.']},
  POWER:{words:['STARVED','LOW','ON TARGET','HIGH','SURGING'],help:['The target band wanders. Drag up and down on the graph to keep the throttle inside the green.','The target band wanders. Hold W or S, or drag the graph, to keep the throttle inside the green.']}};
-const zoneOf=v=>{const d=Math.abs(v-0.5);return d<=K.green?'green':d<=K.yellow?'yellow':'red';},COLORS={green:'#4fd17f',yellow:'#e6b84a',red:'#ff6b62'};
+// Zones exactly as the server rules them (team-rules.js), so the view never disagrees with the drill about what is red.
+const zoneOf=consoleZone,COLORS={green:'#4fd17f',yellow:'#e6b84a',red:'#ff6b62'};
 // Five words per seat: red low, yellow low, green, yellow high, red high.
 const word=(seat,v)=>{const z=zoneOf(v),i=z==='green'?2:z==='yellow'?(v<0.5?1:3):(v<0.5?0:4);return SEATS[seat].words[i];};
 const round=x=>Math.round(x*1000)/1000,clamp=x=>Math.min(1,Math.max(0,x));
-export function createConsoleView({send,pulse=()=>{},touch=()=>false,doc=globalThis.document}){
- const $=id=>doc.getElementById(id),panel=$('drill-console'),graph=$('console-graph'),left=$('console-pad-left'),right=$('console-tune'),ctx=graph.getContext('2d');
- let seat=null,cur=null,prev=null,curAt=0,hold=false,sentHoldAt=-1e9,level=0.5,sentLevel=null,sentLevelAt=-1e9,drag=null,lastFrame=null,history=[],sampledAt=0,touched=false;
+export function createConsoleView({send,pulse=()=>{},red=()=>{},touch=()=>false,doc=globalThis.document}){
+ const $=id=>doc.getElementById(id),panel=$('drill-console'),wrap=$('map-wrap'),graph=$('console-graph'),left=$('console-pad-left'),right=$('console-tune'),ctx=graph.getContext('2d');
+ let alarmAt=0,flashUntil=new Map(),seat=null,cur=null,prev=null,curAt=0,hold=false,sentHoldAt=-1e9,level=0.5,sentLevel=null,sentLevelAt=-1e9,drag=null,lastFrame=null,history=[],sampledAt=0,touched=false;
  const pressed={left:new Set(),right:new Set()},keys={space:false,a:false,d:false,w:false,s:false};
  const label=(el,[text,touchHint,keyHint])=>{const b=doc.createElement('b'),s=doc.createElement('small');b.textContent=text;s.textContent=touch()?touchHint:keyHint;el.replaceChildren(b,s);};
+ // Your own gauge in the red: the view's edges pulse red (#map-wrap.red-zone, stronger the deeper the needle) and red() rumbles the seat.
+ function alarm(depth){const q=depth>0?Math.ceil(depth*10)/10:0;if(q!==alarmAt){alarmAt=q;wrap?.classList.toggle('red-zone',q>0);wrap?.style.setProperty('--red',String(q));}red(depth);}
  function vent(){if(seat!=='HEAT')return;send({type:'tune'});pulse();right.classList.add('held');setTimeout(()=>right.classList.remove('held'),140);}
  // A hold counts while any finger or key on that side is down; ALIGN needs both sides at once.
  function update(){const l=pressed.left.size>0||keys.a,r=pressed.right.size>0||(seat==='PRESSURE'?keys.space:keys.d),want=seat==='PRESSURE'?r:seat==='ALIGN'?l&&r:false;
@@ -42,13 +46,15 @@ export function createConsoleView({send,pulse=()=>{},touch=()=>false,doc=globalT
   if(!seat){if(!down&&keys[name]){keys[name]=false;return true;}return false;}
   const mine=name==='space'?seat==='HEAT'||seat==='PRESSURE':name==='a'||name==='d'?seat==='ALIGN':seat==='POWER';if(!mine)return false;e.preventDefault?.();
   if(seat==='HEAT'){if(down&&!e.repeat)vent();return true;}if(e.repeat)return true;keys[name]=down;if(seat==='POWER'){touched=true;if(!down)sendLevel(performance.now());}else update();return true;}
- function render(state,me){const g=state.team?.console?.[me.id],on=!!me.boarded&&!!g&&!state.team?.won;panel.hidden=!on;if(!on){if(seat)setup(null);return;}if(g.kind!==seat)setup(g.kind,g);
-  const z=zoneOf(g.v),wb=state.team.worldBreaker,now=performance.now();if(g!==cur){prev=cur||g;cur=g;curAt=now;}
+ function render(state,me){const g=state.team?.console?.[me.id],on=!!me.boarded&&!!g&&!state.team?.won;panel.hidden=!on;if(!on){if(seat)setup(null);alarm(0);return;}if(g.kind!==seat)setup(g.kind,g);
+  const z=zoneOf(g.v),wb=state.team.worldBreaker,now=performance.now();if(g!==cur){prev=cur||g;cur=g;curAt=now;}alarm(consoleRedDepth(g.v));
   // Seat and state lead the title, so a narrow docked console clips only the drill figure at the end.
   $('console-title').textContent=g.kind+' · '+word(g.kind,g.v)+(wb?' · OVERDRIVE '+Math.round((wb.charge||0)*100)+'%':' · drill x'+(+(state.team.oil?.console??1)).toFixed(2));$('console-title').style.color=COLORS[z];$('console-needle').style.left=(g.v*100).toFixed(1)+'%';
   const crew=$('console-crew'),gauges=state.team.console,others=state.players.filter(p=>p.id!==me.id&&gauges[p.id]),keyList=others.map(p=>p.id+':'+gauges[p.id].kind).join(',');
   if(crew.dataset.key!==keyList){crew.dataset.key=keyList;crew.replaceChildren();for(const p of others){const name=doc.createElement('span');name.textContent=p.nickname+' · '+gauges[p.id].kind;const bar=doc.createElement('div');bar.className='console-bar';const n=doc.createElement('i');n.className='needle';n.dataset.id=p.id;bar.append(n);crew.append(name,bar);}}
-  for(const n of crew.querySelectorAll('.needle'))n.style.left=((gauges[n.dataset.id]?.v??0.5)*100).toFixed(1)+'%';
+  // A crewmate's gauge in the red flashes their row softly, held at least redFlashMs so a needle that only grazes the red still
+  // flashes once instead of flickering; only your own gauge rumbles the seat.
+  for(const n of crew.querySelectorAll('.needle')){const id=n.dataset.id,v=gauges[id]?.v??0.5;if(zoneOf(v)==='red')flashUntil.set(id,now+C.three.cockpit.redFlashMs);const hot=now<(flashUntil.get(id)??0);n.style.left=(v*100).toFixed(1)+'%';n.parentElement.classList.toggle('red',hot);n.parentElement.previousElementSibling?.classList.toggle('red',hot);}
   const help=SEATS[g.kind].help[touch()?0:1];$('console-help').textContent=(wb?'Overdrive! Every seat moves faster now, and each green gauge cracks the core sooner. '+help:help+' Green gauges are the road to the World Breaker.')+(touch()?'':' R to leave.');
   // The server echoes the valve and throttle; if a message was lost, or the seat was rebuilt on reboarding, say it again.
   if(seat==='PRESSURE'||seat==='ALIGN'){if(g.hold!==hold&&now-sentHoldAt>400)sendHold();}

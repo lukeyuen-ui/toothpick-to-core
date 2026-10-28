@@ -1,8 +1,9 @@
 import * as T from './vendor/three.module.js';import {holdCapacity} from '../hauling-rules.js';
 import {C} from '../config.js';
 const tv=C.toolVisual;
-// Explorer joints in body space: hips (the legs hang from them), neck (the helmet pivots on it), helmet centre and shoulders (the arms hang from them).
-const HIP=0.45,NECK=0.78,HELMET=0.97,SHOULDER=[0.23,0.73];
+// Explorer joints in body space: hips (the legs hang from them), neck (the helmet pivots on it), helmet centre and radius, and shoulders
+// (the arms hang from them).
+const HIP=0.45,NECK=0.78,HELMET=0.97,HELMET_RADIUS=0.22,SHOULDER=[0.23,0.73];
 export function heldTool(factory,tier){const root=new T.Group(),spin=new T.Group();root.name=C.tools[tier].name+' held tool';const b=(c,x,y,z,px=0,py=0,pz=0)=>factory.box(root,c,x,y,z,px,py,pz),rod=(c,r,h,x,y,z)=>{const m=factory.cylinder(root,c,r,h,x,y,z);m.rotation.x=Math.PI/2;return m;};
  if(tier===0){rod('#c4aa75',0.006,0.23,0,0,-0.1);}
  if(tier===1){rod('#a7bcc4',0.008,0.17,0,0,-0.07);const bowl=new T.Mesh(new T.SphereGeometry(0.035,10,6),factory.mat('#c6d5d8'));bowl.scale.set(0.7,0.2,1.25);bowl.position.z=-0.18;root.add(bowl);}
@@ -76,16 +77,17 @@ else{const run=!reduced&&t>=0&&t<1.6;r.position.z=-0.05*down;if(tool.tier===7){r
 return f;}
 // Drill seat pose, shared by renderer3d.js and test/crew-seat.test.js. A seated crewmate leans over the console from the hips and
 // bows the helmet down the bore (visor to the glass floor, where the seat itself looks), legs out along the pad as before.
-// k runs from 0 (standing) to 1 (seated) while they climb in; the name label rides over the bowed helmet.
+// k runs from 0 (standing) to 1 (seated) while they climb in. The name label rides over the front of the bowed helmet: seen from the
+// surface, whose camera looks down from behind the crew, it then clears the helmet instead of hiding it.
 export function seatPose(model,k=1){const K=C.three.cockpit,s=K.crewScale,lean=K.crewLean*k,bow=K.crewBow*k,hip=HIP*s;
  model.body.rotation.x=-lean;model.body.position.set(0,hip*(1-Math.cos(lean)),hip*Math.sin(lean));model.head.rotation.x=-bow;for(const leg of model.walk.legs)leg.rotation.x=K.crewLegs*k+lean;
- model.name.position.set(0,K.crewLabelY,-(NECK-HIP)*s*Math.sin(lean)-(HELMET-NECK)*s*Math.sin(lean+bow));}
+ model.name.position.set(0,K.crewLabelY,-(NECK-HIP)*s*Math.sin(lean)-(HELMET-NECK)*s*Math.sin(lean+bow)-HELMET_RADIUS*s);}
 // A seated crewmate's shoulder in the model's root space: the station sleeves run from the stick grips to here.
 export function seatShoulder(side,target=new T.Vector3()){const K=C.three.cockpit,s=K.crewScale,up=(SHOULDER[1]-HIP)*s;return target.set(side*SHOULDER[0]*s,HIP*s+up*Math.cos(K.crewLean),-up*Math.sin(K.crewLean));}
 export function astronaut(factory,player,scene){const root=new T.Group(),body=new T.Group();root.add(body);root.position.set(player.x,0,player.y);root.name='Explorer '+player.nickname;const white='#e2e7e1',dark='#42525a',legs=[],arms=[];factory.box(body,white,0.32,0.31,0.22,0,0.61,0);const backpack=factory.box(body,dark,0.24,0.30,0.16,0,0.62,0.18);backpack.scale.multiply(new T.Vector3(1+(player.pods||0)*0.12,1+(player.pods||0)*0.12,1+(player.pods||0)*0.20));factory.box(body,player.color,0.23,0.04,0.02,0,0.65,-0.12);for(const side of [-1,1]){const leg=new T.Group();leg.position.set(side*0.10,HIP,0);factory.cylinder(leg,white,0.075,0.26,0,-0.13,0);factory.box(leg,dark,0.14,0.09,0.23,0,-0.31,-0.04);body.add(leg);legs.push(leg);const arm=new T.Group();arm.position.set(side*SHOULDER[0],SHOULDER[1],0);factory.cylinder(arm,white,0.055,0.24,0,-0.12,0);factory.cylinder(arm,player.color,0.057,0.05,0,-0.04,0);const glove=new T.Mesh(new T.SphereGeometry(0.06,8,6),factory.mat(white));glove.position.y=-0.25;arm.add(glove);body.add(arm);arms.push(arm);}
  // The helmet, visor, lamp and beacon ride on a neck pivot so a seated crewmate can bow the helmet; standing, nothing moves.
  const head=new T.Group();head.name='Explorer head';head.position.y=NECK;body.add(head);
- const helmet=new T.Mesh(new T.SphereGeometry(0.22,16,12),factory.mat(white));helmet.position.y=HELMET-NECK;head.add(helmet);const visor=new T.Mesh(new T.SphereGeometry(0.18,16,12),new T.MeshStandardMaterial({color:'#bda36a',metalness:0.92,roughness:0.13,emissive:'#68532a',emissiveIntensity:0.28}));visor.scale.set(1,0.65,0.35);visor.position.set(0,0.98-NECK,-0.18);head.add(visor);factory.box(head,player.color,0.12,0.035,0.09,0,1.18-NECK,0);const beacon=factory.box(head,player.color,0.06,0.04,0.05,0,1.215-NECK,0,true);factory.box(head,'#f6efd7',0.09,0.04,0.025,0,1.08-NECK,-0.19,true);
+ const helmet=new T.Mesh(new T.SphereGeometry(HELMET_RADIUS,16,12),factory.mat(white));helmet.position.y=HELMET-NECK;head.add(helmet);const visor=new T.Mesh(new T.SphereGeometry(0.18,16,12),new T.MeshStandardMaterial({color:'#bda36a',metalness:0.92,roughness:0.13,emissive:'#68532a',emissiveIntensity:0.28}));visor.scale.set(1,0.65,0.35);visor.position.set(0,0.98-NECK,-0.18);head.add(visor);factory.box(head,player.color,0.12,0.035,0.09,0,1.18-NECK,0);const beacon=factory.box(head,player.color,0.06,0.04,0.05,0,1.215-NECK,0,true);factory.box(head,'#f6efd7',0.09,0.04,0.025,0,1.08-NECK,-0.19,true);
  if(player.mobility>=1)for(const side of [-1,1])factory.box(body,'#8c9d9e',0.025,0.30,0.025,side*0.16,0.39,0.02);if(player.mobility>=2)for(const side of [-1,1]){factory.cylinder(body,dark,0.045,0.15,side*0.10,0.56,0.27);factory.cylinder(body,player.mobility===3?'#7fd7ec':'#9de2c3',0.03,0.055,side*0.10,0.46,0.27,true);}const plain=body.children.length;if(player.tool===C.tools.length-1){// Mining mech: the explorer pilots a black armoured frame with yellow trim and arm lamps.
 const armor='#1c2125',trim='#f2c230';factory.box(body,armor,0.62,0.46,0.46,0,0.74,0.02);factory.box(body,trim,0.22,0.05,0.02,0,0.82,-0.22,true);factory.box(body,trim,0.05,0.12,0.02,0,0.72,-0.22,true);
 for(const side of [-1,1]){factory.box(body,armor,0.24,0.22,0.32,side*0.42,0.94,0.02);factory.box(body,trim,0.02,0.06,0.2,side*0.54,0.96,0.02,true);factory.box(body,armor,0.17,0.44,0.2,side*0.45,0.56,-0.02);factory.box(body,'#ffd25a',0.07,0.07,0.04,side*0.45,0.4,-0.13,true);factory.box(body,'#ffd25a',0.07,0.07,0.04,side*0.45,0.52,-0.13,true);
