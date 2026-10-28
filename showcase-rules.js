@@ -39,8 +39,9 @@ export function runShowcase(room,now){if(!room.showcase||room.won)return;
  if(arc.beat==='dig')dig(room,arc,lead,voice,now);
  else if(arc.beat==='site'){if(!room.vote&&(room.locks.site||0)<=now)propose(room,arc,voice,arc.site,now);}
  else if(arc.beat==='rig')rig(room,arc,voice,now);
- else if(arc.beat==='board')boardBeat(room,arc,humans,bots,lead,voice,now);
+ else if(arc.beat==='board'){if(lead?.boarded||now-arc.at>=C.showcase.boardCapMs)go(arc,'console',now);}
  else if(arc.beat==='console')consoleBeat(room,arc,voice,now);
+ if(room.drill)walkAboard(room,arc,humans,bots,voice,now);
  // The readout's income line shows what the bore earns at the current speed: it climbs with depth and with green gauges instead of jumping as rows break.
  if(room.drill&&room.oil){const bore=boreCells(room);room.oil.rate=bore.length*cellPayout(room.cells[room.site])*incomeMultiplier(room)*C.team.drillYield*(room.drillScale??1)*(room.oil.speed||0)/C.team.drillSecondsPerBlock;}}
 
@@ -53,7 +54,7 @@ function toothpick(room,p,now,voice){const S=C.showcase,t=p.tour;if((p.taps||0)>
 // Beat 2: the first mech hole beside you swallows you, so you are digging your own 3 by 3 shaft at once; the mech widens it as you go down.
 function dropIn(room,p){const S=C.showcase,t=p.target;if(p.shaft!=null||p.belay||p.boarded||p.boarding||!t)return;const i=t.y*N+t.x;
  if(!room.broken.has(i)||!room.cells[i].row||Math.max(Math.abs(Math.floor(p.x)-t.x),Math.abs(Math.floor(p.y)-t.y))>S.dropReach)return;
- enterShaft(room,p,i);if(p.shaft===i&&!p.tour.dropped){p.tour.dropped=true;privateToast(room,p,'In you go. Keep tapping the floor and dig down to the magma.');}}
+ enterShaft(room,p,i);if(p.shaft===i)p.depth=room.cells[i].row;if(p.shaft===i&&!p.tour.dropped){p.tour.dropped=true;privateToast(room,p,'In you go. Keep tapping the floor and dig down to the magma.');}}
 
 // The dig ends when the first person's shaft reaches the magma, when they stop digging after digMs, or at digCapMs. The bots then propose that shaft,
 // or their own deepest crew shaft when the person never dug.
@@ -76,14 +77,14 @@ function rig(room,arc,voice,now){const S=C.showcase,bore=boreCells(room),inside=
  // The drill comes paid for. Its bore ore is scaled so a row at this floor pays rowShare of the World Breaker; deeper rows pay more, as ore does.
  room.drill={index:room.site};room.coolant=true;const site=room.cells[room.site];
  room.drillScale=breakerPrice(room)*S.rowShare/(bore.length*Math.max(cellPayout(site),C.damageEpsilon)*incomeMultiplier(room)*C.team.drillYield);
- go(arc,'board',now);say(room,voice,'The plasma drill is in. Climb aboard and take a seat!');}
+ go(arc,'board',now);arc.rigAt=now;say(room,voice,'The plasma drill is in. Climb aboard and take a seat!');}
 
-// Beat 4: the bots climb in by themselves. A person who has sent nothing for idleBoardMs is walked over and lifted in.
-function boardBeat(room,arc,humans,bots,lead,voice,now){const S=C.showcase;
- for(const p of humans){if(p.boarded||p.boarding||p.belay||now-arc.at<S.idleBoardMs||now-(p.inputAt??-Infinity)<S.idleBoardMs)continue;
+// Beat 4: the bots climb in by themselves; the console beat starts once the first person is aboard (or after boardCapMs). From the moment the rig
+// is in until the core, anyone who has sent nothing for idleBoardMs (since the rig, or since they joined) is walked over and lifted in.
+function walkAboard(room,arc,humans,bots,voice,now){const S=C.showcase;
+ for(const p of humans){if(p.boarded||p.boarding||p.belay||now-Math.max(arc.rigAt??now,p.tour.joinedAt??now,p.inputAt??-Infinity)<S.idleBoardMs)continue;
   if(p.shaft!=null){startBelay(room,p,now);continue;}
-  teamAction(room,p,{type:'board'},now);if(!p.tour.walked){p.tour.walked=true;say(room,bots.at(-1)||voice,'Climb in, '+p.nickname+'. We saved you a seat.');}}
- if(lead?.boarded||now-arc.at>=S.boardCapMs)go(arc,'console',now);}
+  teamAction(room,p,{type:'board'},now);if(!p.tour.walked){p.tour.walked=true;say(room,bots.at(-1)||voice,'Climb in, '+p.nickname+'. We saved you a seat.');}}}
 
 // Beats 5 and 6: the console runs while the bore ore fills the fund. Once it covers the World Breaker the crew says so, and proposes it a little later
 // unless someone already has.

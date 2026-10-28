@@ -1,6 +1,6 @@
 import {C} from '../config.js';
 import {createRoom,join,step} from '../rules.js';
-import {fillBots,botCommands} from '../bot-rules.js';
+import {fillBots,botCommands,makeRoomForPerson} from '../bot-rules.js';
 import {setupShowcase,equipShowcase} from '../showcase-rules.js';
 import {boreCells} from '../team-rules.js';
 
@@ -12,13 +12,14 @@ import {boreCells} from '../team-rules.js';
 //  eager   reacts faster, holds Space (eight taps a second) and proposes the World Breaker from the seat as soon as the fund covers it
 //  stay    follows, but never belays up after the site vote (the crew has to winch them out)
 //  passive never touches anything
+// second: when set (ms), a second person, Bo, joins then and never touches anything.
 const MECH=C.tools.length-1,READ={follow:{start:3000,mech:2500,vote:2000,belay:2000,board:2500},eager:{start:1500,mech:1000,vote:800,belay:600,board:1000}};
-export function playShowcase({seed=7,level='normal',policy='follow',limit=C.showcase.limitSeconds,onTick=null}={}){
+export function playShowcase({seed=7,level='normal',policy='follow',limit=C.showcase.limitSeconds,onTick=null,second=null}={}){
  const r=createRoom('SHOW',seed,false,0,true);r.botLevel=level;setupShowcase(r);const p=join(r,'h','Ana',0);p.publicId='a';equipShowcase(r,p,0);fillBots(r,0);
  const t={},mark=(key,now)=>{t[key]??=Math.round(now/100)/10;},x0=Math.floor(p.x),y0=Math.floor(p.y),side={x:x0-1,y:y0};
  const read=READ[policy]||READ.follow,B={nextTap:read.start,vote:null,belayAt:null,boardAt:null,seen:[],level:0.5,nextVent:0,proposed:false};
  const tapEvery=policy==='eager'?125:330,act=policy!=='passive';let now=0;
- for(;now<limit*C.tapWindowMs&&!r.won;now+=C.tickMs){if(now%C.bots.fillEveryMs<C.tickMs)fillBots(r,now);const cmds=botCommands(r,now),add=(type,extra={})=>cmds.push({player:p,message:{type,...extra},respond:()=>{}});
+ let bo=null;for(;now<limit*C.tapWindowMs&&!r.won;now+=C.tickMs){if(second!=null&&!bo&&now>=second){makeRoomForPerson(r,now);bo=join(r,'b','Bo',now);bo.publicId='b';equipShowcase(r,bo,now);}if(now%C.bots.fillEveryMs<C.tickMs)fillBots(r,now);const cmds=botCommands(r,now),add=(type,extra={})=>cmds.push({player:p,message:{type,...extra},respond:()=>{}});
   if(act){
    // Votes: a moment to read the banner, then YES.
    if(r.vote&&r.vote.voters.includes(p.publicId)&&r.vote.ballots[p.publicId]===undefined){B.vote??=now+read.vote;if(now>=B.vote){add('vote',{yes:true});B.vote=null;}}else B.vote=null;
@@ -35,7 +36,7 @@ export function playShowcase({seed=7,level='normal',policy='follow',limit=C.show
   if(p.tool===MECH)mark('mech',now);if(p.shaft!=null&&p.tool===MECH)mark('dropped',now);if(r.vote?.kind==='site')mark('siteVote',now);if(r.site!=null)mark('site',now);
   if(r.drill)mark('rig',now);if(p.boarded)mark('boarded',now);if(r.arc?.readyAt!=null)mark('ready',now);if(r.vote?.item==='worldBreaker'||r.goal?.item==='worldBreaker')mark('breakerVote',now);if(r.worldBreaker)mark('breaker',now);
   if(t.siteVote!=null&&t.siteRow==null){const own=p.tour?.shaft;t.siteRow=own!=null?r.cells[own].row:0;}}
- if(r.won)mark('won',now);return {r,p,t,now};}
+ if(r.won)mark('won',now);return {r,p,t,now,bo};}
 
 // A person at the console: they read the gauge about 300 ms late and play their own seat (HEAT, PRESSURE, ALIGN or POWER) the way the help text says.
 function playSeat(r,p,B,now,add,policy){const g=r.console?.[p.publicId];B.seen.push(g?{...g}:null);if(B.seen.length>3)B.seen.shift();const s=B.seen[0];

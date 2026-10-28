@@ -10,7 +10,7 @@ export const showcaseGoals=[['Tap the dirt','Your toothpick does 1 damage a tap.
 const TOOTHPICK_TAPS=Array.from({length:C.finalRow},(_,row)=>hp(row)).reduce((a,b)=>a+b,0);
 const km=m=>m<C.view.km?Math.round(m)+' m':Math.round(m/C.view.km).toLocaleString('en-US')+' km';
 export function inBore(state,me){const s=state.team.site;if(s==null||me.shaft==null)return false;return Math.max(Math.abs(me.shaft%C.mapSize-s%C.mapSize),Math.abs(Math.floor(me.shaft/C.mapSize)-Math.floor(s/C.mapSize)))<=1;}
-export function showcaseStep(state,me){const t=state.team,arc=t.arc||{};if(t.won)return showcaseGoals.length;
+export function showcaseStep(state,me){const t=state.team,arc=t.arc?.round===state.round?t.arc:{};if(t.won)return showcaseGoals.length;
  if(t.worldBreaker||t.vote?.item==='worldBreaker'||t.goal?.item==='worldBreaker'||arc.readyAt!=null)return 5;if(me.boarded)return 4;if(t.drill&&!inBore(state,me))return 3;
  if(t.site!=null||t.vote?.kind==='site'||(arc.beat&&arc.beat!=='dig'))return 2;return me.tool>0?1:0;}
 const SEAT_HINTS={HEAT:['Tap VENT when the needle runs hot, but not too often.','Press Space or click VENT when the needle runs hot, but not too often.'],PRESSURE:['Hold the pad while pressure builds, and let go before it drops too far.','Hold Space while pressure builds, and let go before it drops too far.'],ALIGN:['Hold both pads, one thumb each, to pull the two axes together.','Hold A and D together to pull the two axes together.'],POWER:['Drag on the graph to keep the throttle inside the green band.','Hold W or S, or drag, to keep the throttle inside the green band.']};

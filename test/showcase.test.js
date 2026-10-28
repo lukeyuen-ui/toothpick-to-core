@@ -80,6 +80,11 @@ test('someone joining after the dig arrives with the mech, and the crew still ra
  makeRoomForPerson(r,r.now);const walker=join(r,'w','Cy',r.now);walker.publicId='c';[walker.x,walker.y]=[N-1.5,N-1.5];const replies=[];step(r,[{player:walker,message:{type:'propose',item:'worldBreaker'},respond:m=>replies.push(m?.text)}],r.now+C.tickMs);
  assert.ok(replies.includes('Trade at the hub'),'people still need the hub or a seat');});
 
+test('two people: an idle second visitor is walked aboard too, and the people get the simplest seats (HEAT, then POWER)',()=>{
+ for(const second of [0,80000]){const {r,p,t,bo}=playShowcase({seed:3,policy:'follow',second,onTick:(room)=>{if(room.worldBreaker&&!room.checked){room.checked=true;assert.ok(room.players.find(q=>q.publicId==='b')?.boarded,'Bo is aboard for the finale');}}});
+  assert.ok(r.won&&t.won<=200,'won at '+t.won);assert.equal(r.site,p.tour.shaft,'the first visitor\'s shaft is the site');assert.equal(bo.tool,MECH);
+  assert.equal(r.console?.a?.kind??'HEAT','HEAT');const seats=Object.fromEntries(r.players.filter(q=>q.boarded).map(q=>[q.nickname,r.console[q.publicId]?.kind]));assert.equal(seats.Ana,'HEAT');assert.equal(seats.Bo,'POWER');}});
+
 test('a crew member aboard the drill can propose from the seat; someone walking far from the hub cannot',()=>{
  const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);r.site=8*N+4;r.drill={index:r.site};const a=join(r,'a','Ana',0),b=join(r,'b','Bo',0);a.publicId='a';b.publicId='b';
  const far=[N-1.5,N-1.5];[a.x,a.y]=far;[b.x,b.y]=far;b.boarded=true;
