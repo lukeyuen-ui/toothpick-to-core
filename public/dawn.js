@@ -30,8 +30,8 @@ function cloudTexture(){const canvas=document.createElement('canvas');canvas.wid
 // the sky's glow and the baked reflections all share it.
 export function sunDirection(center){return new T.Vector3(...C.three.sun).sub(center).normalize();}
 export function createDawn(scene,{sky,skyLight,sun,sunHalo,sunDisk,stars,moon,center}){
- const D=C.dawn,V=C.three,L=C.look,col=hex=>new T.Color(hex),palette=key=>({zenith:col(D[key].zenith),horizon:col(D[key].horizon),below:col(D[key].below),sunGlow:col(D[key].sunGlow),fog:col(D[key].fog),hemiSky:col(D[key].hemiSky),hemiGround:col(D[key].hemiGround),sun:col(D[key].sun),halo:col(D[key].halo)});
- const night={fog:col(V.sky),hemiSky:skyLight.color.clone(),hemiGround:skyLight.groundColor.clone(),sun:sun.color.clone(),halo:sunHalo.material.color.clone(),disk:sunDisk.material.color.clone(),moon:moon.material.color.clone(),haloOpacity:sunHalo.material.opacity,haloScale:sunHalo.scale.x,stars:stars.material.opacity};
+ const D=C.dawn,L=C.look,col=hex=>new T.Color(hex),palette=key=>({zenith:col(D[key].zenith),horizon:col(D[key].horizon),below:col(D[key].below),sunGlow:col(D[key].sunGlow),fog:col(D[key].fog),hemiSky:col(D[key].hemiSky),hemiGround:col(D[key].hemiGround),sun:col(D[key].sun),halo:col(D[key].halo)});
+ const night={fog:scene.fog.color.clone(),fogNear:scene.fog.near,fogFar:scene.fog.far,background:scene.background.clone(),hemiSky:skyLight.color.clone(),hemiGround:skyLight.groundColor.clone(),sun:sun.color.clone(),halo:sunHalo.material.color.clone(),disk:sunDisk.material.color.clone(),moon:moon.material.color.clone(),haloOpacity:sunHalo.material.opacity,haloScale:sunHalo.scale.x,stars:stars.material.opacity};
  const dawn=palette('dawn'),day=palette('day'),mixed={},U=sky.material.uniforms,sunDir=sunDirection(center);U.sunDir.value.copy(sunDir);
  // A few soft clouds on a slow carousel around the claim.
  const clouds=new T.Group();clouds.name='Day clouds';clouds.position.copy(center);clouds.visible=false;scene.add(clouds);const cloudMat=new T.SpriteMaterial({map:cloudTexture(),color:'#ffffff',transparent:true,opacity:0,depthWrite:false,fog:false});
@@ -42,7 +42,7 @@ export function createDawn(scene,{sky,skyLight,sun,sunHalo,sunDisk,stars,moon,ce
  function blend(b,now=0,reduced=false){b=Math.min(1,Math.max(0,b||0));clouds.rotation.y=reduced?0:now/1000*D.cloudDrift;if(b===current)return state;current=b;
   const amount=Math.min(1,b*2),t=Math.max(0,b*2-1);for(const k of Object.keys(dawn))mixed[k]=lerp3(dawn[k],day[k],t,mixed[k]||new T.Color());
   U.day.value=amount;U.zenith.value.copy(mixed.zenith);U.horizon.value.copy(mixed.horizon);U.below.value.copy(mixed.below);U.sunGlow.value.copy(mixed.sunGlow);
-  scene.fog.color.copy(night.fog).lerp(mixed.fog,amount);scene.background.copy(scene.fog.color);scene.fog.near=V.fogNear+(D.fogNear-V.fogNear)*amount;scene.fog.far=V.fogFar+(D.fogFar-V.fogFar)*amount;
+  scene.fog.color.copy(night.fog).lerp(mixed.fog,amount);scene.background.copy(night.background).lerp(mixed.fog,amount);scene.fog.near=night.fogNear+(D.fogNear-night.fogNear)*amount;scene.fog.far=night.fogFar+(D.fogFar-night.fogFar)*amount;
   skyLight.color.copy(night.hemiSky).lerp(mixed.hemiSky,amount);skyLight.groundColor.copy(night.hemiGround).lerp(mixed.hemiGround,amount);sun.color.copy(night.sun).lerp(mixed.sun,amount);
   sunHalo.material.color.copy(night.halo).lerp(mixed.halo,amount);sunHalo.material.opacity=night.haloOpacity+(D.haloOpacity-night.haloOpacity)*amount;sunHalo.scale.setScalar(night.haloScale*(1+(D.haloScale-1)*amount));
   sunDisk.material.color.copy(night.disk).lerp(col(D.disk),amount);moon.material.color.copy(night.moon).lerp(col(D.moon),amount);stars.material.opacity=night.stars*(1-Math.min(1,b/0.55));
