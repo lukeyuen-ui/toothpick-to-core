@@ -105,7 +105,7 @@ export function createLook(scene,{low=false}={}){const n=low?128:256,tex=wearTex
  const glass=new T.MeshStandardMaterial({color:'#a6e6ff',transparent:true,opacity:0.1,roughness:0.05,metalness:0.3,depthWrite:false});glass.name='Cockpit glass';
  // Warm-up: one hidden mesh per material (and an instanced one for instanced finishes) so the start-up compile covers them.
  const warm=new T.Group();warm.name='Finish warm-up';const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute([0,0,0,0.01,0,0,0,0.01,0],3));g.setAttribute('normal',new T.Float32BufferAttribute([0,0,1,0,0,1,0,0,1],3));g.setAttribute('uv',new T.Float32BufferAttribute([0,0,1,0,0,1],2));g.setAttribute('color',new T.Float32BufferAttribute([1,1,1,1,1,1,1,1,1],3));
- const warmUp=material=>{const m=new T.Mesh(g,material);m.visible=false;m.castShadow=m.receiveShadow=true;warm.add(m);};for(const kind of Object.keys(kinds))warmUp(finish(kind).material);warmUp(decalMaterial);warmUp(glass);
+ const warmUp=material=>{const m=new T.Mesh(g,material);m.visible=false;m.castShadow=m.receiveShadow=true;warm.add(m);};for(const kind of Object.keys(kinds))warmUp(finish(kind).material);warmUp(decalMaterial);warmUp(glass);{const c=new T.Mesh(g,finish('paint').material);c.name='Shadow depth warm-up';c.position.y=-50;c.castShadow=true;c.frustumCulled=false;warm.add(c);}
  {const inst=new T.InstancedMesh(g,finish('metal').material,1);inst.visible=false;inst.castShadow=inst.receiveShadow=true;warm.add(inst);}
  scene.add(warm);
  return {finish,decal,decalUV,glass,textures:tex,atlas,warm,low

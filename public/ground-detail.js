@@ -106,7 +106,7 @@ export function createFootprints(scene,{count=G.prints,onStep=null}={}){
  const mesh=new T.InstancedMesh(geometry,material,count);mesh.name='Dust footprints';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;mesh.receiveShadow=true;scene.add(mesh);
  const dummy=new T.Object3D(),walkers=new Map();let next=0,used=0,limit=count;
  function print(x,z,ax,az,kind,side,now){if(limit<=0)return;const i=next;next=(next+1)%limit;used=Math.max(used,next===0?limit:next);const w=kind?G.mechSize[0]:G.bootSize[0],l=kind?G.mechSize[1]:G.bootSize[1],spread=kind?0:G.bootSpread*side;
-  dummy.position.set(x+az*spread,0.006,z-ax*spread);dummy.rotation.set(0,Math.atan2(-ax,-az),0);dummy.scale.set(w*(side<0?-1:1),1,l);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);born.array[i]=now/1000;kinds.array[i]=kind;
+  dummy.position.set(x+az*spread,0.006,z-ax*spread);dummy.rotation.set(0,Math.atan2(-ax,-az),0);dummy.scale.set(w,1,l);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);born.array[i]=now/1000;kinds.array[i]=kind;
   mesh.instanceMatrix.addUpdateRange(i*16,16);born.addUpdateRange(i,1);kinds.addUpdateRange(i,1);mesh.instanceMatrix.needsUpdate=born.needsUpdate=kinds.needsUpdate=true;mesh.count=used;mesh.visible=true;onStep?.(dummy.position.x,dummy.position.z,ax,az,kind,now);}
 
  return {mesh,
