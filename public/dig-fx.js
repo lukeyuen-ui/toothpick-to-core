@@ -6,13 +6,18 @@ import {C} from '../config.js';
 // Each effect is one pooled InstancedMesh drawn only up to its live count, so it costs one draw call however much is flying, and none
 // when nothing is. Pool sizes, the chunk rate, chunks per burst and the camera kick follow the graphics preset (quality.js); the renderer
 // skips all of it under reduced motion. Budgets, colours, the physics step and the kick curve are plain functions for the node tests.
-const D=C.digFx,lerp=([a,b],t)=>a+(b-a)*t;
+// A break also loosens rocks from the walls above the new floor (rockfall): they share the chunk pool and its one draw, rattle down the
+// wall as it leans in, bounce on the floor and sink into the rubble.
+const D=C.digFx,LD=C.pits.leanDepth,V3=C.three,lerp=([a,b],t)=>a+(b-a)*t;
+// The row whose depth a point below the surface sits at (the inverse of the renderer's depth curve), for the colour of a wall there.
+export const rowAtDepth=d=>d<=0?0:d>=V3.depthMax?1e9:-V3.depthScale*Math.log(1-d/V3.depthMax);
 
 // Pools, spawn rate (chunks per second), the share of each burst's chunks and whether the camera may kick, for one preset's settings;
-// grains is the crumble pool, scaled by that preset's trickle (C.dirt; none unless the preset is known).
+// grains is the crumble pool, scaled by that preset's trickle (C.dirt; none unless the preset is known); rocks that preset's share of
+// the rock fall (none on Low), with its bucket's rate and size.
 export function digBudget(settings={},dirt=C.dirt?.[settings.level]){
- const debris=Math.max(0,settings.debris??1),puffs=Math.max(0,settings.puffs??1),trickle=Math.max(0,Math.min(1,dirt?.trickle??0));
- return {chunks:Math.round(D.chunks*Math.min(1,debris)),puffs:Math.round(D.puffs*Math.min(1,puffs)),rate:D.chunkRate*debris,perBurst:Math.min(1,debris*1.5),kick:!!settings.kick,grains:Math.round(D.grains*trickle)};
+ const debris=Math.max(0,settings.debris??1),puffs=Math.max(0,settings.puffs??1),trickle=Math.max(0,Math.min(1,dirt?.trickle??0)),rocks=Math.max(0,Math.min(1,dirt?.rocks??0));
+ return {chunks:Math.round(D.chunks*Math.min(1,debris)),puffs:Math.round(D.puffs*Math.min(1,puffs)),rate:D.chunkRate*debris,perBurst:Math.min(1,debris*1.5),kick:!!settings.kick,grains:Math.round(D.grains*trickle),rocks,fallRate:D.fallRate*rocks,fallBurst:Math.round(D.fallBurst*rocks)};
 }
 
 const STRATA=[];{let end=0;for(const layer of C.layers){end+=layer.rows;STRATA.push([end,layer.color]);}}
@@ -28,7 +33,10 @@ export function shareChunks(requests,tokens,count=requests.length,got=new Int32A
  return got;
 }
 
-const CHUNK_KEYS=['x','y','z','vx','vy','vz','r','age','life','angle','spin','ax','ay','az','cr','cg','cb','bounces','rest'];
+// A rock shed by a wall keeps that wall: a point on its face (wx, wz), the way into it (nx, nz; both 0 for a flung chunk), the height
+// it starts to lean in below (wy), how far it leans in at its foot (wl) and how far it had leaned where the rock set off (wo). A pebble
+// rolling over the lip has roll still to go of rollAll, from height y0 to y1 at the edge.
+const CHUNK_KEYS=['x','y','z','vx','vy','vz','r','age','life','angle','spin','ax','ay','az','cr','cg','cb','bounces','rest','wx','wz','nx','nz','wy','wl','wo','roll','rollAll','y0','y1'];
 const PUFF_KEYS=['x','y','z','vx','vy','vz','age','life','s0','s1','alpha','roll','turn','cr','cg','cb'];
 const GRAIN_KEYS=['x','y','z','vx','vy','vz','age','life','floor','size','alpha','cr','cg','cb'];
 export function createPool(capacity,keys=CHUNK_KEYS){const pool={capacity,limit:capacity,count:0,victim:0,keys};for(const key of keys)pool[key]=new Float32Array(capacity);return pool;}
@@ -39,19 +47,28 @@ function dropSlot(pool,i){const last=--pool.count;if(i!==last)for(const key of p
 // Moves every live chunk on by dt seconds. groundAt(x,z) is the ground height under a point. A chunk coming down onto ground bounces,
 // losing most of its speed, and rests after a few bounces; one that runs sideways into ground higher than itself has met a wall and
 // turns back. A resting chunk falls again when the ground under it is dug away. One that comes to rest on a spoil heap (heapAt, the
-// mounds' height at a point) settles into it within heapSettle seconds. Chunks past their life are removed.
+// mounds' height at a point) settles into it within heapSettle seconds. Chunks past their life are removed. A chunk whose age is still
+// below zero waits (a rock about to come loose). A rock with a wall never passes its face: the face leans in below the rim as the
+// pit's walls do, so a falling rock meets it and is knocked off it, losing speed; one still rolling over the lip follows it to the edge.
 export function stepChunks(pool,dt,groundAt,heapAt=null){
  for(let i=pool.count-1;i>=0;i--){
-  pool.age[i]+=dt;if(pool.age[i]>=pool.life[i]){dropSlot(pool,i);continue;}
+  pool.age[i]+=dt;if(pool.age[i]>=pool.life[i]){dropSlot(pool,i);continue;}if(pool.age[i]<0)continue;
   const r=pool.r[i]*0.6;
+  if(pool.roll[i]>0){rollOn(pool,i,dt);continue;}
   if(pool.rest[i]){if(groundAt(pool.x[i],pool.z[i])<pool.y[i]-r-0.01)pool.rest[i]=0;else continue;}
   const ox=pool.x[i],oy=pool.y[i],oz=pool.z[i];pool.vy[i]-=D.gravity*dt;
-  let x=ox+pool.vx[i]*dt,y=oy+pool.vy[i]*dt,z=oz+pool.vz[i]*dt,g=groundAt(x,z);
+  let x=ox+pool.vx[i]*dt,y=oy+pool.vy[i]*dt,z=oz+pool.vz[i]*dt;
+  if(pool.nx[i]||pool.nz[i]){const nx=pool.nx[i],nz=pool.nz[i],d=Math.max(0,pool.wy[i]-y)/LD,e=Math.exp(-d),s=(x-pool.wx[i])*nx+(z-pool.wz[i])*nz+pool.wl[i]*(1-(1+d)*e)-pool.wo[i]+r;
+   if(s>0){x-=s*nx;z-=s*nz;const vn=pool.vx[i]*nx+pool.vz[i]*nz-Math.min(0,pool.vy[i])*pool.wl[i]*d*e/LD;if(vn>0){const j=(1+D.wall)*vn;pool.vx[i]-=j*nx;pool.vz[i]-=j*nz;pool.vy[i]*=D.fallScrape;pool.spin[i]=-pool.spin[i]*0.7;}}}
+  let g=groundAt(x,z);
   if(oy-r<g-0.002){x=ox;z=oz;pool.vx[i]*=-D.wall;pool.vz[i]*=-D.wall;g=groundAt(x,z);}
   if(y-r<=g){y=g+r;if(pool.vy[i]<0){pool.bounces[i]++;const up=-pool.vy[i]*D.bounce;if(up<D.restSpeed||pool.bounces[i]>=D.maxBounces){pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.rest[i]=1;if(heapAt&&heapAt(x,z)>0.004)pool.life[i]=Math.min(pool.life[i],pool.age[i]+D.heapSettle);}else{pool.vy[i]=up;pool.vx[i]*=D.friction;pool.vz[i]*=D.friction;pool.spin[i]*=0.6;}}}
   pool.x[i]=x;pool.y[i]=y;pool.z[i]=z;pool.angle[i]+=pool.spin[i]*dt;
  }
 }
+// A pebble still on the lip rolls straight on toward the edge at its own speed, its height following the lip (y0 where it set off, y1
+// at the edge) and turning about its axis as it goes; past the edge it flies free and falls in.
+function rollOn(pool,i,dt){const v=Math.hypot(pool.vx[i],pool.vz[i])||1e-6,d=Math.min(pool.roll[i],v*dt);pool.x[i]+=pool.vx[i]/v*d;pool.z[i]+=pool.vz[i]/v*d;pool.roll[i]-=d;pool.y[i]=pool.y1[i]+(pool.y0[i]-pool.y1[i])*pool.roll[i]/Math.max(1e-6,pool.rollAll[i]);pool.angle[i]+=pool.spin[i]*dt;}
 // Moves the crumble's grains on by dt. A grain waits while its age is below zero (a trickle runs out over a moment), then falls at
 // grainGravity, drifting off the wall; on reaching its floor it stops and fades out quickly. Grains past their life are removed.
 export function stepGrains(pool,dt){
@@ -83,7 +100,7 @@ export function createDigFx(scene,{puffMap=null}={}){
  const chunks=createPool(D.chunks),puffs=createPool(D.puffs,PUFF_KEYS),grains=createPool(D.grains,GRAIN_KEYS),lastBurst=new Map(),lastPuff=new Map(),lastCrumble=new Map();
  // Bursts wait in a fixed pool until they are due; nothing here allocates once the effect is built.
  const pending=Array.from({length:D.pendingMax},()=>({at:0,x:0,y:0,z:0,n:0,row:0,heavy:false,shade:1,away:false,ax:0,az:0,key:-1,puff:true,color:null})),asks=new Int32Array(D.pendingMax),got=new Int32Array(D.pendingMax);let waiting=0;
- let budget=digBudget({}),tokens=D.chunks/3,tokenAt=null,kickAt=-Infinity,kickSize=0;
+ let budget=digBudget({}),tokens=D.chunks/3,tokenAt=null,kickAt=-Infinity,kickSize=0,rockTokens=0,rockAt=null;const lastFall=new Map(),lastFallHit=new Map(),spot={x:0,z:0,wx:0,wz:0,top:0,lean:0},sideWeight=new Float32Array(4);
  const chunkMaterial=new T.MeshStandardMaterial({color:0xffffff,roughness:0.95,metalness:0,flatShading:true,emissive:0xffffff,emissiveIntensity:D.emissive});
  // The faint self-light takes each chunk's own colour, so chunks stay readable in shadow without glowing.
  chunkMaterial.onBeforeCompile=s=>{s.fragmentShader=s.fragmentShader.replace('#include <emissivemap_fragment>','#include <emissivemap_fragment>\n#ifdef USE_COLOR\n totalEmissiveRadiance*=vColor.rgb;\n#endif');};chunkMaterial.customProgramCacheKey=()=>'dig-chunk';
@@ -111,7 +128,7 @@ export function createDigFx(scene,{puffMap=null}={}){
    const r=lerp(D.chunkSize,Math.pow(Math.random(),1.5))*(heavy?D.breakSize:1),out=Math.random()*0.08;
    chunks.x[i]=x+dx*out;chunks.y[i]=y+r*0.6;chunks.z[i]=z+dz*out;chunks.vx[i]=dx*speed;chunks.vz[i]=dz*speed;chunks.vy[i]=lerp(heavy?D.breakSpeed:D.hitSpeed,Math.random());
    chunks.r[i]=r;chunks.age[i]=0;chunks.life[i]=lerp(D.chunkLife,Math.random())+(heavy?0.25:0);chunks.angle[i]=Math.random()*Math.PI*2;chunks.spin[i]=(Math.random()-0.5)*2*D.spin;
-   const u=Math.random()*2-1,t=Math.random()*Math.PI*2,s=Math.sqrt(1-u*u);chunks.ax[i]=s*Math.cos(t);chunks.ay[i]=u;chunks.az[i]=s*Math.sin(t);chunks.bounces[i]=chunks.rest[i]=0;
+   const u=Math.random()*2-1,t=Math.random()*Math.PI*2,s=Math.sqrt(1-u*u);chunks.ax[i]=s*Math.cos(t);chunks.ay[i]=u;chunks.az[i]=s*Math.sin(t);chunks.bounces[i]=chunks.rest[i]=0;chunks.nx[i]=chunks.nz[i]=chunks.roll[i]=0;
    tint.copy(!row&&!b.color&&Math.random()<D.surfaceGrey?grey:color).multiplyScalar((Math.random()<D.darkRock?0.62:1)*(0.85+Math.random()*0.27)*shade);chunks.cr[i]=tint.r;chunks.cg[i]=tint.g;chunks.cb[i]=tint.b;}
  }
  // A dust puff over a point, in the stratum's colour paled toward fine dust and darkened like the floor at that depth.
@@ -147,12 +164,35 @@ export function createDigFx(scene,{puffMap=null}={}){
    for(let k=0;k<D.crumbleGrains;k++)grain(x+nx*reach-nz*(along+(Math.random()-0.5)*0.05),top-Math.random()*0.04,z+nz*reach+nx*(along+(Math.random()-0.5)*0.05),-nx,-nz,floor,wait+k*0.035+Math.random()*0.02,lerp(D.grainSize,Math.random()),D.grainAlpha,shade*D.grainTone*(0.75+Math.random()*0.4),0.04+Math.random()*0.12,0);}
   if(sheetSide>=0&&rim-floor<=D.sheetDepth){const nx=sheetSide===0?1:sheetSide===1?-1:0,nz=sheetSide===2?1:sheetSide===3?-1:0;for(let k=0;k<D.crumbleSheet;k++){const along=(k/(D.crumbleSheet-1)-0.5)*0.5;grain(x+nx*(reach+0.04)-nz*along,rim,z+nz*(reach+0.04)+nx*along,-nx,-nz,floor,wait+Math.random()*0.08,-lerp(D.sheetSize,Math.random()),D.sheetAlpha,shade*D.grainTone*1.25,0.1+Math.random()*0.15,D.dustLighten);}}
   return true;}
+ // Rock fall: when a cell breaks, and now and then on a heavy tool's strike (hit), rocks the size that tool breaks loose (scale times
+ // fallSize) come away from the walls above the new floor: from the sides with solid ground (sides as for the crumble), at heights up
+ // to fallSpan above the floor (floor) and under the rim (rim), one after another from `at` (ms), count of them before the preset's
+ // share. wall(nx, nz, along, y, r, out) finds the wall there: out.x, out.z the rock's middle against it, out.wx, out.wz its face,
+ // out.top where it starts to lean in and out.lean how far it leans at its foot (false: no room, skip the rock); without it the wall
+ // stands upright reach from the middle. A rock keeps to its wall as it falls (stepChunks), takes the colour of the stratum at the
+ // height it left (row, shade as for chunks) and settles into the floor like any chunk. Each cell sheds once per fallCooldownMs
+ // (fallHitCooldownMs for a strike's rock), from a bucket of fallRate rocks a second; rocks decline when the pool is full. The walls that
+ // face the camera (eyeX, eyeZ: where it stands) get most of them, the near wall that hides its own rocks fallBackWall's share.
+ function rockfall(x,z,o={},now=performance.now()){if(!budget.rocks||!o.sides||!cooled(o.hit?lastFallHit:lastFall,o.key,now,o.hit?D.fallHitCooldownMs:D.fallCooldownMs))return 0;
+  rockTokens=rockAt===null?budget.fallBurst:Math.min(budget.fallBurst,rockTokens+Math.max(0,now-rockAt)/1000*budget.fallRate);rockAt=now;
+  const want=Math.min(Math.floor(rockTokens),Math.max(1,Math.round((o.count??2)*budget.rocks))),shade=o.shade??1,floor=o.floor??0,rim=o.rim??0.03,scale=o.scale??1,wait=Math.max(0,((o.at??now)-now)/1000),reach=o.reach??0.3;
+  let total=0,made=0;for(let s=0;s<4;s++){sideWeight[s]=0;if(!(o.sides&(1<<s)))continue;const nx=s===0?1:s===1?-1:0,nz=s===2?1:s===3?-1:0,ex=x-(o.eyeX??x),ez=z-(o.eyeZ??z),d=Math.hypot(ex,ez);sideWeight[s]=D.fallBackWall+(d>1e-3?Math.max(0,(nx*ex+nz*ez)/d):0);total+=sideWeight[s];}
+  for(let k=0;k<want;k++){let pick=Math.random()*total,side=0;for(;side<3;side++){if(pick<sideWeight[side])break;pick-=sideWeight[side];}if(!sideWeight[side])continue;
+   const nx=side===0?1:side===1?-1:0,nz=side===2?1:side===3?-1:0,along=(Math.random()-0.5)*2*D.fallAlong,r=lerp(D.fallSize,Math.pow(Math.random(),1.4))*scale,low=floor+r+0.01,high=Math.max(low,Math.min(rim-r,floor+D.fallSpan)),y=low+(high-low)*(0.3+0.7*Math.random());
+   spot.wx=x+nx*reach-nz*along;spot.wz=z+nz*reach+nx*along;spot.x=spot.wx-nx*r;spot.z=spot.wz-nz*r;spot.top=rim;spot.lean=0;if(o.wall&&!o.wall(nx,nz,along,y,r,spot))continue;
+   const i=takeSlot(chunks,false);if(i<0)break;const out=lerp(D.fallOut,Math.random()),slide=(Math.random()-0.5)*0.12;
+   chunks.x[i]=spot.x;chunks.y[i]=y;chunks.z[i]=spot.z;chunks.vx[i]=-nx*out-nz*slide;chunks.vz[i]=-nz*out+nx*slide;chunks.vy[i]=Math.random()*D.fallPop;chunks.r[i]=r;
+   chunks.age[i]=-(wait+made*D.fallStagger+Math.random()*D.fallStagger);chunks.life[i]=lerp(D.fallLife,Math.random());chunks.angle[i]=Math.random()*Math.PI*2;chunks.spin[i]=(Math.random()-0.5)*2*D.fallSpin;
+   const u=Math.random()*2-1,t=Math.random()*Math.PI*2,s=Math.sqrt(1-u*u);chunks.ax[i]=s*Math.cos(t);chunks.ay[i]=u;chunks.az[i]=s*Math.sin(t);chunks.bounces[i]=chunks.rest[i]=chunks.roll[i]=0;
+   chunks.wx[i]=spot.wx;chunks.wz[i]=spot.wz;chunks.nx[i]=nx;chunks.nz[i]=nz;chunks.wy[i]=spot.top;chunks.wl[i]=spot.lean;{const d=Math.max(0,spot.top-y)/LD;chunks.wo[i]=spot.lean*(1-(1+d)*Math.exp(-d));}
+   const row=rowAtDepth(-y);color.set(stratumColor(row));tint.copy(!row&&Math.random()<D.surfaceGrey?grey:color).multiplyScalar((Math.random()<D.darkRock?0.62:1)*(0.85+Math.random()*0.27)*shade*D.fallTone);chunks.cr[i]=tint.r;chunks.cg[i]=tint.g;chunks.cb[i]=tint.b;made++;}
+  rockTokens-=made;return made;}
  function grain(x,y,z,dx,dz,floor,delay,size,alpha,shade,speed,dusty){const i=takeSlot(grains,false);if(i<0)return;grains.x[i]=x;grains.y[i]=y;grains.z[i]=z;grains.vx[i]=dx*speed+(Math.random()-0.5)*0.05;grains.vz[i]=dz*speed+(Math.random()-0.5)*0.05;grains.vy[i]=-Math.random()*0.25;
   grains.age[i]=-delay;grains.life[i]=lerp(D.grainLife,Math.random());grains.floor[i]=floor;grains.size[i]=size;grains.alpha[i]=alpha;tint.copy(color).lerp(grey,dusty).multiplyScalar(Math.min(1.2,shade));grains.cr[i]=tint.r;grains.cg[i]=tint.g;grains.cb[i]=tint.b;}
  function update(dt,camera,groundAt,now=performance.now(),heapAt=null){
   flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt,heapAt);
   const cm=chunkMesh.instanceMatrix.array,cc=chunkMesh.instanceColor.array;
-  const cam=camera.position,[c0,c1]=D.chunkClear;for(let i=0;i<chunks.count;i++){const d=Math.hypot(chunks.x[i]-cam.x,chunks.y[i]-cam.y,chunks.z[i]-cam.z),near=d>=c1?1:d<=c0?0:(d-c0)/(c1-c0),s=chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i])*near*near*(3-2*near);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
+  const cam=camera.position,[c0,c1]=D.chunkClear;for(let i=0;i<chunks.count;i++){const d=Math.hypot(chunks.x[i]-cam.x,chunks.y[i]-cam.y,chunks.z[i]-cam.z),near=d>=c1?1:d<=c0?0:(d-c0)/(c1-c0),s=chunks.age[i]<0?0:chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i])*near*near*(3-2*near);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
   chunkMesh.count=chunks.count;chunkMesh.visible=chunks.count>0;if(chunks.count){upload(chunkMesh.instanceMatrix,chunks.count,16);upload(chunkMesh.instanceColor,chunks.count,3);}
   const drag=Math.exp(-dt*1.5),lift=Math.exp(-dt*0.8);
   for(let i=puffs.count-1;i>=0;i--){puffs.age[i]+=dt;if(puffs.age[i]>=puffs.life[i]){dropSlot(puffs,i);continue;}puffs.vx[i]*=drag;puffs.vz[i]*=drag;puffs.vy[i]*=lift;puffs.x[i]+=puffs.vx[i]*dt;puffs.y[i]+=puffs.vy[i]*dt;puffs.z[i]+=puffs.vz[i]*dt;puffs.roll[i]+=puffs.turn[i]*dt;}
@@ -170,7 +210,8 @@ export function createDigFx(scene,{puffMap=null}={}){
   // A kick of px pixels; a smaller kick never cuts a bigger one short.
   kick(px,now=performance.now()){if(budget.kick&&px>=kickOffset(kickSize,now-kickAt)){kickAt=now;kickSize=px;}},
   kickNow(now=performance.now()){return budget.kick?kickOffset(kickSize,now-kickAt):0;},
-  setBudget(next){budget=next;chunks.limit=Math.min(D.chunks,next.chunks);puffs.limit=Math.min(D.puffs,next.puffs);grains.limit=Math.min(D.grains,next.grains||0);chunks.count=Math.min(chunks.count,chunks.limit);puffs.count=Math.min(puffs.count,puffs.limit);grains.count=Math.min(grains.count,grains.limit);tokens=Math.min(tokens,Math.max(1,next.chunks/3));if(!next.kick)kickSize=0;},
-  reset(){chunks.count=puffs.count=grains.count=0;waiting=0;lastBurst.clear();lastPuff.clear();lastCrumble.clear();kickSize=0;kickAt=-Infinity;for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;}grainGeometry.setDrawRange(0,0);grainPoints.visible=false;},
-  crumble,get budget(){return budget;},chunks,puffs,grains,meshes:[chunkMesh,puffMesh],points:grainPoints};
+  setBudget(next){budget=next;rockTokens=Math.min(rockTokens,next.fallBurst||0);chunks.limit=Math.min(D.chunks,next.chunks);puffs.limit=Math.min(D.puffs,next.puffs);grains.limit=Math.min(D.grains,next.grains||0);chunks.count=Math.min(chunks.count,chunks.limit);puffs.count=Math.min(puffs.count,puffs.limit);grains.count=Math.min(grains.count,grains.limit);tokens=Math.min(tokens,Math.max(1,next.chunks/3));if(!next.kick)kickSize=0;},
+  reset(){chunks.count=puffs.count=grains.count=0;waiting=0;lastBurst.clear();lastPuff.clear();lastCrumble.clear();lastFall.clear();lastFallHit.clear();rockTokens=0;rockAt=null;kickSize=0;kickAt=-Infinity;for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;}grainGeometry.setDrawRange(0,0);grainPoints.visible=false;},
+  crumble,rockfall,get budget(){return budget;},chunks,puffs,grains,meshes:[chunkMesh,puffMesh],points:grainPoints};
+
 }

@@ -129,10 +129,10 @@ export const C = {
  // the walls and heaves the floors, using arcRows rows round each rim and wallDepths rows below it (depths under the rounded rim),
  // straight wall runs cut into segments and floor tiles into floorSegments; detail is the pebbles, sediment and clods; heaps grows
  // the spoil lips and piles the spoil mounds; trickle is the crumble pool; regolith the fine grit on the plain. Low is the game as it
- // was before this pass: every effect off and the original geometry.
- dirt:{high:{shape:1,detail:1,heaps:1,trickle:1,regolith:1,arcRows:3,wallDepths:[0.05,0.14,0.28,0.5,0.85,1.5,2.8],segments:3,lipRows:5,floorSegments:6},
-  balanced:{shape:0.85,detail:0.7,heaps:1,trickle:0.5,regolith:0.6,arcRows:2,wallDepths:[0.08,0.25,0.6,1.3,2.6],segments:2,lipRows:4,floorSegments:4},
-  low:{shape:0,detail:0,heaps:0,trickle:0,regolith:0,arcRows:0,wallDepths:[],segments:1,lipRows:2,floorSegments:2}},
+ // was before this pass: every effect off and the original geometry. rocks is the share of the rock fall from the walls (dig-fx.js).
+ dirt:{high:{shape:1,detail:1,heaps:1,trickle:1,regolith:1,rocks:1,arcRows:3,wallDepths:[0.05,0.14,0.28,0.5,0.85,1.5,2.8],segments:3,lipRows:5,floorSegments:6},
+  balanced:{shape:0.85,detail:0.7,heaps:1,trickle:0.5,regolith:0.6,rocks:0.5,arcRows:2,wallDepths:[0.08,0.25,0.6,1.3,2.6],segments:2,lipRows:4,floorSegments:4},
+  low:{shape:0,detail:0,heaps:0,trickle:0,regolith:0,rocks:0,arcRows:0,wallDepths:[],segments:1,lipRows:2,floorSegments:2}},
  // Surface ground (public/ground-detail.js): one baked texture over the claim and the dunes ring gives a broad brightness mottle, darker
  // patches of fine dust, pale streaks and crater ejecta, warm and cool greys, the bump strength, and ground worn round the hub, along
  // conveyor lines and on the paths to the drill and the pumps. It adds no draw calls; inside the finale's meadow only meadowKeep of it stays.
@@ -153,7 +153,16 @@ export const C = {
 // grains points (scaled by the preset's trickle in C.dirt). Grains fall at grainGravity, fade within the last grainFade of their life,
 // and thin out within grainClear of the camera; they are unlit, so grainTone darkens their stratum colour to sit with lit dirt and the
 // sheet's clots lean toward the grey dust.
- digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,grains:160,crumbleGrains:12,crumbleSheet:6,crumbleSpan:0.6,sheetDepth:1.2,crumbleCooldownMs:900,grainSize:[0.013,0.024],sheetSize:[0.05,0.09],grainLife:[0.8,1.3],grainGravity:4.2,grainFade:0.25,grainAlpha:0.95,sheetAlpha:0.5,grainTone:0.62,grainClear:[0.12,0.45],pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
+// Rock fall: a break loosens fallCount[tool] rocks (scaled by the preset's rocks in C.dirt) of fallScale[tool] times fallSize from the
+// walls above the new floor, so a toothpick sheds grit, a pickaxe pebbles and the mech fist-sized lumps; from fallHitTier up a strike
+// sheds one with fallHitChance. They set off fallStagger apart from up to fallSpan above the floor and fallAlong either side of a wall's
+// middle, pushed off it at fallOut with a pop of up to fallPop, tumble at up to fallSpin, keep fallScrape of their fall when they hit
+// the leaning wall, and live fallLife. A bucket of fallRate a second (fallBurst at most) rations them; a cell sheds once per
+// fallCooldownMs (fallHitCooldownMs for a strike's rock). fallTone darkens them to sit with the shaded walls; the near wall, which hides
+// its own rocks from the camera, gets fallBackWall of a far wall's share.
+ digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,grains:160,crumbleGrains:12,crumbleSheet:6,crumbleSpan:0.6,sheetDepth:1.2,crumbleCooldownMs:900,grainSize:[0.013,0.024],sheetSize:[0.05,0.09],grainLife:[0.8,1.3],grainGravity:4.2,grainFade:0.25,grainAlpha:0.95,sheetAlpha:0.5,grainTone:0.62,grainClear:[0.12,0.45],pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6,
+  fallCount:[2,2,3,3,4,4,5,5,6],fallScale:[1,1.15,1.3,1.6,2,2.3,2.9,3.2,3.9],fallSize:[0.009,0.016],fallTone:0.8,fallBackWall:0.15,fallSpan:0.9,fallAlong:0.3,fallOut:[0.04,0.3],fallPop:0.25,fallStagger:0.07,fallSpin:7,fallScrape:0.8,fallLife:[1.9,2.8],fallRate:30,fallBurst:14,fallCooldownMs:600,fallHitCooldownMs:350,fallHitTier:4,fallHitChance:0.5},
+
  protocolVersion:9
 };
 // Layout values are centralized here too; renderer owns no game decisions.

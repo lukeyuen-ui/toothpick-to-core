@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as T from '../public/vendor/three.module.js';import {C} from '../config.js';import {QUALITY} from '../public/quality.js';
-import {digBudget,stratumColor,shareChunks,createPool,takeSlot,stepChunks,chunkScale,puffShape,kickOffset,rumbleOffset,kickAngle,createDigFx,stepGrains,grainAlpha} from '../public/dig-fx.js';import {qualitySettings} from '../public/quality.js';
+import {digBudget,stratumColor,shareChunks,createPool,takeSlot,stepChunks,chunkScale,puffShape,kickOffset,rumbleOffset,kickAngle,createDigFx,stepGrains,grainAlpha,rowAtDepth} from '../public/dig-fx.js';import {qualitySettings} from '../public/quality.js';
 const D=C.digFx,flat=()=>0;
 const view=()=>{const camera=new T.PerspectiveCamera(50,1.4,0.1,90);camera.position.set(8,3,12);camera.lookAt(8,0,8);camera.updateMatrixWorld();return camera;};
 
@@ -124,4 +124,49 @@ test('grains wait their turn, fall, stop at the floor and fade quickly',()=>{
  stepGrains(pool,0.05);assert.ok(Math.abs(pool.y[k]-0.03)<1e-6,'still waiting');assert.equal(grainAlpha(pool.age[k],pool.life[k],0.9),0);
  let landed=false;for(let i=0;i<60&&pool.count;i++){stepGrains(pool,0.02);if(pool.count&&pool.vy[0]===0&&pool.age[0]>0){landed=true;break;}}assert.ok(landed&&Math.abs(pool.y[0]+0.3)<1e-6,'landed on its floor');assert.ok(pool.life[0]<=pool.age[0]+D.grainFade+1e-6,'and fades out');
  assert.ok(grainAlpha(0.5,2,0.9)>0.8);assert.equal(grainAlpha(2,2,0.9),0);
+});
+
+// Rock fall (physics pass): a break loosens rocks the size of the tool's bite from the walls above the new floor; they share the chunk
+// pool (one draw), keep to their wall as they fall, rest on the floor and sink away. Low throws none.
+test('rock fall shares by preset: High all of it, Balanced half, Low none',()=>{
+ const [high,balanced,low]=['high','balanced','low'].map(level=>digBudget(qualitySettings(level)));
+ assert.deepEqual([high.rocks,balanced.rocks,low.rocks],[C.dirt.high.rocks,C.dirt.balanced.rocks,0]);assert.ok(high.rocks>balanced.rocks&&balanced.rocks>0);
+ assert.ok(high.fallRate>balanced.fallRate&&low.fallRate===0&&low.fallBurst===0);
+ assert.equal(D.fallCount.length,C.tools.length);assert.equal(D.fallScale.length,C.tools.length);
+ for(let t=1;t<C.tools.length;t++)assert.ok(D.fallScale[t]>=D.fallScale[t-1],'bigger tools break bigger rocks');
+ assert.ok(D.fallSize[1]*D.fallScale[0]<0.02,'a toothpick sheds grit');assert.ok(D.fallSize[1]*D.fallScale.at(-1)>0.05,'the mech fist-sized lumps');
+ assert.equal(rowAtDepth(0),0);for(const row of [1,10,40])assert.ok(Math.abs(rowAtDepth(C.three.depthMax*(1-Math.exp(-row/C.three.depthScale)))-row)<1e-6);
+});
+test('rocks come off the wall, never pass its face as it leans in, come to rest on the floor and sink away',()=>{
+ const fx=createDigFx(new T.Scene()),camera=view(),floor=-0.6,face=8.89;fx.setBudget(digBudget(qualitySettings('high')));
+ // Cell (8, 8) dug to floor: solid ground beyond its +x wall at x = 8.89, which leans in by up to 0.04 below the rim.
+ const groundAt=(x,z)=>x>=face?0:floor,wall=(nx,nz,along,y,r,out)=>{out.wx=8.5+nx*0.39-nz*along;out.wz=8.5+nz*0.39+nx*along;out.x=out.wx-nx*r;out.z=out.wz-nz*r;out.top=0;out.lean=0.04;return true;};
+ let now=1000;const made=fx.rockfall(8.5,8.5,{sides:1,floor,rim:0.022,row:6,key:3,count:5,scale:3,wall,eyeX:6,eyeZ:8.5},now);
+ assert.equal(made,5,'five rocks off the one wall');assert.equal(fx.chunks.count,5);
+ for(let i=0;i<fx.chunks.count;i++){assert.equal(fx.chunks.nx[i],1);assert.ok(fx.chunks.age[i]<0,'each waits its turn');assert.ok(fx.chunks.x[i]+fx.chunks.r[i]<=face+1e-5,'starts against the wall');assert.ok(fx.chunks.y[i]>floor&&fx.chunks.y[i]<=0.022);}
+ assert.equal(fx.rockfall(8.5,8.5,{sides:1,floor,key:3,count:5,wall},now+100),0,'once per cooldown a cell');
+ let rested=0,rose=false;const top=new Float32Array(16).fill(-9);
+ for(let t=0;t<90;t++){now+=16;fx.update(0.016,camera,groundAt,now);for(let i=0;i<fx.chunks.count;i++){if(fx.chunks.age[i]<0)continue;const r=fx.chunks.r[i]*0.6;
+  assert.ok(fx.chunks.x[i]+r<=face+1e-5,'never into the wall');assert.ok(fx.chunks.y[i]>=floor+r-1e-5,'never through the floor');}}
+ for(let i=0;i<fx.chunks.count;i++)if(fx.chunks.rest[i])rested++;assert.ok(rested>=3,'most have come to rest on the floor: '+rested);
+ for(let i=0;i<fx.chunks.count;i++)if(fx.chunks.rest[i])assert.ok(Math.abs(fx.chunks.y[i]-floor-fx.chunks.r[i]*0.6)<1e-5,'resting on the floor');
+ const [mesh]=fx.meshes;assert.equal(mesh.count,fx.chunks.count,'drawn in the chunk mesh, one draw');assert.ok(mesh.instanceMatrix.array.every(Number.isFinite));
+ for(let t=0;t<260;t++){now+=16;fx.update(0.016,camera,groundAt,now);}assert.equal(fx.chunks.count,0,'all sink away within a few seconds');assert.equal(mesh.visible,false);
+ // Low throws none, Balanced a share; the bucket refills over time.
+ fx.setBudget(digBudget(qualitySettings('low')));assert.equal(fx.rockfall(8.5,8.5,{sides:15,floor,key:4,count:5,wall},now),0,'none on Low');
+ fx.setBudget(digBudget(qualitySettings('balanced')));const some=fx.rockfall(8.5,8.5,{sides:15,floor,key:5,count:6,wall},now+1);assert.ok(some>0&&some<=3,'Balanced half: '+some);
+ fx.reset();assert.equal(fx.chunks.count,0);
+});
+test('a rock meeting its leaning wall is knocked off it, and the walls facing the camera shed most',()=>{
+ // A rock falling straight down beside a wall that leans in below it is pushed off the wall and keeps going down.
+ const pool=createPool(4),k=takeSlot(pool);pool.x[k]=8.86;pool.y[k]=-0.05;pool.z[k]=8.5;pool.r[k]=0.04;pool.life[k]=3;pool.nx[k]=1;pool.wx[k]=8.9;pool.wz[k]=8.5;pool.wy[k]=0;pool.wl[k]=0.06;pool.wo[k]=0;
+ const ground=()=>-2;let pushed=false;for(let i=0;i<40;i++){stepChunks(pool,1/60,ground);if(pool.vx[k]<-1e-4)pushed=true;}
+ assert.ok(pushed,'knocked off the leaning face');assert.ok(pool.x[k]<8.86,'away from the wall');assert.ok(pool.vy[k]<0,'still falling');
+ // Thrown at the wall, a rock bounces back off it.
+ const hit=createPool(2),h=takeSlot(hit);hit.x[h]=8.7;hit.y[h]=-0.3;hit.z[h]=8.5;hit.vx[h]=1.5;hit.r[h]=0.03;hit.life[h]=3;hit.nx[h]=1;hit.wx[h]=8.9;hit.wz[h]=8.5;hit.wy[h]=0;hit.wl[h]=0;hit.wo[h]=0;
+ for(let i=0;i<30;i++)stepChunks(hit,1/60,ground);assert.ok(hit.vx[h]<0&&hit.x[h]+hit.r[h]*0.6<=8.9+1e-5,'bounced back');
+ // With the camera to the -x side, the +x wall (which faces it) gets most of the rocks.
+ const fx=createDigFx(new T.Scene());fx.setBudget(digBudget(qualitySettings('high')));let far=0,near=0;
+ for(let n=0;n<40;n++){fx.reset();fx.rockfall(8.5,8.5,{sides:3,floor:-0.6,key:n,count:6,eyeX:5,eyeZ:8.5},1000);for(let i=0;i<fx.chunks.count;i++)fx.chunks.nx[i]>0?far++:near++;}
+ assert.ok(far>near*3,'far wall '+far+', near wall '+near);
 });
