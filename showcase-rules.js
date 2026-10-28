@@ -30,7 +30,7 @@ export function equipShowcase(room,p,now=room.now){if(!room.showcase||p.showcase
 export function runShowcase(room,now){if(!room.showcase||room.won)return;
  if(room.arc?.round!==room.round){restart(room,now);return;}
  const arc=room.arc,humans=people(room),bots=crew(room),lead=humans[0],voice=bots[0]||lead;
- for(const b of bots)b.lastActive=now;// the bot crew always counts as active, so its ballots carry every showcase vote
+ for(const q of [...bots,...humans])q.lastActive=now;// everyone counts as active: every visitor may vote, and the bot crew's ballots carry each vote
  for(const p of humans){p.tour??={joinedAt:now};if(p.tool===0)toothpick(room,p,now,voice);else if(arc.beat==='dig')dropIn(room,p);if(arc.beat==='dig'&&p.shaft!=null&&!p.belay)p.tour.shaft=p.shaft;}
  // Once the World Breaker runs, the bore stops paying: the overdrive is about the core, not about the fund.
  if(room.worldBreaker&&arc.beat!=='breaker'){go(arc,'breaker',now);room.drillScale=0;}
