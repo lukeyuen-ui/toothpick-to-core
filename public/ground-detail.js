@@ -1,8 +1,8 @@
 import * as T from './vendor/three.module.js';
 import {C} from '../config.js';
 // The surface ground's large-scale look, baked into one small texture over the claim and the dunes ring round it. The ground shaders read
-// it with a single texture fetch, so it adds no draw calls. Red is a broad brightness mottle with darker patches of fine dust, pale wind
-// streaks and ejecta round the big craters; green is ground worn by traffic (a ring round the hub, strips along conveyor lines, faint
+// it with a single texture fetch, so it adds no draw calls. Red is a broad brightness mottle with darker patches of fine dust, pale ash
+// drifts, charred burn scars (mostly out in the ring, softer on the claim) and darker scorched ejecta round the big craters; green is ground worn by traffic (a ring round the hub, strips along conveyor lines, faint
 // paths from the hub to the drill and the pumps); blue shifts the grey a touch warmer or cooler; alpha sets the strength of the regolith
 // bumps (rough rocky ground against smooth dust). Everything is seeded, so every player sees the same ground. Only the worn channel
 // changes in play, when belts, pumps or the drill site change, and that rebuild is throttled.
@@ -23,13 +23,15 @@ export function bakeGround(seed=G.seed){
  const S=GROUND_SIZE,data=new Uint8Array(S*S*4),hub=new Uint8Array(S*S),rnd=random(seed);
  const patches=Array.from({length:G.patches},()=>({x:-1+rnd()*(N+2),z:-1+rnd()*(N+2),r:G.patchRadius[0]+rnd()*(G.patchRadius[1]-G.patchRadius[0]),e:0.55+rnd()*0.6,a:rnd()*Math.PI}));
  const drifts=Array.from({length:G.drifts},()=>({x:-3+rnd()*(N+6),z:-3+rnd()*(N+6),len:1.6+rnd()*2.6,w:0.35+rnd()*0.4,a:rnd()*Math.PI}));
+ const scars=[];for(let tries=0;scars.length<(G.scars||0)&&tries<200;tries++){const p={x:-G.margin+1.5+rnd()*(N+2*G.margin-3),z:-G.margin+1.5+rnd()*(N+2*G.margin-3),r:G.scarRadius[0]+rnd()*(G.scarRadius[1]-G.scarRadius[0]),e:0.5+rnd()*0.5,a:rnd()*Math.PI};if(C.visual.largeCraters.every(([cx,cz,cr])=>Math.hypot(p.x-cx,p.z-cz)>cr*3+p.r))scars.push(p);}
  for(let j=0;j<S;j++){const z=texelWorld(j);for(let i=0;i<S;i++){const x=texelWorld(i),k=(j*S+i)*4;
   let tone=0;for(let o=0;o<G.albedo.length;o++)tone+=G.albedo[o]*(2*valueNoise(x/G.albedoScales[o],z/G.albedoScales[o],seed+o*31)-1);
   const wobble=0.3*(valueNoise(x*1.4,z*1.4,seed+97)-0.5);
   let dust=0;for(const p of patches){const dx=x-p.x,dz=z-p.z;if(dx*dx+dz*dz>p.r*p.r*2.2)continue;const c=Math.cos(p.a),s=Math.sin(p.a);dust=Math.max(dust,1-smooth(0.45,1,Math.hypot((dx*c+dz*s)/p.r,(dz*c-dx*s)/(p.r*p.e))+wobble));}
   let drift=0;for(const d of drifts){const dx=x-d.x,dz=z-d.z;if(dx*dx+dz*dz>d.len*d.len*1.1)continue;const c=Math.cos(d.a),s=Math.sin(d.a);drift=Math.max(drift,(1-smooth(0.3,1,Math.abs((dx*c+dz*s)/d.len)))*(1-smooth(0.2,1,Math.abs((dz*c-dx*s)/d.w)+wobble*0.5)));}
   let ejecta=0;for(const [cx,cz,r] of C.visual.largeCraters){const d=Math.hypot(x-cx,z-cz)/r;if(d<0.8||d>2.8)continue;const a=Math.atan2(z-cz,x-cx),rays=0.55+0.45*Math.cos(a*7+cx*1.3)*Math.cos(a*3-cz*0.7);ejecta=Math.max(ejecta,smooth(0.8,1.05,d)*(1-smooth(1.1,2.8,d))*rays);}
-  const albedo=1+tone-G.patchDark*dust+G.driftLight*drift+G.ejecta*ejecta,bumps=(1-0.55*dust)*(1-0.45*drift)*(0.8+0.5*valueNoise(x/1.7,z/1.7,seed+53)),warmth=0.5+0.9*(valueNoise(x/4.3,z/4.3,seed+71)-0.5)+0.25*dust-0.2*ejecta;
+  let scar=0;const onClaim=x>=0&&z>=0&&x<=N&&z<=N;for(const p of scars){const dx=x-p.x,dz=z-p.z;if(dx*dx+dz*dz>p.r*p.r*1.3)continue;const c=Math.cos(p.a),s=Math.sin(p.a);scar=Math.max(scar,(1-smooth(0,1,Math.hypot((dx*c+dz*s)/p.r,(dz*c-dx*s)/(p.r*p.e))+wobble*0.6))*(onClaim?G.scarClaim:1));}
+  const albedo=1+tone-G.patchDark*dust+G.driftLight*drift+G.ejecta*ejecta-(G.scarDark||0)*scar,bumps=(1-0.55*dust)*(1-0.45*drift)*(1-0.3*scar)*(0.8+0.5*valueNoise(x/1.7,z/1.7,seed+53)),warmth=0.5+0.9*(valueNoise(x/4.3,z/4.3,seed+71)-0.5)+0.25*dust-0.2*ejecta+0.15*scar;
   data[k]=byte((albedo-0.6)/0.8);data[k+2]=byte(warmth);data[k+3]=byte((bumps-G.normalRange[0])/(G.normalRange[1]-G.normalRange[0]));
   const hx=Math.abs(x-G.hub[0]),hz=Math.abs(z-G.hub[1]);if(hx>G.hubRing[1]+0.3||hz>G.hubRing[1]+0.3)continue;const ring=Math.pow(hx**4+hz**4,0.25)+0.35*(valueNoise(x*1.1,z*1.1,seed+11)-0.5);
   data[k+1]=hub[j*S+i]=byte(G.hubWear*smooth(G.hubRing[0]-0.2,G.hubRing[0]+0.15,ring)*(1-smooth(G.hubRing[1]-0.9,G.hubRing[1],ring))*(0.7+0.3*valueNoise(x*2.3,z*2.3,seed+13)));}}

@@ -12,7 +12,7 @@ test('the ground texture covers the claim and the dunes ring at a fixed, small s
  assert.deepEqual(a.data,b.data);assert.notDeepEqual(a.data,c.data);assert.equal(a.data.length,GROUND_SIZE*GROUND_SIZE*4);
 });
 
-test('the claim gets broad, gentle variation that keeps its overall brightness and stays a grey moon',()=>{
+test('the claim gets broad, gentle variation that keeps its overall brightness and stays grey ash',()=>{
  const baked=bakeGround(),values=[];let warm=0,cool=0;
  for(let z=0.25;z<N;z+=0.5)for(let x=0.25;x<N;x+=0.5){const g=at(baked,x,z);values.push(g.albedo);assert.ok(g.bumps>=G.normalRange[0]-1e-9&&g.bumps<=G.normalRange[1]+1e-9);if(g.warmth>0.6)warm++;if(g.warmth<0.4)cool++;}
  const mean=values.reduce((s,v)=>s+v,0)/values.length,spread=Math.sqrt(values.reduce((s,v)=>s+(v-mean)**2,0)/values.length);

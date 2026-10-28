@@ -68,7 +68,7 @@ Run the app and open /cover.html in your WebGL-enabled browser at a 1200 by 630 
 
 ## Design notes
 
-A dead planet. One licensed claim. Dig to the cold core, restart it, and bring the world back to life. Beacons bound a 16 by 16 claim, with dunes beyond, a pale ringed gas giant and a dim second moon. The hub is the expedition's warm, white landmark. Rendered pits compress depth to less than six world units while the authority retains the full planetary depth.
+A dead planet. One licensed claim. Dig to the cold core, restart it, and bring the world back to life. The planet is Earth after a nuclear war. Beacons bound a 16 by 16 claim, with ash dunes beyond (dead trees, broken concrete, fallen pylons, rusted barrels and radiation signs) under an ash overcast, the Moon low in the sky. The hub is the expedition's warm, white landmark. Rendered pits compress depth to less than six world units while the authority retains the full planetary depth.
 
 Carrying ore home gives every player a reason to move, puts something at stake when a diamond is in the hold, makes the mobility line matter beyond reach, and gives the team a second thing to build together before the drill. Smaller holds in this pass prevent long waits underground with upgrade money trapped as cargo. Late tool and team prices now fit the tested round shape. Terrain uses weak, irregular multi-octave bumps, a second rotated noise sample, broad albedo variation and adjusted shadow bias. The global track overlay is disabled to remove a possible source of regular streaks. The gas giant is a screen-aligned shaded globe disc, so its silhouette stays circular at every aspect ratio. GPU appearance and phone FPS still need the visual checklist on real hardware.
 
@@ -90,7 +90,7 @@ Supply buttons select an item for review, including unaffordable items. Confirm 
 
 ## A cold core, a sleeping world
 
-A dead planet. One licensed claim. Dig to the cold core, restart it, and bring the world back to life. The ringed gas giant and dim second moon belong to this sky; the expedition is working on the dead planet beneath its wheels. The final green ripple is this planet waking up as its core restarts.
+A dead planet. One licensed claim. Dig to the cold core, restart it, and bring the world back to life. The planet is our Earth after the bombs: ash ground, a smoky overcast with a few stars showing through, and the Moon in the sky; the expedition is working on the dead planet beneath its wheels. The final green ripple is this planet waking up as its core restarts.
 
 ## The busier claim (0.9.0)
 

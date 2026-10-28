@@ -10,11 +10,12 @@ export const GRAPHICS_KEY='toothpick-graphics';
 // flora and embers scale the finale's instance counts. debris and puffs scale the dig feedback pools (dig-fx.js); kick allows the camera
 // kick of a pixel or two; gravel scales the loose stones scattered round dug cells. Low keeps a small chunk pool and nothing else, so it
 // adds almost no work. env lets metal, glass and visors reflect the baked sky (scene.environment): one more texture read per lit
-// pixel, so low goes without it and keeps today's cost. grain adds a faint film grain in the final composite (high only).
+// pixel, so low goes without it and keeps today's cost. grain adds a faint film grain in the final composite (high only). ash scales the
+// falling ash flakes round the camera (renderer3d.js); low has none and does not even build them.
 export const QUALITY={
- high:{pixelRatio:2,shadows:true,shadowSoftness:1.6,shadowScale:1,env:true,grain:true,bloom:true,particles:1,flora:1,embers:1,debris:1,puffs:1,kick:true,gravel:1},
- balanced:{pixelRatio:1.5,shadows:true,shadowSoftness:0.6,shadowScale:0.5,env:true,grain:false,bloom:true,particles:1,flora:0.7,embers:0.7,debris:0.6,puffs:0.6,kick:true,gravel:0.6},
- low:{pixelRatio:1,shadows:false,shadowSoftness:1,shadowScale:1,env:false,grain:false,bloom:false,particles:0.5,flora:0.4,embers:0.4,debris:0.2,puffs:0,kick:false,gravel:0}
+ high:{pixelRatio:2,shadows:true,shadowSoftness:1.6,shadowScale:1,env:true,grain:true,bloom:true,particles:1,flora:1,embers:1,debris:1,puffs:1,kick:true,gravel:1,ash:1},
+ balanced:{pixelRatio:1.5,shadows:true,shadowSoftness:0.6,shadowScale:0.5,env:true,grain:false,bloom:true,particles:1,flora:0.7,embers:0.7,debris:0.6,puffs:0.6,kick:true,gravel:0.6,ash:0.7},
+ low:{pixelRatio:1,shadows:false,shadowSoftness:1,shadowScale:1,env:false,grain:false,bloom:false,particles:0.5,flora:0.4,embers:0.4,debris:0.2,puffs:0,kick:false,gravel:0,ash:0}
 };
 const valid=value=>GRAPHICS_CHOICES.includes(value);
 // The URL (?gfx=) wins over the saved lobby choice; anything unknown means auto, which starts at high and steps down when slow.

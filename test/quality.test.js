@@ -12,7 +12,7 @@ test('presets: high, balanced and low get cheaper in every dimension',()=>{
  assert.ok(QUALITY.high.shadowSoftness>QUALITY.balanced.shadowSoftness,'high filters shadows wider');
  for(const key of ['flora','embers','debris','puffs'])assert.ok(QUALITY.high[key]>QUALITY.balanced[key]&&QUALITY.balanced[key]>QUALITY.low[key],key);
  assert.deepEqual([QUALITY.high.kick,QUALITY.balanced.kick,QUALITY.low.kick],[true,true,false],'no camera kick on low');
- assert.equal(QUALITY.low.puffs,0,'low throws no dust puffs');
+ assert.equal(QUALITY.low.puffs,0,'low throws no dust puffs');assert.ok(QUALITY.high.ash>=QUALITY.balanced.ash&&QUALITY.balanced.ash>0&&QUALITY.low.ash===0,'ash falls on high and balanced, never on low');
  assert.deepEqual([QUALITY.high.env,QUALITY.balanced.env,QUALITY.low.env],[true,true,false],'low skips the reflection map and keeps its old cost');
  assert.deepEqual([QUALITY.high.grain,QUALITY.balanced.grain,QUALITY.low.grain],[true,false,false],'film grain on high only');
 });
