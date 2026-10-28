@@ -59,22 +59,24 @@ export function isThin(cell){return cell.richStart!=null&&cell.row>=cell.richSta
 export function cellPayout(cell){return payout(cell.row)*(isThin(cell)?C.deposits.dryFactor:1);}
 // Big tools reach past the target: the blasting kit splashes 3x3, the mining mech hits 3x3 at full force,
 // and the tunnel borer drives a line of three cells in the direction you face. In a shaft, the blasting kit reaches
-// neighbours level with your floor (within blastBand rows above it); the mining mech rakes every neighbour that is
-// at or above its floor, so a narrow shaft widens into a 3 by 3 and stays one from then on (never below its own floor).
+// neighbours level with your floor (within blastBand rows above it); the mining mech always works on the 3 by 3 centred on
+// your own shaft cell: it cuts the floor and rakes every neighbour above it down to that floor (never past it) in one sweep,
+// so a narrow shaft widens into a level 3 by 3 and stays one all the way down.
 // Neighbours take the tool's pierce too, so a 3 by 3 started from the surface stays level all the way down.
 export function toolPattern(room,p,x,y,tool,amount,shaftRow){const N=C.mapSize,cells=[];
  if(tool.splash||tool.area){for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)if(dx||dy)cells.push([x+dx,y+dy]);}
  else if(tool.line){let sx=Math.sign(x-Math.floor(p.x)),sy=Math.sign(y-Math.floor(p.y));if(!sx&&!sy&&p.facing){sx=Math.abs(p.facing.dx)>0.38?Math.sign(p.facing.dx):0;sy=Math.abs(p.facing.dy)>0.38?Math.sign(p.facing.dy):0;}if(sx&&sy){const f=p.facing||{dx:0,dy:0};if(Math.abs(f.dx)>=Math.abs(f.dy))sy=0;else sx=0;}if(sx||sy)for(let k=1;k<tool.line;k++)cells.push([x+sx*k,y+sy*k]);}
  const force=tool.splash?tool.splash/tool.tap:(tool.areaForce??tool.lineForce??1),surface=amount*force;
  let reached=0;for(const [nx,ny] of cells){if(!validCell(nx,ny))continue;if(shaftRow==null){hit(room,p,nx,ny,surface,true,false,tool.pierce||0);continue;}const i=ny*N+nx,n=room.cells[i];
-  if(tool.area){if(n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)&&!home(nx+0.5,ny+0.5)){reached++;hit(room,p,nx,ny,amount*force,true,true,tool.pierce||0);}continue;}
+  if(tool.area){if(n.row<shaftRow&&n.row<=lightReach(room,p,p.shaft)&&!home(nx+0.5,ny+0.5)){reached++;hit(room,p,nx,ny,amount*force,true,true,shaftRow-n.row-1);}continue;}
   if(n.row>=Math.max(1,shaftRow-C.shafts.blastBand)&&n.row<=shaftRow&&n.row<=lightReach(room,p,p.shaft)){reached++;hit(room,p,nx,ny,tool.splash?tool.tap:amount*force,true,true,tool.pierce||0);}}
- if(shaftRow!=null&&cells.length&&!reached&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle. The mining mech carves its own 3x3 wherever it is.');}}
+ if(shaftRow!=null&&cells.length&&!reached&&!tool.area&&p.areaTipShaft!==p.shaft){p.areaTipShaft=p.shaft;privateToast(room,p,'Area tools reach neighbours only when they are dug level with you. Start a 3x3 from the surface, then belay into the middle. The mining mech carves its own 3x3 wherever it is.');}}
 // pierce: how many extra rows damage left over after breaking a row may carry into, in the same hit (the tunnel borer bores down two layers at a time).
 export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,again=false) {
  if(!validCell(x,y)||isDepot(x,y)) return;
  const index=y*C.mapSize+x, cell=room.cells[index];
- if(indirect&&room.players.some(who=>!who.departed&&!who.boarded&&Math.floor(who.x)===x&&Math.floor(who.y)===y))return;
+ // Area and splash hits never break the cell someone stands on, except the mining mech's own claws cutting the cell under it.
+ if(indirect&&room.players.some(who=>!who.departed&&!who.boarded&&Math.floor(who.x)===x&&Math.floor(who.y)===y&&(who!==p||!C.tools[p.tool]?.area)))return;
  if(indirect&&!p.isTeam&&room.drill&&index===room.site)return; // area tools leave the drill's own cell alone; its ring is fair game, as belaying into it is
  if(machineAt(room,x,y)?.damagerId!==p.id&&machineAt(room,x,y))return;
  if((room.broken.has(index)&&!again)||gate(p,cell.row,room)||(!p.isTeam&&!shaftBlast&&shaftGate(room,p,x,y))) return;
@@ -126,17 +128,18 @@ export function action(room,p,message,now) {
  if(message.type==='tap') {
   if(p.belay)return {type:'toast',text:'Belaying to the surface'};
   if(liveMove(p,now))return;
-  const {x,y}=message; if(!validCell(x,y)) return;
+  let {x,y}=message; if(!validCell(x,y)) return;
   p.tapTimes=p.tapTimes.filter(t=>now-t<C.tapWindowMs); if(p.tapTimes.length>=C.tapsPerSecond) return; p.tapTimes.push(now);
   markActive(room,p,now);p.lastWorked=now;
   if(p.boarded){p.returning=false;p.boarded=false;p.boarding=false;p.target=null;p.drive={x:x+0.5,y:y+0.5};return;}
   p.boarding=false;p.returning=false;
+  if(p.shaft!=null&&C.tools[p.tool].area&&Math.max(Math.abs(x-p.shaft%C.mapSize),Math.abs(y-Math.floor(p.shaft/C.mapSize)))<=1){x=p.shaft%C.mapSize;y=Math.floor(p.shaft/C.mapSize);}
   if(p.shaft!=null){const reason=shaftGate(room,p,x,y);if(reason)return {type:'toast',text:reason};}
   if(!within(p,x,y)) {p.drive={x:x+0.5,y:y+0.5};p.target=null;return;}
   p.drive=null;
   const reason=machineAt(room,x,y)?'Keep out. Excavator running.':isDepot(x,y)?'Depot. Bring cargo here.':shaftGate(room,p,x,y)||gate(p,room.cells[y*C.mapSize+x].row,room); if(reason) {p.target=null; return {type:'toast',text:reason,x,y};}
   p.target={x,y}; const tool=C.tools[p.tool],shaftRow=p.shaft!=null?room.cells[p.shaft].row:null; hit(room,p,x,y,tool.tap,false,false,tool.pierce||0);
-  toolPattern(room,p,x,y,tool,tool.tap,shaftRow);
+  toolPattern(room,p,x,y,tool,tool.tap,tool.area&&p.shaft!=null?room.cells[p.shaft].row:shaftRow);
  } else if(message.type==='buy') {
   if(!atHub(p))return {type:'toast',text:'Trade at the hub'};
   const kind=message.kind; if(kind!=='pods'&&kind!=='lighting'&&kind!=='tool'&&kind!=='mobility'&&!C.detectorLines.includes(kind)) return;
@@ -146,6 +149,8 @@ export function action(room,p,message,now) {
   spendPersonal(room,p,next.cost); p[kind]++; p.autoElapsed=0; room.lastActivity=now; if(C.detectorLines.includes(kind))scanDetectors(room,p);if(kind==='tool')return {type:'toast',text:'Equipped: '+next.name+', '+next.tap.toLocaleString()+' per hit'};
  }
 }
+// Falling into the hole under you while the mech is digging keeps its claws working: it carries on down from your new floor.
+function dropIn(room,p,index){const digging=!!p.target&&!!C.tools[p.tool]?.area;enterShaft(room,p,index);if(digging&&p.shaft===index)p.target={x:index%C.mapSize,y:Math.floor(index/C.mapSize)};}
 export function step(room,commands,now,dt=C.tickSeconds) {
  room.now=now;room.endEvent=null;room.resetEvent=false;room.privateToasts={};room.deliveries=[];room.machineShares=[];
  room.broken.clear(); room.dirty.clear(); room.breakEvents=[];room.announcements=[]; room.tick++;
@@ -155,7 +160,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
  if(room.won||room.resetEvent)return;
  for(const p of room.players) {
   if(p.connected) {
-   const standing=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(p.shaft==null&&!p.boarded&&!p.boarding&&p.rimCell!==standing&&room.broken.has(standing))enterShaft(room,p,standing);
+   const standing=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(p.shaft==null&&!p.boarded&&!p.boarding&&p.rimCell!==standing&&room.broken.has(standing))dropIn(room,p,standing);
    const oldX=p.x,oldY=p.y,wasInShaft=p.shaft!=null;if(!wasInShaft)trackSurfaceCell(p,Math.floor(oldY)*C.mapSize+Math.floor(oldX));
    if(p.shaft!=null){advanceShaft(room,p,now,dt);if(liveMove(p,now))walkShaft(room,p,dt);}else if(liveMove(p,now)){p.drive=null;p.drivePath=null;p.target=null;p.returning=false;p.boarded=false;p.boarding=false;const speed=C.mobility[p.mobility].speed*dt;slide(p,p.move.dx*speed,p.move.dy*speed,room);}else {if(p.move&&(p.move.dx||p.move.dy))p.move={dx:0,dy:0};driveStep(p,dt,room);}
 
@@ -170,10 +175,10 @@ export function step(room,commands,now,dt=C.tickSeconds) {
     if(p.autoElapsed+Number.EPSILON>=tool.interval) {
      p.autoElapsed%=tool.interval;
      if(tool.areaDamage) {const cx=Math.floor(p.x),cy=Math.floor(p.y);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++)hit(room,p,cx+dx,cy+dy,tool.areaDamage,true);}
-     else if(p.target&&within(p,p.target.x,p.target.y)&&!gate(p,room.cells[p.target.y*C.mapSize+p.target.x].row,room)){hit(room,p,p.target.x,p.target.y,tool.autoDamage,true,false,tool.pierce||0);if(tool.area||tool.line)toolPattern(room,p,p.target.x,p.target.y,tool,tool.autoDamage,p.shaft!=null?room.cells[p.shaft].row:null);}
+     else if(p.target){const at=tool.area&&p.shaft!=null?{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)}:p.target;if(within(p,at.x,at.y)&&!gate(p,room.cells[at.y*C.mapSize+at.x].row,room)){hit(room,p,at.x,at.y,tool.autoDamage,true,false,tool.pierce||0);if(tool.area||tool.line)toolPattern(room,p,at.x,at.y,tool,tool.autoDamage,p.shaft!=null?room.cells[p.shaft].row:null);}}
     }
    }
-   const index=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(p.shaft==null&&!p.boarded&&!p.boarding&&room.broken.has(index))enterShaft(room,p,index);
+   const index=Math.floor(p.y)*C.mapSize+Math.floor(p.x);if(p.shaft==null&&!p.boarded&&!p.boarding&&room.broken.has(index))dropIn(room,p,index);
   }
 
  }
