@@ -4,11 +4,12 @@ name: Keep warm
 # This job fetches /health every ten minutes so the link opens at once for judges and for anyone arriving from Learn Hub.
 # To stop it: the repository's Actions tab, Keep warm, "Disable workflow" (or delete this file). GitHub pauses scheduled
 # workflows after 60 days without a commit; any push to main starts them again. Scheduled runs can start several minutes
-# late when GitHub is busy, which is fine here: the instance only sleeps after 15 quiet minutes.
+# late when GitHub is busy, which is fine here: the instance only sleeps after 15 quiet minutes. The odd minutes keep
+# it off the crowded :00/:10/:20 marks, where GitHub's scheduler runs furthest behind.
 
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '7,17,27,37,47,57 * * * *'
   workflow_dispatch:
 
 permissions: {}
