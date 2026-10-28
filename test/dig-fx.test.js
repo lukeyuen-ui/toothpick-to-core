@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as T from '../public/vendor/three.module.js';import {C} from '../config.js';import {QUALITY} from '../public/quality.js';
-import {digBudget,stratumColor,shareChunks,createPool,takeSlot,stepChunks,chunkScale,puffShape,kickOffset,rumbleOffset,kickAngle,createDigFx} from '../public/dig-fx.js';
+import {digBudget,stratumColor,shareChunks,createPool,takeSlot,stepChunks,chunkScale,puffShape,kickOffset,rumbleOffset,kickAngle,createDigFx,stepGrains,grainAlpha} from '../public/dig-fx.js';import {qualitySettings} from '../public/quality.js';
 const D=C.digFx,flat=()=>0;
 const view=()=>{const camera=new T.PerspectiveCamera(50,1.4,0.1,90);camera.position.set(8,3,12);camera.lookAt(8,0,8);camera.updateMatrixWorld();return camera;};
 
@@ -96,4 +96,32 @@ test('a chunk that comes to rest on a spoil heap settles into it within heapSett
  assert.ok(rested,'both come to rest');const heapIndex=pool.x[0]<4?0:1;assert.ok(pool.y[heapIndex]>=0.05,'resting on the heap, not in it');
  assert.ok(pool.life[heapIndex]<=pool.age[heapIndex]+D.heapSettle+1e-9,'settles into the heap soon');assert.equal(pool.life[1-heapIndex],3,'on bare ground it keeps its life');
  const fx=createDigFx(new T.Scene()),camera=view();fx.burst(2.5,0.06,2.5,{heavy:true},1000);for(let t=0;t<200;t++)fx.update(1/60,camera,ground,1000+t*16,heapAt);assert.equal(fx.chunks.count,0,'and they all clear');
+});
+
+// Crumble: when a cell breaks its rim gives a little, a trickle of grains down each wall on solid ground and a sheet of clots off one rim.
+test('the crumble pool follows the preset: full on High, half on Balanced, none on Low',()=>{
+ const [high,balanced,low]=['high','balanced','low'].map(level=>digBudget(qualitySettings(level)));
+ assert.equal(high.grains,D.grains);assert.ok(balanced.grains>0&&balanced.grains<high.grains);assert.equal(low.grains,0,'Low throws no crumble');
+ assert.equal(digBudget(QUALITY.high).grains,0,'an unknown preset throws none');assert.equal(digBudget(QUALITY.high,C.dirt.high).grains,D.grains);
+ const fx=createDigFx(new T.Scene());fx.setBudget(low);assert.equal(fx.crumble(4.5,4.5,{sides:15,floor:-0.3,key:1},1000),false);assert.equal(fx.grains.count,0);
+});
+test('a break trickles grains down only its solid walls, once per cooldown a cell, and a mech 3x3 never floods the pool',()=>{
+ const scene=new T.Scene(),fx=createDigFx(scene),camera=view();fx.setBudget(digBudget(qualitySettings('high')));const reach=0.3;
+ assert.ok(scene.getObjectByName('Dig crumble grains'),'one points cloud');
+ assert.equal(fx.crumble(4.5,4.5,{sides:1,floor:-0.4,rim:0.03,row:3,key:7,reach},1000),true);const one=fx.grains.count;assert.equal(one,D.crumbleGrains+D.crumbleSheet,'a trickle and a sheet off the one solid wall');
+ for(let i=0;i<one;i++){assert.ok(fx.grains.x[i]>=4.5+reach-1e-9,'on the +x wall: '+fx.grains.x[i]);assert.ok(fx.grains.y[i]<=0.03+1e-9&&fx.grains.y[i]>=-0.4);assert.ok(Math.abs(fx.grains.z[i]-4.5)<0.5);}
+ assert.equal(fx.crumble(4.5,4.5,{sides:1,floor:-0.4,key:7,reach},1000+D.crumbleCooldownMs/2),false,'cooled down per cell');assert.equal(fx.crumble(4.5,4.5,{sides:0,floor:-0.4,key:8},1000),false,'no walls, no crumble');
+ // A mech breaks nine cells at once: only the outer eight have walls on solid ground, and the pool caps the grains.
+ let thrown=0;for(let z=0;z<3;z++)for(let x=0;x<3;x++){const sides=(x===2?1:0)|(x===0?2:0)|(z===2?4:0)|(z===0?8:0);if(fx.crumble(10.5+x,3.5+z,{sides,floor:-0.9,row:9,key:100+z*16+x,reach},2000))thrown++;}
+ assert.equal(thrown,8,'the middle cell has no wall to crumble');assert.ok(fx.grains.count<=D.grains,'never past the pool');
+ let lightest=0;for(let i=0;i<fx.grains.count;i++)lightest=Math.max(lightest,fx.grains.cr[i],fx.grains.cg[i],fx.grains.cb[i]);assert.ok(lightest<0.9,'dirt coloured, not a white blob: '+lightest);
+ const points=fx.points;for(let t=0,now=2000;t<120;t++,now+=16){fx.update(0.016,camera,()=>0,now);assert.equal(points.geometry.drawRange.count,fx.grains.count);for(let i=0;i<fx.grains.count;i++)assert.ok(fx.grains.y[i]>=fx.grains.floor[i]-1e-9,'never below its floor');}
+ assert.equal(fx.grains.count,0,'the crumble clears within a couple of seconds');assert.equal(points.visible,false);
+ fx.crumble(4.5,4.5,{sides:15,floor:-0.4,key:9,reach},9000);assert.ok(fx.grains.count>0);fx.reset();assert.equal(fx.grains.count,0);
+});
+test('grains wait their turn, fall, stop at the floor and fade quickly',()=>{
+ const pool=createPool(4,['x','y','z','vx','vy','vz','age','life','floor','size','alpha','cr','cg','cb']),k=takeSlot(pool);pool.y[k]=0.03;pool.floor[k]=-0.3;pool.age[k]=-0.1;pool.life[k]=2;pool.alpha[k]=0.9;
+ stepGrains(pool,0.05);assert.ok(Math.abs(pool.y[k]-0.03)<1e-6,'still waiting');assert.equal(grainAlpha(pool.age[k],pool.life[k],0.9),0);
+ let landed=false;for(let i=0;i<60&&pool.count;i++){stepGrains(pool,0.02);if(pool.count&&pool.vy[0]===0&&pool.age[0]>0){landed=true;break;}}assert.ok(landed&&Math.abs(pool.y[0]+0.3)<1e-6,'landed on its floor');assert.ok(pool.life[0]<=pool.age[0]+D.grainFade+1e-6,'and fades out');
+ assert.ok(grainAlpha(0.5,2,0.9)>0.8);assert.equal(grainAlpha(2,2,0.9),0);
 });

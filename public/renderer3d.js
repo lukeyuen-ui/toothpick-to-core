@@ -122,7 +122,12 @@ export function createRenderer3D(canvas,mini,rods,money,options={}){
  // is held until the strike's impact (if that is soon), so the claws or the spade land first and the ground answers.
  function mine(i){const t=meRef?.target;if(!t)return false;const x=i%N,y=Math.floor(i/N),tool=C.tools[meRef.tool];return t.x===x&&t.y===y||!!(tool?.area||tool?.splash)&&Math.abs(t.x-x)<=1&&Math.abs(t.y-y)<=1;}
  function digBurst(i,old,cell){const now=performance.now(),broke=cell.row>old.row,row=broke?old.row:cell.row,x=i%N+0.5,z=Math.floor(i/N)+0.5;if(reduced||!broke&&now-impactAt[i]<C.digFx.impactSkipMs||row>C.shafts.daylightRows&&!(visibleFloors[i]>0)&&!cell.shaftLights)return;const near=Math.hypot(x-camera.position.x,z-camera.position.z);if(near>C.digFx.reach)return;
-  const due=mode==='first'&&mine(i)?cab.impactDue(now):null,wait=due!=null&&due-now<=C.digFx.syncMs;if(wait&&!broke)return;const tier=diggerTier(i);digFx.queue(x,-depth(row)+0.01,z,burstOptions(row,broke,broke?breakCount(tier):hitCount(tier),cellShade(i,cell,row),i,near>0.7||mode==='overview',null,wait?due:undefined),now);}
+  const due=mode==='first'&&mine(i)?cab.impactDue(now):null,wait=due!=null&&due-now<=C.digFx.syncMs;if(wait&&!broke)return;const tier=diggerTier(i);digFx.queue(x,-depth(row)+0.01,z,burstOptions(row,broke,broke?breakCount(tier):hitCount(tier),cellShade(i,cell,row),i,near>0.7||mode==='overview',null,wait?due:undefined),now);if(broke)crumble(i,x,z,cell,row,now,wait?due:undefined);}
+ // A break crumbles the rim (dig-fx.js): a trickle down each wall the cell has on solid ground and a sheet of clots off one rim, once
+ // per cooldown a cell. One reusable options object, so a break allocates nothing.
+ const crumbleOpts={sides:0,floor:0,rim:0,row:0,shade:1,key:-1,at:undefined,reach:0.3};
+ function crumble(i,x,z,cell,row,now,at){const cx=i%N,cz=Math.floor(i/N),M=C.pits.mergeRow,o=crumbleOpts,shape=pits.look.pitShape.value;o.sides=(rowAtCell(cx+1,cz)<M?1:0)|(rowAtCell(cx-1,cz)<M?2:0)|(rowAtCell(cx,cz+1)<M?4:0)|(rowAtCell(cx,cz-1)<M?8:0);if(!o.sides)return;
+  o.floor=-depth(cell.row);o.rim=C.pits.lift+0.01;o.row=row;o.shade=cellShade(i,cell,row);o.key=i;o.at=at;o.reach=0.5-C.pits.inset-(C.pits.rimRound+C.pits.lean)*shape-0.03;digFx.crumble(x,z,o,now);}
  // A find throws a shower of pale gold chips on top of the break.
  function findBurst(i){const cell=stateRef?.cells[i];if(reduced||!cell)return;digFx.burst(i%N+0.5,-depth(cell.row)+0.02,Math.floor(i/N)+0.5,burstOptions(cell.row,true,C.digFx.findChunks,Math.max(0.35,cellShade(i,cell,cell.row)),-1,false,C.digFx.findColor));}
  // Your mech breaking ground kicks the view when no strike animation does (chase view), at most once per strike.

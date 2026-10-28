@@ -131,8 +131,14 @@ export const C = {
  // Dig feedback (public/dig-fx.js): chunks of the struck stratum flung out of the cell, bouncing on the rim and sinking into the dirt, a dust
  // puff over every break, and a camera kick of a pixel or two for mech strikes and the boring drill. Pools and the chunk rate are the high
  // preset's; quality.js scales them, and low keeps a small chunk pool with no puffs and no kick. Sizes are world units, times in seconds.
-// A chunk that comes to rest on a spoil heap settles into it within heapSettle.
- digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
+// A chunk that comes to rest on a spoil heap settles into it within heapSettle. Crumble: when a cell breaks, its rim gives a little:
+// a trickle of crumbleGrains grains runs down each wall it has on solid ground (from the rim, or crumbleSpan above the new floor in
+// a deeper hole) and, in a hole no deeper than sheetDepth, a sheet of crumbleSheet soft clots falls from one rim, at most once per
+// crumbleCooldownMs a cell, from a pool of
+// grains points (scaled by the preset's trickle in C.dirt). Grains fall at grainGravity, fade within the last grainFade of their life,
+// and thin out within grainClear of the camera; they are unlit, so grainTone darkens their stratum colour to sit with lit dirt and the
+// sheet's clots lean toward the grey dust.
+ digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,grains:160,crumbleGrains:12,crumbleSheet:6,crumbleSpan:0.6,sheetDepth:1.2,crumbleCooldownMs:900,grainSize:[0.013,0.024],sheetSize:[0.05,0.09],grainLife:[0.8,1.3],grainGravity:4.2,grainFade:0.25,grainAlpha:0.95,sheetAlpha:0.5,grainTone:0.62,grainClear:[0.12,0.45],pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
  protocolVersion:9
 };
 // Layout values are centralized here too; renderer owns no game decisions.
