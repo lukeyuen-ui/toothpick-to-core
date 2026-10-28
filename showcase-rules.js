@@ -54,7 +54,8 @@ function toothpick(room,p,now,voice){const S=C.showcase,t=p.tour;if((p.taps||0)>
  p.tool=MECH;p.autoElapsed=0;p.target=null;t.mechAt=now;say(room,voice,'Nobody digs to the core with a toothpick, '+p.nickname+'. Catch!');
  privateToast(room,p,'Mining mech equipped. Its claws tear out a 3x3 with every hit.');}
 
-// Beat 2: the first mech hole beside you swallows you, so you are digging your own 3 by 3 shaft at once; the mech widens it as you go down.
+// Beat 2: a mech hole right beside you already cuts the cell under you (rules.js drops you in). A first hole further off but within reach swallows
+// you too, so either way you are digging your own 3 by 3 shaft at once, and the mech keeps digging its floor as you go down.
 function dropIn(room,p){const S=C.showcase,t=p.target;if(p.shaft!=null||p.belay||p.boarded||p.boarding||!t)return;const i=t.y*N+t.x;
  if(!room.broken.has(i)||!room.cells[i].row||Math.max(Math.abs(Math.floor(p.x)-t.x),Math.abs(Math.floor(p.y)-t.y))>S.dropReach)return;
  enterShaft(room,p,i);if(p.shaft===i){p.depth=room.cells[i].row;p.target={x:t.x,y:t.y};}if(p.shaft===i&&!p.tour.dropped){p.tour.dropped=true;privateToast(room,p,'In you go. Keep tapping the floor and dig down to the magma.');}}
