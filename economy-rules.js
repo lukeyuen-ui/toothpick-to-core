@@ -8,4 +8,4 @@ export function creditMachine(room,value,source){if(!(value>0))return;if(source=
 
 export function creditOwner(room,ownerId,value,source='belt'){const p=room.players.find(p=>p.publicId===ownerId);if(!p||p.departed){room.fund+=value;room.fundEarned+=value;return;}p.wallet+=value;p.lifetime+=value;p.earned+=value;if(source==='belt')p.beltEarned=(p.beltEarned||0)+value;const e=room.machineShares.find(e=>e.playerId===ownerId&&e.source===source);if(e)e.value+=value;else room.machineShares.push({playerId:ownerId,source,value,x:C.mapSize/2,y:C.mapSize/2});}
 
-export function incomeMultiplier(room){return (room.fast?C.fastMultiplier:1)*(room.quick?C.quickValueMultiplier:1);}
+export function incomeMultiplier(room){return (room.fast?C.fastMultiplier:1)*(room.quick?C.quickValueMultiplier:1)/(room.hardcore?C.hardcore.valueDivisor:1);}

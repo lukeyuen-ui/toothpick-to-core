@@ -37,7 +37,7 @@ wss.on('connection',ws=>{
   if(msg.type==='ping'){if(Number.isFinite(msg.at))send(ws,{type:'pong',at:msg.at});return;}
   if(msg.type==='create'||msg.type==='join'){
    if(sockets.has(ws))return;
-   let room;if(msg.type==='create'){const code=makeCode();room=createRoom(code,randomBytes(4).readUInt32LE(),msg.fast===true,now,msg.quick===true);room.botLevel=BOT_LEVELS.includes(msg.bots)?msg.bots:'off';if(msg.showcase===true)setupShowcase(room);rooms.set(code,room);queues.set(code,[]);}else{room=rooms.get(String(msg.code||'').toUpperCase());if(!room||now-room.lastActivity>=C.idleMs){send(ws,{type:'error',code:'ended',text:ended});return;}}
+   let room;if(msg.type==='create'){const code=makeCode();room=createRoom(code,randomBytes(4).readUInt32LE(),msg.fast===true,now,msg.quick===true,msg.hardcore===true&&msg.showcase!==true);room.botLevel=BOT_LEVELS.includes(msg.bots)?msg.bots:'off';if(msg.showcase===true)setupShowcase(room);rooms.set(code,room);queues.set(code,[]);}else{room=rooms.get(String(msg.code||'').toUpperCase());if(!room||now-room.lastActivity>=C.idleMs){send(ws,{type:'error',code:'ended',text:ended});return;}}
    const token=typeof msg.token==='string'&&room.players.some(p=>p.token===msg.token)?msg.token:randomBytes(24).toString('hex');let p;
    if(!room.players.some(q=>q.token===token&&!q.departed))makeRoomForPerson(room,now);
    try{p=join(room,token,msg.nickname,now);}catch(error){send(ws,{type:'error',text:error.message});return;}p.publicId??=randomUUID();equipShowcase(room,p,now);fillBots(room,now);
