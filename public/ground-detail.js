@@ -83,3 +83,34 @@ export function dirtFields(size=256,seed=17){const S=size,lumps=new Float32Array
  for(let n=0;n<Math.round(S*S/1400);n++){const cx=rnd()*S,cy=rnd()*S,r=3+Math.pow(rnd(),2.2)*10,R=Math.ceil(r*1.7),x0=Math.floor(cx),y0=Math.floor(cy);for(let dy=-R;dy<=R;dy++)for(let dx=-R;dx<=R;dx++){const d=Math.hypot(dx+x0-cx,dy+y0-cy)/r;if(d>=1.7)continue;dust[((y0+dy+S)%S)*S+(x0+dx+S)%S]+=r*(d<1?-0.25*(1-d*d):0)+r*0.09*Math.exp(-(((d-1)/0.32)**2));}}
  return {size:S,grit:pack(lumps),pebbles:pack(stones,shade,mask),dust:pack(dust)};}
 export function createDirtTextures(){const {size,grit,pebbles,dust}=dirtFields(),make=data=>{const t=new T.DataTexture(data,size,size,T.RGBAFormat);t.colorSpace=T.NoColorSpace;t.wrapS=t.wrapT=T.RepeatWrapping;t.magFilter=T.LinearFilter;t.minFilter=T.LinearMipmapLinearFilter;t.generateMipmaps=true;t.needsUpdate=true;return t;};return {grit:make(grit),pebbles:make(pebbles),dustLayer:make(dust)};}
+// Footprints and tracks in the dust. printField draws one small texture: a boot sole with tread bars in the left half and a mech's two
+// treads with their grousers in the right, white with the print in alpha (a soft edge, the bars a little deeper).
+export function printField(size=64){const S=size,data=new Uint8Array(S*2*S*4),put=(i,j,a)=>{const k=(j*S*2+i)*4;data[k]=data[k+1]=data[k+2]=255;data[k+3]=Math.round(255*Math.min(1,Math.max(0,a)));};
+ for(let j=0;j<S;j++)for(let i=0;i<S;i++){const u=(i+0.5)/S-0.5,v=(j+0.5)/S,toe=Math.hypot(u/0.36,(v-0.66)/0.3),heel=Math.hypot(u/0.3,(v-0.24)/0.2),waist=Math.abs(u)<0.27-0.12*Math.abs(v-0.45)&&v>0.24&&v<0.66?0.9:2,d=Math.min(toe,heel,waist);
+  put(i,j,(1-smooth(0.82,1,d))*(0.72+0.28*(Math.sin(v*Math.PI*22)>0.15?1:0)));
+  const tread=Math.abs(Math.abs(u)-0.27)<0.17&&v>0.04&&v<0.96,edge=Math.min(0.17-Math.abs(Math.abs(u)-0.27),v-0.04,0.96-v);put(S+i,j,tread?smooth(0,0.04,edge)*(0.6+0.4*(Math.sin(v*Math.PI*14)>0?1:0)):0);}
+ return {width:S*2,height:S,data};}
+// The prints themselves: one pooled instanced mesh of lit decals on the plain, a ring of slots so the oldest print gives way, drawn up
+// to the slots used. Each print keeps its birth time and kind as instance attributes and fades in the shader against one clock, so
+// nothing is written per frame. walk(id, x, z, kind, now) follows one walker, dropping a print every stride along its path; lift(id)
+// breaks its trail (in a shaft, on a mound, aboard). kind 0 is boots, 1 the mech.
+export function createFootprints(scene,{count=G.prints}={}){
+ const field=printField(),map=new T.DataTexture(field.data,field.width,field.height,T.RGBAFormat);map.colorSpace=T.NoColorSpace;map.magFilter=T.LinearFilter;map.minFilter=T.LinearMipmapLinearFilter;map.generateMipmaps=true;map.needsUpdate=true;
+ const geometry=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),born=new T.InstancedBufferAttribute(new Float32Array(count).fill(-1e6),1),kinds=new T.InstancedBufferAttribute(new Float32Array(count),1);geometry.setAttribute('printBorn',born);geometry.setAttribute('printKind',kinds);
+ const clock={value:0},material=new T.MeshStandardMaterial({map,color:G.printShade,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,roughness:1});
+ material.onBeforeCompile=s=>{s.uniforms.printClock=clock;s.vertexShader='attribute float printBorn;attribute float printKind;varying float printAge;uniform float printClock;\n'+s.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n vMapUv.x=vMapUv.x*0.5+printKind*0.5;printAge=printClock-printBorn;');
+  s.fragmentShader='varying float printAge;\n'+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.a*=smoothstep(0.0,0.4,printAge)*(1.0-smoothstep('+(G.printLife*0.6).toFixed(2)+','+G.printLife.toFixed(2)+',printAge));');};material.customProgramCacheKey=()=>'dust-print';
+ const mesh=new T.InstancedMesh(geometry,material,count);mesh.name='Dust footprints';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;mesh.receiveShadow=true;scene.add(mesh);
+ const dummy=new T.Object3D(),walkers=new Map();let next=0,used=0,limit=count;
+ function print(x,z,ax,az,kind,side,now){if(limit<=0)return;const i=next;next=(next+1)%limit;used=Math.max(used,next===0?limit:next);const w=kind?G.mechSize[0]:G.bootSize[0],l=kind?G.mechSize[1]:G.bootSize[1],spread=kind?0:G.bootSpread*side;
+  dummy.position.set(x+az*spread,0.006,z-ax*spread);dummy.rotation.set(0,Math.atan2(-ax,-az),0);dummy.scale.set(w*(side<0?-1:1),1,l);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);born.array[i]=now/1000;kinds.array[i]=kind;
+  mesh.instanceMatrix.addUpdateRange(i*16,16);born.addUpdateRange(i,1);kinds.addUpdateRange(i,1);mesh.instanceMatrix.needsUpdate=born.needsUpdate=kinds.needsUpdate=true;mesh.count=used;mesh.visible=true;}
+ return {mesh,
+  walk(id,x,z,kind,now){let w=walkers.get(id);if(!w){w={x,z,run:0,side:1,kind};walkers.set(id,w);return;}const dx=x-w.x,dz=z-w.z,d=Math.hypot(dx,dz);if(d>0.6||w.kind!==kind){w.x=x;w.z=z;w.run=0;w.kind=kind;return;}if(d<1e-6)return;
+   const stride=kind?G.mechStride:G.bootStride,ax=dx/d,az=dz/d;w.run+=d;while(w.run>=stride){w.run-=stride;w.side=-w.side;print(x-ax*w.run,z-az*w.run,ax,az,kind,w.side,now);}w.x=x;w.z=z;},
+  lift(id){walkers.delete(id);},
+  update(now){clock.value=now/1000;},
+  setBudget(n){const target=Math.max(0,Math.min(count,Math.round(n)));if(target!==limit){limit=target;next=0;used=0;mesh.count=0;mesh.visible=false;born.array.fill(-1e6);born.needsUpdate=true;}},
+  reset(){walkers.clear();next=0;used=0;mesh.count=0;mesh.visible=false;born.array.fill(-1e6);born.needsUpdate=true;},
+  get count(){return used;},get limit(){return limit;},dispose(){map.dispose();}};
+}

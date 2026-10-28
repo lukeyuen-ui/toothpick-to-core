@@ -183,7 +183,9 @@ export function createPits(){
   // cell*2) and its lump (key cell*2+1), radius 0 for none;
   // the height of the mounds at a point; how many mounds there are; and which cells they must keep off (blocked(i), from the renderer).
   heapChanges(fn){settleHeaps();for(const i of heapChanged)for(let j=0;j<2;j++){const k=i*10+j*5;fn(i*2+j,heaps[k],heaps[k+1],heaps[k+2],heaps[k+3],heaps[k+4],i);}const n=heapChanged.size;heapChanged.clear();return n;},
-  heapAt,get heapCount(){return heapsLive;},setBlocked(fn){blocked=fn||(()=>false);for(let i=0;i<N*N;i++)if(rowAt(i%N,Math.floor(i/N))>=P.mergeRow)heapStale.add(i);},
+  heapAt,get heapCount(){return heapsLive;},
+  // How churned the ground is at a point: the spoil band, 1 at an opening's edge fading to 0 C.pits.spoil away from it.
+  spoilAt(x,z){const i=Math.floor(x*K),j=Math.floor(z*K);return i<0||j<0||i>=S||j>=S?0:rimData[(j*S+i)*4]/255;},setBlocked(fn){blocked=fn||(()=>false);for(let i=0;i<N*N;i++)if(rowAt(i%N,Math.floor(i/N))>=P.mergeRow)heapStale.add(i);},
   // How far the target ring over a cell must float to clear its lip and any mound under it.
   ringLift(i){const cx=i%N,cz=Math.floor(i/N);let lift=rowAt(cx,cz)>=P.mergeRow?lipTop(i,P.targetRadius-E):0;for(let j=0;j<8;j++){const a=j*Math.PI/4;lift=Math.max(lift,heapAt(cx+0.5+Math.cos(a)*P.targetGlowRadius,cz+0.5+Math.sin(a)*P.targetGlowRadius));}return lift;},
   // Where gravel starts in the rocks list (an index into it, a multiple of 3), and the preset's gravel level (0 to 1).

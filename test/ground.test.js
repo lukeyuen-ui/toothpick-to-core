@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {C} from '../config.js';import {QUALITY} from '../public/quality.js';
-import {bakeGround,wearStrips,wearGround,wearSignature,createGroundDetail,decodeGround,texelWorld,worldTexel,GROUND_SIZE,GROUND_SPAN,dirtFields,createDirtTextures} from '../public/ground-detail.js';
+import {bakeGround,wearStrips,wearGround,wearSignature,createGroundDetail,decodeGround,texelWorld,worldTexel,GROUND_SIZE,GROUND_SPAN,dirtFields,createDirtTextures,printField,createFootprints} from '../public/ground-detail.js';import * as T from '../public/vendor/three.module.js';
 import {createPits,pitSdf} from '../public/pit-geometry.js';
 const N=C.mapSize,G=C.ground,at=(baked,x,z)=>decodeGround(baked.data,(Math.round(worldTexel(z))*baked.size+Math.round(worldTexel(x)))*4);
 
@@ -64,4 +64,21 @@ test('the dust layer is a seeded, tiling field of fine grain and small dimples, 
  const nx=(x,y)=>a.dust[((y%S)*S+(x%S))*4];let inside=0,seam=0;for(let y=0;y<S;y++){for(let x=1;x<S-1;x++)inside=Math.max(inside,Math.abs(nx(x,y)-nx(x+1,y)));seam=Math.max(seam,Math.abs(nx(S-1,y)-nx(S,y)));}assert.ok(seam<=inside,'no seam where it wraps: '+seam+' vs '+inside);
  assert.deepEqual([C.dirt.high.regolith>0,C.dirt.balanced.regolith>0,C.dirt.low.regolith],[true,true,0]);
  const textures=createDirtTextures();for(const name of ['grit','pebbles','dustLayer']){const t=textures[name];assert.ok(t.isDataTexture,name);assert.equal(t.image.width,256);assert.equal(t.wrapS,1000,'tiles');assert.equal(t.colorSpace,'','data, not colour');}
+});
+
+test('walkers leave boot prints left and right along their path, the mech its treads, from a pool that fades them over a minute',()=>{
+ const scene=new T.Scene(),prints=createFootprints(scene),mesh=scene.getObjectByName('Dust footprints');assert.ok(mesh);assert.equal(prints.limit,G.prints);
+ const field=printField(32);assert.equal(field.data.length,64*32*4);let boot=0,mech=0;for(let j=0;j<32;j++)for(let i=0;i<64;i++)if(field.data[(j*64+i)*4+3]>128)(i<32?boot++:mech++);assert.ok(boot>100&&mech>100,'a sole and a pair of treads: '+boot+', '+mech);
+ // Walk two units in a straight line: a print every stride, alternating sides of the path, each turned along it.
+ let now=1000;for(let k=0;k<=100;k++){prints.walk('ada',2+k*0.02,5,0,now);now+=20;}
+ const count=prints.count,expected=Math.floor(2/G.bootStride);assert.ok(Math.abs(count-expected)<=1,'one print a stride: '+count+' for '+expected);
+ const m=new T.Matrix4(),p=new T.Vector3(),q=new T.Quaternion(),s=new T.Vector3(),sides=new Set();for(let k=0;k<count;k++){mesh.getMatrixAt(k,m);m.decompose(p,q,s);assert.ok(p.x>=2-1e-6&&p.x<=4+1e-6,'along the path');assert.ok(Math.abs(Math.abs(p.z-5)-G.bootSpread)<1e-6,'beside it');sides.add(Math.sign(p.z-5));assert.ok(Math.abs(p.y-0.006)<1e-9);}
+ assert.equal(sides.size,2,'left and right');assert.ok(mesh.visible&&mesh.count===count);
+ const born=mesh.geometry.attributes.printBorn.array;for(let k=0;k<count;k++)assert.ok(born[k]>0&&born[k]<=now/1000,'stamped with its birth time');
+ // A jump (a belay, a respawn) breaks the trail rather than drawing a line of prints across it; so does lifting.
+ prints.walk('ada',9,9,0,now);assert.equal(prints.count,count);prints.lift('ada');prints.walk('ada',9.5,9,0,now);assert.equal(prints.count,count);
+ // The mech leaves its tread marks; the pool wraps, the oldest giving way; Low has none.
+ for(let k=0;k<1000;k++)prints.walk('mech',3+((k*0.05)%8),11,1,now+k*10);assert.equal(prints.count,G.prints,'never past the pool');assert.ok([...mesh.geometry.attributes.printKind.array].some(v=>v===1));
+ prints.setBudget(0);assert.equal(prints.count,0);assert.equal(mesh.visible,false);prints.walk('ada',1,1,0,now);prints.walk('ada',3,1,0,now);assert.equal(prints.count,0,'none on Low');
+ prints.setBudget(G.prints);prints.walk('ada',1,1,0,now);prints.walk('ada',1.5,1,0,now);assert.ok(prints.count>0);prints.reset();assert.equal(prints.count,0);
 });
