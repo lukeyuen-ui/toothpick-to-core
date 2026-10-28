@@ -1,6 +1,6 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import {C} from '../config.js';import {QUALITY} from '../public/quality.js';
-import {bakeGround,wearStrips,wearGround,wearSignature,createGroundDetail,decodeGround,texelWorld,worldTexel,GROUND_SIZE,GROUND_SPAN} from '../public/ground-detail.js';
+import {bakeGround,wearStrips,wearGround,wearSignature,createGroundDetail,decodeGround,texelWorld,worldTexel,GROUND_SIZE,GROUND_SPAN,dirtFields,createDirtTextures} from '../public/ground-detail.js';
 import {createPits,pitSdf} from '../public/pit-geometry.js';
 const N=C.mapSize,G=C.ground,at=(baked,x,z)=>decodeGround(baked.data,(Math.round(worldTexel(z))*baked.size+Math.round(worldTexel(x)))*4);
 
@@ -53,4 +53,15 @@ test('gravel scatters round dug cells on solid ground, scaled by the preset and 
  pits.setGravel(1);const list=pits.rocks(),from=pits.gravelFrom();assert.ok(from>0&&from%3===0,'big rocks come first');
  for(let k=from;k<list.length;k+=3){assert.ok(pitSdf(rowAt,list[k],list[k+1])>0,'on solid ground');assert.ok(list[k+2]>0&&list[k+2]<C.pits.rubbleSize,'finer than the rim rocks');const near=Math.min(...[...dug.keys()].map(i=>Math.hypot(Math.max(i%N-list[k],0,list[k]-i%N-1),Math.max(Math.floor(i/N)-list[k+1],0,list[k+1]-Math.floor(i/N)-1))));assert.ok(near<=C.pits.gravelReach+0.12,'near a dug cell: '+near);}
  assert.deepEqual(pits.rocks(),list,'the same holes give the same gravel');
+});
+
+// The plain's top layer of dust (step 4 of the dirt pass): a tiling grain and dimple texture over the baked ground, scaled by the preset.
+test('the dust layer is a seeded, tiling field of fine grain and small dimples, and only the presets that want it read it',()=>{
+ const a=dirtFields(64,5),b=dirtFields(64,5),S=a.size;assert.deepEqual(a.dust,b.dust,'the same for every player');assert.notDeepEqual(dirtFields(64,6).dust,a.dust);
+ for(const name of ['grit','pebbles','dust'])assert.equal(a[name].length,S*S*4,name);
+ let low=0;for(let k=0;k<S*S;k++)if(a.dust[k*4+2]<100)low++;assert.ok(low>0&&low<S*S*0.3,'some dimples, mostly level dust: '+low);
+ // Tiling: the normals across the wrap seam change no more than they do inside the texture.
+ const nx=(x,y)=>a.dust[((y%S)*S+(x%S))*4];let inside=0,seam=0;for(let y=0;y<S;y++){for(let x=1;x<S-1;x++)inside=Math.max(inside,Math.abs(nx(x,y)-nx(x+1,y)));seam=Math.max(seam,Math.abs(nx(S-1,y)-nx(S,y)));}assert.ok(seam<=inside,'no seam where it wraps: '+seam+' vs '+inside);
+ assert.deepEqual([C.dirt.high.regolith>0,C.dirt.balanced.regolith>0,C.dirt.low.regolith],[true,true,0]);
+ const textures=createDirtTextures();for(const name of ['grit','pebbles','dustLayer']){const t=textures[name];assert.ok(t.isDataTexture,name);assert.equal(t.image.width,256);assert.equal(t.wrapS,1000,'tiles');assert.equal(t.colorSpace,'','data, not colour');}
 });

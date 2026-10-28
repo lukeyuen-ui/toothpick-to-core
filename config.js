@@ -127,7 +127,11 @@ export const C = {
  // Surface ground (public/ground-detail.js): one baked texture over the claim and the dunes ring gives a broad brightness mottle, darker
  // patches of fine dust, pale streaks and crater ejecta, warm and cool greys, the bump strength, and ground worn round the hub, along
  // conveyor lines and on the paths to the drill and the pumps. It adds no draw calls; inside the finale's meadow only meadowKeep of it stays.
- ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500},
+// Over it the plain's top layer of dust (scene-assets.js dust texture, dustScale repeats per unit, scaled by the preset's regolith)
+// gives fine grain and small dimples: dustNormal of relief, dustTone of light and shade, a little roughness variation, and a
+// parallax shift of up to dustDepth where the ground's bump strength allows. The churned ground round holes keeps dustSpoil less
+// of it, and worn ground less again.
+ ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500,dustScale:1,dustNormal:0.4,dustTone:0.14,dustDepth:0.02,dustSpoil:0.7},
  // Dig feedback (public/dig-fx.js): chunks of the struck stratum flung out of the cell, bouncing on the rim and sinking into the dirt, a dust
  // puff over every break, and a camera kick of a pixel or two for mech strikes and the boring drill. Pools and the chunk rate are the high
  // preset's; quality.js scales them, and low keeps a small chunk pool with no puffs and no kick. Sizes are world units, times in seconds.

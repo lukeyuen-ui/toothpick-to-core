@@ -41,7 +41,7 @@ export function pitSdf(rowAt,x,z){const cx=Math.floor(x),cz=Math.floor(z),dug=(a
 const span=(a,b)=>b>a+1e-9?[a,b]:null;
 export function edgePieces(X,Z,D){const fillet=X&&Z&&!D?{f:[E+RI,E+RI],th:[1.5*Math.PI-ALPHA,Math.PI+ALPHA]}:X&&!Z&&D?{f:[0.5+M-RI,E+RI],th:[-Math.PI/2,-ALPHA]}:!X&&Z&&D?{f:[E+RI,0.5+M-RI],th:[Math.PI/2+ALPHA,Math.PI]}:null;
  return {alongB:!Z?span(0,X?(D?LINE:0.5):E-R):X&&!D?span(E+RI,0.5):null,alongA:!X?span(0,Z?(D?LINE:0.5):E-R):Z&&!D?span(E+RI,0.5):null,corner:!X&&!Z&&R>0,inner:fillet&&fillet.th[1]>fillet.th[0]+1e-9?fillet:null};}
-const common=`uniform sampler2D pitRows;uniform sampler2D pitRim;uniform sampler2D pitGrit;uniform sampler2D pitPebbles;uniform float pitShape;uniform float pitDetail;uniform float pitHeap;varying vec3 pitWorld;
+const common=`uniform sampler2D pitRows;uniform sampler2D pitRim;uniform sampler2D pitGrit;uniform sampler2D pitPebbles;uniform sampler2D pitDust;uniform float pitShape;uniform float pitDetail;uniform float pitHeap;uniform float pitRegolith;varying vec3 pitWorld;
 float pitRipple(vec3 p,out vec3 g){vec3 k1=vec3(5.3,2.9,-3.7),k2=vec3(-2.1,4.7,6.1),k3=vec3(9.7,-6.3,8.9);float a1=dot(p,k1)+1.3,a2=dot(p,k2)+0.7,a3=dot(p,k3)+2.9,s1=sin(a1),s2=sin(a2);g=0.6*(cos(a1)*s2*k1+s1*cos(a2)*k2)+0.4*cos(a3)*k3;return 0.6*s1*s2+0.4*sin(a3);}
 float pitLeanAt(vec2 p){return 0.55+0.45*sin(p.x*1.37+sin(p.y*0.91)*2.0)*sin(p.y*1.13-p.x*0.37);}
 float pitHeave(vec2 p,out vec2 g){float a1=p.x*6.3+p.y*2.1+0.5,a2=-p.x*2.7+p.y*7.9+1.9,a3=p.x*13.1-p.y*11.3+0.3;g=0.5*cos(a1)*vec2(6.3,2.1)+0.3*cos(a2)*vec2(-2.7,7.9)+0.2*cos(a3)*vec2(13.1,-11.3);return 0.5*sin(a1)+0.3*sin(a2)+0.2*sin(a3);}
@@ -102,7 +102,7 @@ const hash=n=>{let h=Math.imul(n^0x9e3779b9,0x85ebca6b);h^=h>>>13;h=Math.imul(h,
 export function createPits(){
  // The preset's look, shared by every pit shader as uniforms so a preset change never recompiles one: shape (rims, lean, ripple,
  // heave), detail (pebbles, sediment, clods) and the dirt textures they read (scene-assets.js).
- const look={pitShape:{value:0},pitDetail:{value:0},pitHeap:{value:0},pitGrit:{value:null},pitPebbles:{value:null}},layouts=new Map();let layout=C.dirt.low;
+ const look={pitShape:{value:0},pitDetail:{value:0},pitHeap:{value:0},pitRegolith:{value:0},pitGrit:{value:null},pitPebbles:{value:null},pitDust:{value:null}},layouts=new Map();let layout=C.dirt.low;
  const data=new Uint8Array(N*N*4),texture=new T.DataTexture(data,N,N,T.RGBAFormat);texture.magFilter=texture.minFilter=T.NearestFilter;texture.generateMipmaps=false;texture.needsUpdate=true;
  // Loose spoil around every edge: 1 at the edge fading to 0 over C.pits.spoil, read with linear filtering by the ground shaders.
  const rimData=new Uint8Array(S*S*4),rim=new T.DataTexture(rimData,S,S,T.RGBAFormat);rim.magFilter=rim.minFilter=T.LinearFilter;rim.generateMipmaps=false;rim.needsUpdate=true;
@@ -164,9 +164,15 @@ export function createPits(){
    ${kind==='wall'?`diffuseColor.rgb=mix(diffuseColor.rgb,vec3(${DUST.map(g).join(',')})*(0.9+0.2*pitPeb.b),${g(P.dustCap)}*pitDetail*smoothstep(${g(-P.dustCapDepth)},0.0,pitWorld.y+0.3*${g(P.dustCapDepth)}*pitNoise(pitWorld.xz*4.1)));`:''}}`
    :kind==='floor'?`vec4 pitGr=vec4(0.5,0.5,0.5,0.0);if(pitDug&&pitDetail>0.0){pitGr=texture2D(pitGrit,pitWorld.xz*${g(P.clodScale)});diffuseColor.rgb*=1.0+${g(P.clodTone)}*pitDetail*(pitGr.b-0.5);}`:'',
    bump=face?`if(pitDetail>0.0){vec2 pn=(pitPeb.xy*2.0-1.0)*${g(P.pebbleNormal)}*pitDetail;normal=normalize(normal+(viewMatrix*vec4(pitTan*pn.x+vec3(0.0,pn.y,0.0),0.0)).xyz);}`
-   :kind==='floor'?`if(pitDug&&pitDetail>0.0){vec2 cn=(pitGr.xy*2.0-1.0)*${g(P.clodNormal)}*pitDetail;normal=normalize(normal+(viewMatrix*vec4(cn.x,0.0,cn.y,0.0)).xyz);}`:'';
+   :kind==='floor'?`if(pitDug&&pitDetail>0.0){vec2 cn=(pitGr.xy*2.0-1.0)*${g(P.clodNormal)}*pitDetail;normal=normalize(normal+(viewMatrix*vec4(cn.x,0.0,cn.y,0.0)).xyz);}`
+   :kind==='lip'?`if(pitDetail>0.0){vec4 lc=texture2D(pitGrit,pitWorld.xz*${g(P.clodScale)});vec2 cn=(lc.xy*2.0-1.0)*${g(P.clodNormal)}*pitDetail;normal=normalize(normal+(viewMatrix*vec4(cn.x,0.0,cn.y,0.0)).xyz);diffuseColor.rgb*=1.0+${g(P.clodTone)}*pitDetail*(lc.b-0.5);}`:'';
+  // The plain's top layer of dust (caps and undug floors, where the ground shader has set its bump strength groundN): grain and small
+  // dimples from the dust texture, looked up a touch off along the view where the bumps are strong (parallax), smoothed on the churned
+  // spoil round holes and mostly gone under the finale's meadow; a tilt of the normal, a little light and shade, and roughness that
+  // follows them.
+  const GD=C.ground,meadow=shader.fragmentShader.includes('uniform float winRadius')?'*(0.2+0.8*smoothstep(winRadius-0.8,winRadius,distance(pitWorld.xz,winOrigin)))':'',regolith=(kind==='cap'||kind==='floor')&&shader.fragmentShader.includes('float groundN')?`if(pitRegolith>0.0${kind==='floor'?'&&!pitDug':''}){vec3 eye=normalize(cameraPosition-pitWorld);float k=pitRegolith*groundN*(1.0-${g(GD.dustSpoil)}*texture2D(pitRim,pitWorld.xz/${g(N)}).r)${meadow};vec2 du=pitWorld.xz*${g(GD.dustScale)};du+=eye.xz/max(eye.y,0.3)*(texture2D(pitDust,du).b-0.5)*${g(GD.dustDepth*GD.dustScale)}*k;vec4 rd=texture2D(pitDust,du);vec2 rn=(rd.xy*2.0-1.0)*${g(GD.dustNormal)}*k;normal=normalize(normal+(viewMatrix*vec4(rn.x,0.0,rn.y,0.0)).xyz);diffuseColor.rgb*=1.0+${g(GD.dustTone)}*k*(rd.b-0.6);roughnessFactor=clamp(roughnessFactor*(0.9+0.12*rd.b),0.0,1.0);}`:'';
   shader.fragmentShader=shader.fragmentShader.replace('#include <clipping_planes_fragment>','#include <clipping_planes_fragment>\n'+mask).replace('#include <color_fragment>','#include <color_fragment>\n'+tint+detail);
-  if(bump)shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',T.ShaderChunk.normal_fragment_maps).replace('normal = normalize( tbn * mapN );','normal = normalize( tbn * mapN );\n'+bump);};material.customProgramCacheKey=()=>kind+'-joined-pits';}
+  if(bump||regolith)shader.fragmentShader=shader.fragmentShader.replace('#include <normal_fragment_maps>',T.ShaderChunk.normal_fragment_maps).replace('normal = normalize( tbn * mapN );','normal = normalize( tbn * mapN );\n'+bump+regolith);};material.customProgramCacheKey=()=>kind+'-joined-pits';}
  return {texture,rim,update(index,row){const r=Math.min(255,row),was=data[index*4],opened=(was>=P.mergeRow)!==(r>=P.mergeRow);if(opened)changed.add(index);data[index*4]=r;texture.needsUpdate=true;
    if(opened){const cx=index%N,cz=Math.floor(index/N);for(let z=Math.max(0,cz-1);z<=Math.min(N-1,cz+1);z++)for(let x=Math.max(0,cx-1);x<=Math.min(N-1,cx+1);x++)heapStale.add(z*N+x);for(let m=0;m<overCount[index];m++)heapStale.add(over[index*OVER+m]);}
    else if(Math.min(was,P.heapRows)!==Math.min(r,P.heapRows))heapStale.add(index);},
@@ -184,7 +190,7 @@ export function createPits(){
   gravelFrom(){return gravelFrom;},setGravel(level){const next=Math.max(0,Math.min(1,level||0));if(next!==gravel){gravel=next;rocksStale=true;}},decorate,wall:pieceGeometry('wall'),lip:pieceGeometry('lip'),step:pieceGeometry('step'),
   // A preset's look (C.dirt): sets the shared uniforms and returns its layout. geometry(kind) is the wall or lip piece for that
   // layout (built once per layout); the original pieces above are Low's.
-  setLook(level){layout=C.dirt[level]||C.dirt.low;look.pitShape.value=layout.shape;look.pitDetail.value=layout.detail;look.pitHeap.value=layout.heaps;if(heapScale!==layout.heaps){heapScale=layout.heaps;for(let i=0;i<N*N;i++)if(rowAt(i%N,Math.floor(i/N))>=P.mergeRow||heaps[i*10+2]>0)heapStale.add(i);}liftsStale=true;return layout;},setDirt({grit=null,pebbles=null}={}){look.pitGrit.value=grit;look.pitPebbles.value=pebbles;},
+  setLook(level){layout=C.dirt[level]||C.dirt.low;look.pitShape.value=layout.shape;look.pitDetail.value=layout.detail;look.pitHeap.value=layout.heaps;look.pitRegolith.value=layout.regolith;if(heapScale!==layout.heaps){heapScale=layout.heaps;for(let i=0;i<N*N;i++)if(rowAt(i%N,Math.floor(i/N))>=P.mergeRow||heaps[i*10+2]>0)heapStale.add(i);}liftsStale=true;return layout;},setDirt({grit=null,pebbles=null,dustLayer=null}={}){look.pitGrit.value=grit;look.pitPebbles.value=pebbles;look.pitDust.value=dustLayer;},
   geometry(kind,level){const l=C.dirt[level]||layout,key=kind+':'+(C.dirt[level]?level:JSON.stringify(l));if(!layouts.has(key))layouts.set(key,l===C.dirt.low?(kind==='wall'?this.wall:kind==='lip'?this.lip:this.step):pieceGeometry(kind,l));return layouts.get(key);},
   get layout(){return layout;},get look(){return look;},
   // How far the wall stands out from the edge at an edge point and height, for the current preset, and how far from a cell's
