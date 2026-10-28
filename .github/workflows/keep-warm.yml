@@ -1,0 +1,33 @@
+name: Keep warm
+
+# Render's free plan sleeps the server after 15 idle minutes, and the next visitor waits up to a minute while it boots.
+# This job fetches /health every ten minutes so the link opens at once for judges and for anyone arriving from Learn Hub.
+# To stop it: the repository's Actions tab, Keep warm, "Disable workflow" (or delete this file). GitHub pauses scheduled
+# workflows after 60 days without a commit; any push to main starts them again. Scheduled runs can start several minutes
+# late when GitHub is busy, which is fine here: the instance only sleeps after 15 quiet minutes.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch /health
+        run: |
+          # A sleeping instance can take a minute to answer, so allow for that and try a few times. The step never fails,
+          # so an outage does not mail a failure every ten minutes; the run log keeps the status line instead.
+          for attempt in 1 2 3; do
+            if status=$(curl -sS -o health.json -w '%{http_code} in %{time_total}s' --max-time 120 https://toothpick-to-the-core.onrender.com/health); then break; fi
+            echo "attempt $attempt failed: $status"; sleep 20
+          done
+          echo "health: ${status:-no answer} $(cat health.json 2>/dev/null)"
