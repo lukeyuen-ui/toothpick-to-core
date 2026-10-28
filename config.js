@@ -68,6 +68,9 @@ export const C = {
  presentation:{cover:{position:[13,3.4,15.5],target:[8.5,0.6,8.5],fov:52,orbitRate:0,sunScale:1,ambientScale:1.8,fillIntensity:12,planetNdc:[0.69,0.52],planetDistance:24,planetRadius:3.5},lobby:{position:[17,5,20],target:[8,0.7,8],fov:55,orbitRate:0.018,sunScale:0.38,ambientScale:1.6,fillIntensity:6,planetNdc:[0.65,0.5],planetDistance:28,planetRadius:3.5},rovers:[[9,10.6],[11.8,9.7]],shaft:[10,10],shaftRow:30,pile:[10,11],pileUnits:6,pileValue:42000},
  cover:{pixelRatio:1,width:1200,height:630,seed:9,eyeFov:60,chaseBack:8,chaseUp:4,pitch:-0.12,rovers:[[11.5,13.5],[9.5,11.5]],shaft:[10,10],shaftRow:30},
  resilience:{leaveGraceSeconds:90,actionLimit:4,actionWindowMs:1000,wireLimit:65536,messageLimit:80,queueLimit:128,reconnectMaxMs:15000,reconnectFactor:2,soloNudgeSeconds:60},
+ // Hardcore save codes (save-rules.js): each crewmate gets a fresh code every everyMs, minGapMs after a milestone, and on request at most every exportGapMs.
+ // A code is capped at maxCodeBytes (the resume message may be that long) and inflates to at most maxJsonBytes. The lobby keeps the latest under storageKey.
+ save:{everyMs:60000,minGapMs:5000,exportGapMs:2000,maxCodeBytes:262144,maxJsonBytes:4194304,storageKey:'toothpick-save'},
  // Showcase: a guided arc of about three minutes with a bot crew. People start with the toothpick; a bot throws them the mining mech toothpickTaps taps
  // (plus throwDelayMs) or toothpickMs after they arrive. The mech keeps digging your floor by itself, so here its hits are scaled by digPower: tapping
  // about three times a second on top of that reaches siteRow (the magma) in about 40 seconds. The dig beat ends siteDelayMs after that, after digMs once the digging stops, or at digCapMs. The bots then propose
