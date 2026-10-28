@@ -189,4 +189,5 @@ test('the save code UI ships: lobby panel, hub row, the module route and its sty
  assert.match(html,/<input id="nickname"[^>]*><details id="resume-panel">/,'the panel sits under the callsign it resumes with');assert.ok([...html.matchAll(/<button id="(resume|save)-[a-z-]+" type="button"/g)].length>=4,'panel buttons never submit the join form');
  assert.match(server,/'save-view\.js'/);assert.match(server,/\+SAVE_STYLE[+)]/);assert.match(SAVE_STYLE,/#save-row:not\(\[hidden\]\)/);
  assert.match(client,/message\.type==='save'\)\{saves\.accept\(message\)/);assert.match(client,/send\(\{type:'export'\}\)/);
+ assert.match(client,/type==='welcome'\)\{myId=message\.id;if\(wanted\)wanted\.token=message\.token;if\(message\.build/,'a resume right after a deploy reloads for the new build: the seat token is taken first, so the reload rejoins the claimed explorer');
  for(const text of [html.match(/<details id="resume-panel">.*?<\/details>/)[0],view,SAVE_STYLE])assert.doesNotMatch(text,/[\u2013\u2014]/);});

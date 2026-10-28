@@ -64,7 +64,9 @@ function resumeSave(code,saved){if(touchInput()&&matchMedia('(pointer:coarse)').
 function connect(){clearTimeout(retry);if(ws&&(ws.readyState===WebSocket.OPEN||ws.readyState===WebSocket.CONNECTING))ws.close();ws=new WebSocket(`${location.protocol==='https:'?'wss:':'ws:'}//${location.host}`);const socket=ws;
  ws.onopen=()=>{if(ws===socket)send(wanted);};
  ws.onmessage=event=>{if(ws!==socket)return;const message=JSON.parse(event.data);lastBytes=new TextEncoder().encode(event.data).length;
-  if(message.type==='welcome'){if(message.build&&loadedBuild&&message.build!==loadedBuild){showToast('Updating to the latest version');setTimeout(()=>location.reload(),600);return;}loadedBuild??=message.build;myId=message.id;wanted.token=message.token;return;}
+  // Take the seat's token before any reload for a newer build: the full snapshot that follows stores it for the room, so the reloaded page
+  // rejoins this same seat (after a deploy, a resumed explorer and their saved gear) instead of arriving as a new explorer.
+  if(message.type==='welcome'){myId=message.id;if(wanted)wanted.token=message.token;if(message.build&&loadedBuild&&message.build!==loadedBuild){showToast('Updating to the latest version');setTimeout(()=>location.reload(),600);return;}loadedBuild??=message.build;return;}
   if(message.type==='error'){if(message.code==='ended'){endedRoom(message.text);return;}if(!connected){endedRoom(message.text,false);return;}showToast(message.text);wanted=null;return;}
   if(message.type==='expired'){endedRoom(message.text);return;}
   if(message.type==='pong'){ping=Date.now()-message.at;return;}
