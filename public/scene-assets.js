@@ -90,7 +90,7 @@ function paintDecals(c,w,h){const s=w/1024;c.clearRect(0,0,w,h);c.save();c.scale
  c.restore();}
 export function createLook(scene,{low=false}={}){const n=low?128:256,tex=wearTextures(n),kinds={
   paint:{orm:tex.paint,normal:tex.detail,rough:1,metal:1,ns:0.2},gloss:{orm:tex.paint,normal:tex.detail,rough:0.55,metal:1,ns:0.14},metal:{orm:tex.metal,normal:tex.detail,rough:1,metal:1,ns:0.32},
-  rubber:{orm:tex.paint,normal:tex.detail,rough:1.6,metal:0,ns:0.6},fabric:{orm:tex.paint,normal:tex.fabric,rough:1.7,metal:0,ns:0.55}};
+  rubber:{orm:tex.paint,normal:tex.detail,rough:1.6,metal:0,ns:0.6},fabric:{orm:tex.paint,normal:tex.fabric,rough:1.7,metal:0,ns:0.35}};
  const make=(kind,color='#ffffff')=>{const k=kinds[kind]||kinds.paint;const m=new T.MeshStandardMaterial({color,vertexColors:true,map:tex.albedo,roughnessMap:k.orm,metalnessMap:k.orm,roughness:k.rough,metalness:k.metal,normalMap:k.normal,normalScale:new T.Vector2(k.ns,k.ns)});m.name='Finish '+kind;return m;};
  const shared=new Map(),own=new Map(),handles=new Map();
  // finish(kind, colour) paints the colour into vertex colours on a shared material; finish(kind, colour, true) gives the colour its own
