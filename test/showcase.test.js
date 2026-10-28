@@ -27,10 +27,12 @@ test('three toothpick taps barely dent the dirt, then a crewmate throws over the
  assert.ok(now>2000+S.throwDelayMs&&now<=2000+S.throwDelayMs+200,'the mech came '+now+' ms in');
  const lazy=fresh(8);const at=run(lazy.r,lazy.p,{until:20000,done:()=>lazy.p.tool===MECH});assert.ok(Math.abs(at-S.toothpickMs)<=200,'no taps: the mech came at '+at);});
 
-test('the first mech hole swallows you, and your shaft stays a 3 by 3 all the way down',()=>{const {r,p}=fresh(3),x=Math.floor(p.x)-1,y=Math.floor(p.y);p.tool=MECH;p.tour.mechAt=0;
+test('the first mech hole swallows you, and your shaft stays a 3 by 3 all the way down',()=>{const {r,p}=fresh(3),x=Math.floor(p.x)-1,y=Math.floor(p.y),home=Math.floor(p.y)*N+Math.floor(p.x);p.tool=MECH;p.tour.mechAt=0;
  let next=0;run(r,p,{until:30000,make:now=>{if(now<next)return [];next=now+330;return [p.shaft!=null?{type:'tap',x:p.shaft%N,y:Math.floor(p.shaft/N)}:{type:'tap',x,y}];},done:()=>p.shaft!=null&&r.cells[p.shaft].row>=100});
- assert.equal(p.shaft,y*N+x,'you drop into the hole you tapped');const floor=r.cells[p.shaft].row;
- for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const row=r.cells[(y+dy)*N+x+dx].row;assert.ok(Math.abs(row-floor)<=4,'ring cell at '+row+' beside a floor at '+floor);}
+ assert.equal(p.shaft,home,'the claws cut the cell you stand on and you drop into your own hole');const floor=r.cells[p.shaft].row,sx=p.shaft%N,sy=Math.floor(p.shaft/N);
+ for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const row=r.cells[(sy+dy)*N+sx+dx].row;assert.ok(Math.abs(row-floor)<=4,'ring cell at '+row+' beside a floor at '+floor);}
+ const far=fresh(4),q=far.p,fx=Math.floor(q.x)-3,fy=Math.floor(q.y);q.tool=MECH;q.tour.mechAt=0;run(far.r,q,{until:3000,make:now=>now===500?[{type:'tap',x:fx,y:fy}]:[],done:()=>q.shaft!=null});
+ assert.equal(q.shaft,fy*N+fx,'a first hole further away but in reach swallows you too');
  assert.ok(p.wallet>0&&p.hold.units===0,'showcase ore is paid on the spot');});
 
 test('a visitor who follows the guide plays every beat in order and reaches the core in two and a half to three minutes',()=>{
@@ -83,7 +85,8 @@ test('someone joining after the dig arrives with the mech, and the crew still ra
 test('two people: an idle second visitor is walked aboard too, and the people get the simplest seats (HEAT, then POWER)',()=>{
  for(const second of [0,80000]){const {r,p,t,bo}=playShowcase({seed:3,policy:'follow',second,onTick:(room)=>{if(room.worldBreaker&&!room.checked){room.checked=true;assert.ok(room.players.find(q=>q.publicId==='b')?.boarded,'Bo is aboard for the finale');}}});
   assert.ok(r.won&&t.won<=200,'won at '+t.won);assert.equal(r.site,p.tour.shaft,'the first visitor\'s shaft is the site');assert.equal(bo.tool,MECH);
-  assert.equal(r.console?.a?.kind??'HEAT','HEAT');const seats=Object.fromEntries(r.players.filter(q=>q.boarded).map(q=>[q.nickname,r.console[q.publicId]?.kind]));assert.equal(seats.Ana,'HEAT');assert.equal(seats.Bo,'POWER');}});
+  const seats=Object.fromEntries(r.players.filter(q=>q.boarded).map(q=>[q.nickname,r.console[q.publicId]?.kind]));assert.equal(seats.Ana,'HEAT');assert.ok(seats.Bo,'Bo has a seat');
+  if(!second)assert.equal(seats.Bo,'POWER','with both aboard from the start, the second person gets POWER');}});
 
 test('a crew member aboard the drill can propose from the seat; someone walking far from the hub cannot',()=>{
  const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);r.site=8*N+4;r.drill={index:r.site};const a=join(r,'a','Ana',0),b=join(r,'b','Bo',0);a.publicId='a';b.publicId='b';

@@ -24,13 +24,16 @@ export function setupShowcase(room){const S=C.showcase;room.showcase=true;if(!C.
  room.arc={beat:'dig',at:room.now,round:room.round};room.deepest=Math.max(...room.cells.map(c=>c.row));}
 
 // People arrive with the toothpick (the bots, and anyone joining after the dig, carry the mech). Lights reach the core so no shaft goes dark.
-export function equipShowcase(room,p,now=room.now){if(!room.showcase||p.showcaseReady)return;p.showcaseReady=true;p.mobility=C.showcase.mobility;p.lighting=C.lighting.length;p.taps=0;
- p.tool=p.bot||(room.arc&&room.arc.beat!=='dig')?MECH:0;p.tour={joinedAt:now,...(p.tool?{mechAt:now}:{})};}
+// A visitor starts spawnOut cells further out than their seat, so the 3 by 3 the mech carves around them never runs into the hub.
+export function equipShowcase(room,p,now=room.now){if(!room.showcase||p.showcaseReady)return;const S=C.showcase;p.showcaseReady=true;p.mobility=S.mobility;p.lighting=C.lighting.length;p.taps=0;
+ p.tool=p.bot||(room.arc&&room.arc.beat!=='dig')?MECH:0;p.tour={joinedAt:now,...(p.tool?{mechAt:now}:{})};
+ if(!p.tool&&p.shaft==null&&!p.boarded){const dx=p.x-N/2,dy=p.y-N/2,d=Math.hypot(dx,dy)||1;p.x+=dx/d*S.spawnOut;p.y+=dy/d*S.spawnOut;}}
 
 export function runShowcase(room,now){if(!room.showcase||room.won)return;
  if(room.arc?.round!==room.round){restart(room,now);return;}
  const arc=room.arc,humans=people(room),bots=crew(room),lead=humans[0],voice=bots[0]||lead;
  for(const q of [...bots,...humans])q.lastActive=now;// everyone counts as active: every visitor may vote, and the bot crew's ballots carry each vote
+ for(const b of bots)if(b.shaft!=null&&b.target&&room.cells[b.shaft].row>=crewCap(room,b))b.target=null;// the mech digs on by itself: stop a crew pit at its depth
  for(const p of humans){p.tour??={joinedAt:now};if(p.tool===0)toothpick(room,p,now,voice);else if(arc.beat==='dig')dropIn(room,p);if(arc.beat==='dig'&&p.shaft!=null&&!p.belay)p.tour.shaft=p.shaft;}
  // Once the World Breaker runs, the bore stops paying: the overdrive is about the core, not about the fund.
  if(room.worldBreaker&&arc.beat!=='breaker'){go(arc,'breaker',now);room.drillScale=0;}
@@ -54,7 +57,7 @@ function toothpick(room,p,now,voice){const S=C.showcase,t=p.tour;if((p.taps||0)>
 // Beat 2: the first mech hole beside you swallows you, so you are digging your own 3 by 3 shaft at once; the mech widens it as you go down.
 function dropIn(room,p){const S=C.showcase,t=p.target;if(p.shaft!=null||p.belay||p.boarded||p.boarding||!t)return;const i=t.y*N+t.x;
  if(!room.broken.has(i)||!room.cells[i].row||Math.max(Math.abs(Math.floor(p.x)-t.x),Math.abs(Math.floor(p.y)-t.y))>S.dropReach)return;
- enterShaft(room,p,i);if(p.shaft===i)p.depth=room.cells[i].row;if(p.shaft===i&&!p.tour.dropped){p.tour.dropped=true;privateToast(room,p,'In you go. Keep tapping the floor and dig down to the magma.');}}
+ enterShaft(room,p,i);if(p.shaft===i){p.depth=room.cells[i].row;p.target={x:t.x,y:t.y};}if(p.shaft===i&&!p.tour.dropped){p.tour.dropped=true;privateToast(room,p,'In you go. Keep tapping the floor and dig down to the magma.');}}
 
 // The dig ends when the first person's shaft reaches the magma, when they stop digging after digMs, or at digCapMs. The bots then propose that shaft,
 // or their own deepest crew shaft when the person never dug.
@@ -64,6 +67,8 @@ function dig(room,arc,lead,voice,now){const S=C.showcase,mechAt=lead?.tour?.mech
  if(room.vote||!(arc.deepAt!=null?now-arc.deepAt>=S.siteDelayMs:since>=S.digCapMs||(since>=S.digMs&&!digging)))return;
  let site=own!=null&&floor>=S.minSiteRow?own:deepest(room);if(room.cells[site].row<S.minSiteRow)site=fallback(room);
  propose(room,arc,voice,site,now);}
+// How deep a bot's crew pit goes: shallow, unless it is the last bot and the visitor is not digging, when it goes down to the magma for the drill.
+export function crewCap(room,p){const S=C.showcase;return room.arc?.crewDeep&&crew(room).at(-1)===p?S.siteRow:S.crewRow;}
 function deepest(room){let best=0;for(let i=0;i<room.cells.length;i++){const c=room.cells[i];if(!isDepot(i%N,Math.floor(i/N))&&!c.oilSite&&c.row>room.cells[best].row)best=i;}return best;}
 // Only when nothing was dug at all (no bots, nobody digging): open a crew shaft so the drill still has somewhere to go.
 function fallback(room){const S=C.showcase,[x,y]=S.fallback;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const i=(y+dy)*N+x+dx,c=room.cells[i];if(c.row<S.fallbackRow){Object.assign(c,{row:S.fallbackRow,hp:hp(S.fallbackRow),damage:{}});room.dirty.add(i);}}room.deepest=Math.max(room.deepest,S.fallbackRow);return y*N+x;}
