@@ -58,7 +58,7 @@ export function makeFactory(scene,assets){
  // Surface frame: straddles the 3 by 3 bore and stays put.
  for(const s of [-1,1]){box(root,frame,2*R+0.16,0.14,0.16,0,0.08,s*R);box(root,frame,0.16,0.14,2*R+0.16,s*R,0.08,0);box(root,frame,2*R+0.1,0.12,0.12,0,top,s*R);box(root,frame,0.12,0.12,2*R+0.1,s*R,top,0);}
  for(const x of [-R,R])for(const z of [-R,R])box(root,steel,0.1,top,0.1,x,top/2,z);
- box(root,frame,2*R,0.08,0.1,0,top,0);box(root,frame,0.1,0.08,2*R,0,top,0);box(root,'#2f3a3e',0.5,0.22,0.5,0,top+0.12,0);
+ box(root,frame,2*R,0.08,0.1,0,top,0);box(root,frame,0.1,0.08,2*R,0,top,0);const crown=box(root,'#2f3a3e',0.5,0.22,0.5,0,top+0.12,0);
  // Cockpit pod: lowered on cables as the bore deepens. Its local zero sits on the dig face.
  // Up to four crew lie face down side by side above a glass floor, like a shuttle crew turned to face the ground.
  // Each station has a dashboard, a gauge screen and two control sticks held in gloved hands; the cutter head spins below the glass.
@@ -69,7 +69,7 @@ export function makeFactory(scene,assets){
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,hull,0.07,RY-G,0.07,x,(RY+G)/2,z);
  for(let k=1;k<4;k++){const x=(k-2)*D.seatGap;for(const z of [-PZ,PZ])box(capsule,hull,0.045,RY-G,0.045,x,(RY+G)/2,z);}
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,'#ff7a3a',0.05,0.05,0.05,x,RY+0.05,z,true);
- const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.position.set(0,D.roofY-0.06,D.bodyZ+0.3);capsule.add(cabin);
+ const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.name='Drill cabin light';cabin.position.set(0,D.roofY-0.06,D.bodyZ+0.3);capsule.add(cabin);
  // Cutter head: a toothed wheel under the pod. Its spokes turning are how the crew see the drill working.
  const cutter=new T.Group();cutter.name='Plasma cutter head';cutter.position.y=D.cutterY;capsule.add(cutter);const CR=D.cutterRadius,steel2='#8f989c';
  const rim=new T.Mesh(new T.TorusGeometry(CR,0.07,8,56).rotateX(Math.PI/2),mat(steel2));rim.castShadow=true;cutter.add(rim);
@@ -84,7 +84,7 @@ export function makeFactory(scene,assets){
  const housing=cylinder(capsule,'#3a4348',0.13,0.05,0,G-0.035,0);cylinder(capsule,'#4c565c',0.065,G-D.cutterY-0.06,0,(G+D.cutterY)/2-0.03,0);
  const plasma=new T.Group();plasma.name='Plasma glow';capsule.add(plasma);const plasmaMat=new T.MeshBasicMaterial({color:'#7fd0ff',transparent:true,opacity:0.85,blending:T.AdditiveBlending,depthWrite:false});
  const ringGlow=new T.Mesh(new T.TorusGeometry(CR,0.05,6,56).rotateX(Math.PI/2),plasmaMat);ringGlow.position.y=D.cutterY-0.16;plasma.add(ringGlow);const disc=new T.Mesh(new T.CircleGeometry(0.3,24).rotateX(-Math.PI/2),plasmaMat);disc.position.y=D.cutterY-0.14;plasma.add(disc);
- const glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.12;plasma.add(glow);
+ const glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.name='Drill plasma light';glow.position.y=0.12;plasma.add(glow);
  // Crew stations. Seat order fills the middle first, so a crew of two sit side by side in the centre.
  const view=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().lookAt(new T.Vector3(),new T.Vector3(0,Math.sin(D.boardPitch),-Math.cos(D.boardPitch)),new T.Vector3(0,1,0)));
  const seats=[],pads=[],seatSpots=[],consoles=[],stations=[],glove=mat('#e4e9e3'),fingerGeo=new T.CapsuleGeometry(0.0072,0.022,3,6),suit=mat('#e9ece6'),grip='#2a2a2c';
@@ -101,6 +101,6 @@ export function makeFactory(scene,assets){
    const sleeve=new T.Mesh(geometries.cylinder,suit);sleeve.scale.set(0.028,0.1,0.028);g.add(sleeve);sleeves.push(sleeve);const band=new T.Mesh(geometries.cylinder,mat('#2f6f8f'));band.scale.set(0.03,0.018,0.03);g.add(band);bands.push(band);sticks.push({pivot,hand,button,side});}
   stations.push({group:g,dash,sticks,sleeves,bands,cuffs,lights,screen:{canvas,ctx:canvas.getContext('2d'),texture:screenTexture,key:''},tunedAt:-Infinity});}
  const cables=[];for(const x of [-PX+0.03,PX-0.03])for(const z of [-PZ+0.03,PZ-0.03])cables.push(cylinder(root,'#9aa6a8',0.012,1,x,top/2,z));
- scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,jets,jetGroup,seats,pads,seatSpots,consoles,stations,housing};}
+ scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,jets,jetGroup,seats,pads,seatSpots,consoles,stations,housing,cabin,plasmaLight:glow,crown};}
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries};
 }
