@@ -44,7 +44,8 @@ export function createConsoleView({send,pulse=()=>{},touch=()=>false,doc=globalT
   if(seat==='HEAT'){if(down&&!e.repeat)vent();return true;}if(e.repeat)return true;keys[name]=down;if(seat==='POWER'){touched=true;if(!down)sendLevel(performance.now());}else update();return true;}
  function render(state,me){const g=state.team?.console?.[me.id],on=!!me.boarded&&!!g&&!state.team?.won;panel.hidden=!on;if(!on){if(seat)setup(null);return;}if(g.kind!==seat)setup(g.kind,g);
   const z=zoneOf(g.v),wb=state.team.worldBreaker,now=performance.now();if(g!==cur){prev=cur||g;cur=g;curAt=now;}
-  $('console-title').textContent=(wb?'OVERDRIVE '+Math.round((wb.charge||0)*100)+'% · ':'')+g.kind+' · '+word(g.kind,g.v)+(wb?'':' · drill x'+(+(state.team.oil?.console??1)).toFixed(2));$('console-title').style.color=COLORS[z];$('console-needle').style.left=(g.v*100).toFixed(1)+'%';
+  // Seat and state lead the title, so a narrow docked console clips only the drill figure at the end.
+  $('console-title').textContent=g.kind+' · '+word(g.kind,g.v)+(wb?' · OVERDRIVE '+Math.round((wb.charge||0)*100)+'%':' · drill x'+(+(state.team.oil?.console??1)).toFixed(2));$('console-title').style.color=COLORS[z];$('console-needle').style.left=(g.v*100).toFixed(1)+'%';
   const crew=$('console-crew'),gauges=state.team.console,others=state.players.filter(p=>p.id!==me.id&&gauges[p.id]),keyList=others.map(p=>p.id+':'+gauges[p.id].kind).join(',');
   if(crew.dataset.key!==keyList){crew.dataset.key=keyList;crew.replaceChildren();for(const p of others){const name=doc.createElement('span');name.textContent=p.nickname+' · '+gauges[p.id].kind;const bar=doc.createElement('div');bar.className='console-bar';const n=doc.createElement('i');n.className='needle';n.dataset.id=p.id;bar.append(n);crew.append(name,bar);}}
   for(const n of crew.querySelectorAll('.needle'))n.style.left=((gauges[n.dataset.id]?.v??0.5)*100).toFixed(1)+'%';
