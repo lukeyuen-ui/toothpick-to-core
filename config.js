@@ -109,13 +109,13 @@ export const C = {
   // fine sediment bands (sediment: their contrast, sedimentFreq: bands per unit of depth) in walls at pebbleScale repeats per unit,
   // and clods in dug floors at clodScale (clodTone: their light and shade, clodNormal: their relief). The top dustCapDepth of a wall is
   // the grey surface dust over the strata (dustCap of it), as a dug edge shows it.
-  rimRound:0.055,lean:0.04,leanDepth:0.16,ripple:0.012,rippleFade:0.12,floorRipple:0.014,pebbleScale:1.4,pebbles:0.6,pebbleNormal:0.85,sediment:0.07,sedimentFreq:150,clodScale:1.6,clodTone:0.34,clodNormal:0.55,dustCap:0.8,dustCapDepth:0.045,
+  rimRound:0.055,lean:0.04,leanDepth:0.16,ripple:0.012,rippleFade:0.12,floorRipple:0.014,pebbleScale:1.8,pebbles:0.6,pebbleNormal:0.85,sediment:0.07,sedimentFreq:150,clodScale:1.6,clodTone:0.34,clodNormal:0.55,dustCap:0.8,dustCapDepth:0.045,
   // Spoil heaps: the dirt that left a cell, as its rows dug up to heapRows, raises the lip round its edge by up to heapLift and widens
   // it by up to heapWidth, and piles into a mound (heapRadius at one row to the full radius, heapHeight tall, with a smaller lump of
   // heapLump its size beside it where that fits) on the side of the hole away from the hub, searched up to heapReach from the cell's
   // middle, on solid ground and heapGap clear of the middles of other undug cells. Mounds take heapTint of the last stratum dug there
   // over the grey dust.
-  heapRows:20,heapLift:0.034,heapWidth:0.09,heapRadius:[0.14,0.33],heapHeight:0.13,heapLump:0.6,heapReach:2.4,heapGap:0.12,heapTint:0.5},
+  heapRows:20,heapLift:0.034,heapWidth:0.09,heapRadius:[0.1,0.33],heapHeight:0.13,heapLump:0.6,heapReach:2.4,heapGap:0.12,heapTint:0.42},
  // Dirt and ground realism by graphics preset (pit-geometry.js, renderer3d.js, dig-fx.js). shape rounds the rims, leans and ripples
  // the walls and heaves the floors, using arcRows rows round each rim and wallDepths rows below it (depths under the rounded rim),
  // straight wall runs cut into segments and floor tiles into floorSegments; detail is the pebbles, sediment and clods; heaps grows
