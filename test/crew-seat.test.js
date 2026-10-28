@@ -23,8 +23,9 @@ test('a crewmate in the drill hunches over the console, helmet bowed down the bo
   assert.ok(size.x<K.seatGap,'fits its seat: '+size.x.toFixed(3));assert.ok(Math.hypot(size.y,size.z)>0.44,'a figure you can read at arm\'s length: '+Math.hypot(size.y,size.z).toFixed(3));
   // Hands on the grips: the station sleeves end exactly at the figure's shoulders.
   m.walk.arms.forEach((arm,i)=>{const shoulder=arm.getWorldPosition(new T.Vector3()),sleeve=seatShoulder(i?1:-1).add(m.root.position);assert.ok(sleeve.distanceTo(shoulder)<1e-6,'sleeve meets the shoulder: '+sleeve.distanceTo(shoulder));});
-  // The name label rides over the bowed helmet, clear of the figure and under the seat's roof beam (0.04 deep, centred on roofY).
-  const label=m.name.getWorldPosition(new T.Vector3()),half=K.crewLabel*C.three.nameHeight/C.three.nameWidth/2;assert.ok(Math.abs(label.z-at.z)<1e-6,'label over the helmet');
+  // The name label rides over the front of the bowed helmet (so from the surface, looking down from behind the crew, it clears the
+  // helmet), above the whole figure and under the seat's roof beam (0.04 deep, centred on roofY).
+  const label=m.name.getWorldPosition(new T.Vector3()),half=K.crewLabel*C.three.nameHeight/C.three.nameWidth/2;assert.ok(Math.abs(label.z-(at.z-0.22*K.crewScale))<1e-6,'label over the front of the helmet: '+label.z.toFixed(3));
   assert.ok(label.y-half>box.max.y,'label clears the figure: '+(label.y-half).toFixed(3)+' over '+box.max.y.toFixed(3));assert.ok(label.y+half<K.roofY-0.02,'label under the roof beam: '+(label.y+half).toFixed(3));}
  // Climbing in starts from the standing pose, so the lean and the bow grow as the figure settles.
  const standing=seated({mobility:0,tool:0,pods:0},0);assert.ok(standing.body.rotation.x===0&&standing.head.rotation.x===0&&standing.body.position.length()===0&&standing.walk.legs.every(leg=>leg.rotation.x===0),'k 0 is the standing pose');
