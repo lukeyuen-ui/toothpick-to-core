@@ -3,7 +3,9 @@ import * as T from './vendor/three.module.js';
 // The scene renders into a multisampled HDR target. A half resolution bright pass with a soft knee keeps only light above the
 // threshold, separable Gaussian blurs spread it at quarter and eighth resolution, and one full-screen composite adds the glow,
 // a white flash, chromatic aberration and a vignette before ACES tone mapping and sRGB output (render targets skip both, so the
-// composite applies them and the image keeps the renderer's look). Without WebGL2 render targets it falls back to a plain render.
+// composite applies them and the image keeps the renderer's look). After tone mapping the composite grades the image: saturation,
+// a split tone (blacks lifted toward navy, shade cooled, highlights kept neutral-warm) and contrast, then a faint film grain where
+// the preset asks for it. Without WebGL2 render targets it falls back to a plain render.
 const VERT='varying vec2 vUv;void main(){vUv=uv;gl_Position=vec4(position.xy,0.0,1.0);}';
 // Gaussian weights folded into bilinear pairs, so a 17-tap kernel costs 9 texture reads.
 export function gaussianTaps(radius,sigma){const w=[];let sum=0;for(let i=0;i<=radius;i++){const v=Math.exp(-i*i/(2*sigma*sigma));w.push(v);sum+=i?2*v:v;}const taps=[[0,w[0]/sum]];for(let i=1;i<=radius;i+=2){const a=w[i]/sum,b=i+1<=radius?w[i+1]/sum:0;taps.push([(i*a+(i+1)*b)/(a+b),a+b]);}return taps;}
@@ -14,16 +16,17 @@ const BRIGHT='uniform sampler2D tInput;uniform vec2 texel;uniform float threshol
  'float soft=clamp(br-threshold+knee,0.0,2.0*knee);soft=soft*soft/(4.0*knee+0.0001);gl_FragColor=vec4(c*max(soft,br-threshold)/max(br,0.0001),1.0);}';
 // A few scene shaders leave NaN pixels along discard edges (an 8-bit canvas showed them as faint black dots). In a float target they
 // would flood the glow, so the bright pass zeroes them and the composite patches each one from its neighbours.
-const COMPOSITE='uniform sampler2D tScene;uniform sampler2D tBloomA;uniform sampler2D tBloomB;uniform float strength;uniform float flash;uniform float aberration;uniform float vignette;uniform float saturation;uniform float contrast;uniform float aspect;uniform vec2 texel;varying vec2 vUv;'+
+const COMPOSITE='uniform sampler2D tScene;uniform sampler2D tBloomA;uniform sampler2D tBloomB;uniform float strength;uniform float flash;uniform float aberration;uniform float vignette;uniform float saturation;uniform float contrast;uniform float grain;uniform vec2 grainSeed;uniform vec3 lift;uniform vec3 shadowTint;uniform vec3 highlightTint;uniform float aspect;uniform vec2 texel;varying vec2 vUv;'+
  'float noise(vec2 p){return fract(sin(dot(p,vec2(12.9898,78.233)))*43758.5453);}bool bad(vec3 c){return any(isnan(c))||any(isinf(c));}'+
  'vec3 safeAt(vec2 uv){vec3 c=texture2D(tScene,uv).rgb;return bad(c)?vec3(0.0):c;}'+
  'vec3 sceneAt(vec2 uv){vec3 c=texture2D(tScene,uv).rgb;if(!bad(c))return c;return (safeAt(uv+vec2(texel.x,0.0))+safeAt(uv-vec2(texel.x,0.0))+safeAt(uv+vec2(0.0,texel.y))+safeAt(uv-vec2(0.0,texel.y)))*0.25;}'+
  'void main(){vec2 d=vUv-0.5;vec3 c;if(aberration>0.0){vec2 o=d*aberration;c=vec3(sceneAt(vUv+o).r,sceneAt(vUv).g,sceneAt(vUv-o).b);}else c=sceneAt(vUv);'+
  'if(strength>0.0)c+=(texture2D(tBloomA,vUv).rgb*0.55+texture2D(tBloomB,vUv).rgb*0.45)*strength;c+=vec3(flash);'+
  'c*=1.0-vignette*smoothstep(0.55,1.45,length(d*vec2(aspect,1.0))/max(aspect,1.0)*2.0);gl_FragColor=vec4(c,1.0);\n#include <tonemapping_fragment>\n#include <colorspace_fragment>\n'+
- 'vec3 g=gl_FragColor.rgb;g=mix(vec3(dot(g,vec3(0.2126,0.7152,0.0722))),g,saturation);g=(g-0.5)*contrast+0.5;gl_FragColor.rgb=g+(noise(gl_FragCoord.xy)-0.5)/255.0;}';
-export function createGlow(gl,{strength=0.5,threshold=0.85,knee=0.45,vignette=0.22,saturation=1.05,contrast=1.03,samples=4}={}){
- const uniforms={strength:{value:strength},threshold:{value:threshold},knee:{value:knee},flash:{value:0},aberration:{value:0},vignette:{value:vignette},saturation:{value:saturation},contrast:{value:contrast}};
+ 'vec3 g=gl_FragColor.rgb;float luma=dot(g,vec3(0.2126,0.7152,0.0722));g=mix(vec3(luma),g,saturation);g=g*mix(shadowTint,highlightTint,smoothstep(0.1,0.75,luma))+lift*(1.0-luma);g=(g-0.5)*contrast+0.5;'+
+ 'if(grain>0.0)g+=(noise(gl_FragCoord.xy+grainSeed)-0.5)*grain;gl_FragColor.rgb=g+(noise(gl_FragCoord.xy)-0.5)/255.0;}';
+export function createGlow(gl,{strength=0.5,threshold=0.85,knee=0.45,vignette=0.22,saturation=1.05,contrast=1.03,lift=[0,0,0],shadowTint=[1,1,1],highlightTint=[1,1,1],samples=4}={}){
+ const uniforms={strength:{value:strength},threshold:{value:threshold},knee:{value:knee},flash:{value:0},aberration:{value:0},vignette:{value:vignette},saturation:{value:saturation},contrast:{value:contrast},grain:{value:0},grainSeed:{value:new T.Vector2()},lift:{value:new T.Vector3(...lift)},shadowTint:{value:new T.Vector3(...shadowTint)},highlightTint:{value:new T.Vector3(...highlightTint)}};
  // compile() warms shader programs ahead of time (asynchronously where the browser can), bound to the same target the scene renders
  // into, so the warmed variants are exactly the ones the next frames use.
  const warm=(object,camera,target)=>{try{return Promise.resolve(typeof gl.compileAsync==='function'?gl.compileAsync(object,camera,target):gl.compile?.(object,camera,target)).catch(()=>{});}catch{return Promise.resolve();}};

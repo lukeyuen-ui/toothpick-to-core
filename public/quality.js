@@ -3,16 +3,18 @@
 export const QUALITY_LEVELS=['high','balanced','low'];
 export const GRAPHICS_CHOICES=['auto',...QUALITY_LEVELS];
 export const GRAPHICS_KEY='toothpick-graphics';
-// three.js r186 removed PCFSoftShadowMap (it warns and falls back to PCF), so soft shadows are PCF with a wider filter radius.
-// shadowScale multiplies the base shadow map size (2048 on desktops, 1024 on touch screens). A 4096 map at high was measured at about
-// 10 ms more GPU time per frame at 2360x1372, so high keeps 2048 and spends its budget on the softer filter instead.
+// three.js r186 removed PCFSoftShadowMap (it warns and falls back to PCF), so soft shadows are a 3 by 3 tent of PCF taps (renderer3d.js)
+// spread shadowSoftness texels apart. shadowScale multiplies the base shadow map size (2048 on desktops, 1024 on touch screens). A 4096
+// map at high was measured at about 10 ms more GPU time per frame at 2360x1372, so high keeps 2048 and spends its budget on the softer
+// filter instead; balanced halves the map for harder, cheaper shadows.
 // flora and embers scale the finale's instance counts. debris and puffs scale the dig feedback pools (dig-fx.js); kick allows the camera
 // kick of a pixel or two; gravel scales the loose stones scattered round dug cells. Low keeps a small chunk pool and nothing else, so it
-// adds almost no work.
+// adds almost no work. env lets metal, glass and visors reflect the baked sky (scene.environment): one more texture read per lit
+// pixel, so low goes without it and keeps today's cost. grain adds a faint film grain in the final composite (high only).
 export const QUALITY={
- high:{pixelRatio:2,shadows:true,shadowSoftness:2.5,shadowScale:1,bloom:true,particles:1,flora:1,embers:1,debris:1,puffs:1,kick:true,gravel:1},
- balanced:{pixelRatio:1.5,shadows:true,shadowSoftness:1,shadowScale:1,bloom:true,particles:1,flora:0.7,embers:0.7,debris:0.6,puffs:0.6,kick:true,gravel:0.6},
- low:{pixelRatio:1,shadows:false,shadowSoftness:1,shadowScale:1,bloom:false,particles:0.5,flora:0.4,embers:0.4,debris:0.2,puffs:0,kick:false,gravel:0}
+ high:{pixelRatio:2,shadows:true,shadowSoftness:1.6,shadowScale:1,env:true,grain:true,bloom:true,particles:1,flora:1,embers:1,debris:1,puffs:1,kick:true,gravel:1},
+ balanced:{pixelRatio:1.5,shadows:true,shadowSoftness:0.6,shadowScale:0.5,env:true,grain:false,bloom:true,particles:1,flora:0.7,embers:0.7,debris:0.6,puffs:0.6,kick:true,gravel:0.6},
+ low:{pixelRatio:1,shadows:false,shadowSoftness:1,shadowScale:1,env:false,grain:false,bloom:false,particles:0.5,flora:0.4,embers:0.4,debris:0.2,puffs:0,kick:false,gravel:0}
 };
 const valid=value=>GRAPHICS_CHOICES.includes(value);
 // The URL (?gfx=) wins over the saved lobby choice; anything unknown means auto, which starts at high and steps down when slow.
