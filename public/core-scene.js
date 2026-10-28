@@ -32,7 +32,9 @@ export function createCore(scene,assets){
  const rock=new T.MeshStandardMaterial({color:'#33263f',roughness:0.85,metalness:0.1,emissive:'#5b2f8c',emissiveIntensity:K.shellGlow,flatShading:true,side:T.DoubleSide}),crack=new T.LineBasicMaterial({color:new T.Color('#f0d4ff').multiplyScalar(K.crackGlow),transparent:true,opacity:0.9,blending:T.AdditiveBlending,depthWrite:false});
  groups.forEach((g,i)=>{if(!g.length)return;const geo=new T.BufferGeometry();geo.setAttribute('position',new T.Float32BufferAttribute(g,3));geo.computeVertexNormals();const shard=new T.Group(),mesh=new T.Mesh(geo,rock);shard.add(mesh,new T.LineSegments(new T.EdgesGeometry(geo,1),crack));shard.userData.dir=dirs[i];shard.userData.tumble=new T.Vector3(Math.sin(i*1.7),Math.cos(i*2.3),Math.sin(i*0.9)).multiplyScalar(0.6);spin.add(shard);shards.push(shard);});
  const halo=new T.Sprite(new T.SpriteMaterial({map:assets.softDust,color:new T.Color('#ff7ae0').multiplyScalar(K.haloGlow),transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false,fog:false}));root.add(halo);
- const light=new T.PointLight('#ff6be6',0,K.lightRange,2);root.add(light);
+ // The core's light hangs in the scene, not in root: root stays hidden until the World Breaker starts, and a light appearing changes the
+ // scene's light count, which makes every lit material compile a new shader in that frame. It stays dark until the core shows.
+ const light=new T.PointLight('#ff6be6',0,K.lightRange,2);light.name='Core light';scene.add(light);
  const rays=new T.Group();root.add(rays);const rayMat=new T.MeshBasicMaterial({color:'#ffc4f4',transparent:true,opacity:0,blending:T.AdditiveBlending,depthWrite:false,side:T.DoubleSide});
  for(let i=0;i<K.rays;i++){const ray=new T.Mesh(new T.PlaneGeometry(0.06,K.rayLength),rayMat);ray.position.y=K.rayLength/2;const arm=new T.Group();arm.rotation.set(Math.sin(i*2.1)*1.2,i/K.rays*Math.PI*2,Math.cos(i*1.3)*1.2);arm.add(ray);rays.add(arm);}
  // The light pillar: a bright inner column and a wide faint cone, both fading at their silhouettes so they read as volumes of light.
@@ -49,12 +51,12 @@ export function createCore(scene,assets){
  const ringGeo=new T.PlaneGeometry(2,2).rotateX(-Math.PI/2),rings=Array.from({length:K.openRings},(_,i)=>{const m=new T.Mesh(ringGeo,new T.ShaderMaterial({uniforms:{color:{value:new T.Color(i%2?'#ffc8f0':'#ffffff').multiplyScalar(K.ringGlow)},opacity:{value:0},width:{value:0.3}},vertexShader:'varying vec2 vUv;void main(){vUv=uv;gl_Position=projectionMatrix*modelViewMatrix*vec4(position,1.0);}',fragmentShader:RING_FRAG,transparent:true,blending:T.AdditiveBlending,depthWrite:false}));m.name='Core shockwave';m.frustumCulled=false;m.visible=false;scene.add(m);return m;});
  const camPos=new T.Vector3();let seenAt=null,emberRange=K.embers;const ease=t=>1-Math.pow(1-Math.min(1,Math.max(0,t)),3);
  function update(state,serverNow,now,floorY,reduced,view={}){const team=state.team,site=team?.site,wb=team?.worldBreaker,won=!!team?.won;
-  if(!won)seenAt=null;root.visible=site!=null&&(won||!!wb);if(!root.visible){beam.visible=cone.visible=embers.visible=false;for(const r of rings)r.visible=false;return null;}
+  if(!won)seenAt=null;root.visible=site!=null&&(won||!!wb);if(!root.visible){beam.visible=cone.visible=embers.visible=false;for(const r of rings)r.visible=false;light.intensity=0;return null;}
   const x=site%C.mapSize+0.5,z=Math.floor(site/C.mapSize)+0.5,clock=reduced?0:now/1000;heartMat.uniforms.time.value=clock;
   let y,scale,open,glow,heat,s=0;
   if(!won){const t=Math.min(1,Math.max(0,wb.charge??(serverNow-wb.startedAt)/Math.max(1,wb.endsAt-wb.startedAt)));y=floorY-K.embed;scale=K.boreScale*(1+(reduced?0:0.04*Math.sin(clock*(3+9*t))));open=0;glow=0.35+0.55*t;heat=t*0.5;}
   else{seenAt??=serverNow;s=(serverNow-Math.max(team.wonAt??serverNow,seenAt))/1000;y=floorY-K.embed;scale=K.boreScale*(1+0.15*ease(s/K.openSeconds));open=ease((s-K.openAt)/K.openSeconds);glow=0.9+0.1*open;heat=0.5+0.5*open;}
-  root.position.set(x,y,z);root.scale.setScalar(scale);spin.rotation.y=reduced?0:clock*0.25;heartMat.uniforms.heat.value=heat;
+  root.position.set(x,y,z);light.position.set(x,y,z);root.scale.setScalar(scale);spin.rotation.y=reduced?0:clock*0.25;heartMat.uniforms.heat.value=heat;
   for(const shard of shards){const d=shard.userData.dir;shard.position.copy(d).multiplyScalar(open*K.openDistance);shard.rotation.set(shard.userData.tumble.x*open,shard.userData.tumble.y*open,shard.userData.tumble.z*open);}
   // Fade the sprite halo and the pillar walls when the camera flies close, so the bore orbit is not washed out to white.
   const camera=view.camera;if(camera)camPos.setFromMatrixPosition(camera.matrixWorld);const near=camera?Math.min(1,Math.max(0,(camPos.distanceTo(root.position)-1.2)/3.5)):1,axis=camera?Math.min(1,Math.max(0,(Math.hypot(camPos.x-x,camPos.z-z)-0.5)/2.5)):1;

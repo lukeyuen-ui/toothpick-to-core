@@ -1,6 +1,6 @@
 import {surfaceVisible} from '../lighting-rules.js';
 import {C} from '/config.js';
-import {layerAt,hp} from '/rules.js';
+import {layerAt,rockHp} from '/rules.js';
 const V=C.view;
 export function createRenderer(canvas,mini,rods,money) {
  const P=C.polish,effects=[],deliveryEffects=[],flashes=new Map();
@@ -27,7 +27,7 @@ export function createRenderer(canvas,mini,rods,money) {
    ctx.fillStyle=C.three.dust;ctx.fillRect(pos.x,pos.y,unit,unit);
    if(cell.row>0){ctx.beginPath();ctx.arc(pos.x+unit/2,pos.y+unit/2,unit*C.pits.radius,0,Math.PI*2);ctx.fillStyle=layer.color;ctx.fill();ctx.strokeStyle='#252b2ddd';ctx.lineWidth=P.rimWidth;ctx.stroke();ctx.fillStyle=`rgba(0,0,0,${layer.progress*V.layerDarken})`;ctx.fill();if(unit>=P.rowMinWidth){ctx.fillStyle='#f5ebccae';ctx.font=`${P.rowFont}px monospace`;ctx.textAlign='left';ctx.fillText(cell.row+(cell.thin?' thin':''),pos.x+P.rimInset*2,pos.y+P.rowFont+P.rimInset*2);}}
    if(!cell.row&&surfaceVisible(cell.surfaceSign,me)){if(cell.surfaceSign==='oil')drop(ctx,pos.x+unit/2,pos.y+unit/2,P.sparkleSize);else sparkle(ctx,pos.x+unit/2,pos.y+unit/2,P.sparkleSize,now);}
-   const damage=1-cell.hp/hp(cell.row);if(damage>V.crackThreshold){ctx.strokeStyle='#182018';ctx.lineWidth=V.crackWidth;ctx.beginPath();const scale=Math.sqrt(damage);for(const ray of P.crackRays){ray.forEach(([dx,dy],index)=>{const px=pos.x+unit/2+dx*unit*scale,py=pos.y+unit/2+dy*unit*scale;if(!index)ctx.moveTo(px,py);else ctx.lineTo(px,py);});}ctx.stroke();}
+   const damage=1-cell.hp/rockHp(state,cell.row);if(damage>V.crackThreshold){ctx.strokeStyle='#182018';ctx.lineWidth=V.crackWidth;ctx.beginPath();const scale=Math.sqrt(damage);for(const ray of P.crackRays){ray.forEach(([dx,dy],index)=>{const px=pos.x+unit/2+dx*unit*scale,py=pos.y+unit/2+dy*unit*scale;if(!index)ctx.moveTo(px,py);else ctx.lineTo(px,py);});}ctx.stroke();}
    if(state.team?.won){const site=state.team.site,sx=site%C.mapSize,sy=Math.floor(site/C.mapSize),radius=Math.min(1,(serverNow-state.team.wonAt)/C.team.rippleMs)*Math.hypot(Math.max(sx,C.mapSize-1-sx),Math.max(sy,C.mapSize-1-sy));if(Math.hypot(x-sx,y-sy)<=radius){ctx.fillStyle=C.ending.green;ctx.fillRect(pos.x,pos.y,unit-V.cellGap,unit-V.cellGap);}}
    const hints=state.team?.won?null:state.hints?.[y*C.mapSize+x];
    if(hints?.metal){ctx.fillStyle=`rgba(255,177,47,${P.heatAlpha[hints.metal.heat]})`;ctx.fillRect(pos.x+V.bevel,pos.y+V.bevel,unit-V.bevel*2,unit-V.bevel*2);}
