@@ -36,3 +36,10 @@ test('the ruins build as one or two merged meshes whose every vertex is outside 
  const counts=wastelandCounts('low');for(const [kind,n] of Object.entries(W.counts)){assert.equal(low.layout[kind].length,counts[kind]);assert.ok(counts[kind]<=Math.ceil(n/2));assert.deepEqual(low.layout[kind],high.layout[kind].slice(0,counts[kind]),'low is a subset of high');}
  for(const {meshes} of [high,low])for(const m of meshes){const a=m.geometry.attributes.position;for(let i=0;i<a.count;i++){const d=outsideClaim(a.getX(i),a.getZ(i));assert.ok(d>0.1,'a vertex on the claim at '+a.getX(i).toFixed(2)+', '+a.getZ(i).toFixed(2));assert.ok(d<C.three.terrainWidth,'a vertex past the ring');}}
 });
+
+test('on undulating ground every prop is seated: some of it at or under the ground across its footprint, none of it hanging clear',()=>{
+ const finishes=new Map(),factory={finish:(kind,color)=>{if(!finishes.has(kind))finishes.set(kind,new T.MeshStandardMaterial({vertexColors:true}));return {material:finishes.get(kind),color:new T.Color(color)};}};
+ const groundY=(x,z)=>0.45*Math.sin(x*1.3)*Math.cos(z*1.1)+0.03*x;
+ for(const level of ['high','low']){const {meshes,layout}=createWasteland(new T.Scene(),factory,{level,groundY,shadows:false}),points=[];for(const m of meshes){const a=m.geometry.attributes.position;for(let i=0;i<a.count;i++)points.push([a.getX(i),a.getY(i),a.getZ(i)]);}
+  for(const [kind,list] of Object.entries(layout))for(const p of list){const [x,z,r]=p.foot[0];let gap=Infinity;for(const [px,py,pz] of points)if(Math.hypot(px-x,pz-z)<=r+0.02)gap=Math.min(gap,py-groundY(px,pz));assert.ok(gap<=0.01,`${level} ${kind} at ${x.toFixed(2)}, ${z.toFixed(2)} hangs ${gap.toFixed(3)} above the ground`);}}
+});
