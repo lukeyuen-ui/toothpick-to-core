@@ -36,8 +36,9 @@ function dropSlot(pool,i){const last=--pool.count;if(i!==last)for(const key of p
 
 // Moves every live chunk on by dt seconds. groundAt(x,z) is the ground height under a point. A chunk coming down onto ground bounces,
 // losing most of its speed, and rests after a few bounces; one that runs sideways into ground higher than itself has met a wall and
-// turns back. A resting chunk falls again when the ground under it is dug away. Chunks past their life are removed.
-export function stepChunks(pool,dt,groundAt){
+// turns back. A resting chunk falls again when the ground under it is dug away. One that comes to rest on a spoil heap (heapAt, the
+// mounds' height at a point) settles into it within heapSettle seconds. Chunks past their life are removed.
+export function stepChunks(pool,dt,groundAt,heapAt=null){
  for(let i=pool.count-1;i>=0;i--){
   pool.age[i]+=dt;if(pool.age[i]>=pool.life[i]){dropSlot(pool,i);continue;}
   const r=pool.r[i]*0.6;
@@ -45,7 +46,7 @@ export function stepChunks(pool,dt,groundAt){
   const ox=pool.x[i],oy=pool.y[i],oz=pool.z[i];pool.vy[i]-=D.gravity*dt;
   let x=ox+pool.vx[i]*dt,y=oy+pool.vy[i]*dt,z=oz+pool.vz[i]*dt,g=groundAt(x,z);
   if(oy-r<g-0.002){x=ox;z=oz;pool.vx[i]*=-D.wall;pool.vz[i]*=-D.wall;g=groundAt(x,z);}
-  if(y-r<=g){y=g+r;if(pool.vy[i]<0){pool.bounces[i]++;const up=-pool.vy[i]*D.bounce;if(up<D.restSpeed||pool.bounces[i]>=D.maxBounces){pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.rest[i]=1;}else{pool.vy[i]=up;pool.vx[i]*=D.friction;pool.vz[i]*=D.friction;pool.spin[i]*=0.6;}}}
+  if(y-r<=g){y=g+r;if(pool.vy[i]<0){pool.bounces[i]++;const up=-pool.vy[i]*D.bounce;if(up<D.restSpeed||pool.bounces[i]>=D.maxBounces){pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.rest[i]=1;if(heapAt&&heapAt(x,z)>0.004)pool.life[i]=Math.min(pool.life[i],pool.age[i]+D.heapSettle);}else{pool.vy[i]=up;pool.vx[i]*=D.friction;pool.vz[i]*=D.friction;pool.spin[i]*=0.6;}}}
   pool.x[i]=x;pool.y[i]=y;pool.z[i]=z;pool.angle[i]+=pool.spin[i]*dt;
  }
 }
@@ -116,8 +117,8 @@ export function createDigFx(scene,{puffMap=null}={}){
  function upload(attribute,count,width){attribute.clearUpdateRanges();attribute.addUpdateRange(0,count*width);attribute.needsUpdate=true;}
  // Releases due bursts, steps both pools and writes the live instances. Puffs turn to face the camera and thin out close to it, so dust
  // you stand in does not fog the view, and chunks passing right by the lens shrink away instead of filling it.
- function update(dt,camera,groundAt,now=performance.now()){
-  flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt);
+ function update(dt,camera,groundAt,now=performance.now(),heapAt=null){
+  flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt,heapAt);
   const cm=chunkMesh.instanceMatrix.array,cc=chunkMesh.instanceColor.array;
   const cam=camera.position,[c0,c1]=D.chunkClear;for(let i=0;i<chunks.count;i++){const d=Math.hypot(chunks.x[i]-cam.x,chunks.y[i]-cam.y,chunks.z[i]-cam.z),near=d>=c1?1:d<=c0?0:(d-c0)/(c1-c0),s=chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i])*near*near*(3-2*near);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
   chunkMesh.count=chunks.count;chunkMesh.visible=chunks.count>0;if(chunks.count){upload(chunkMesh.instanceMatrix,chunks.count,16);upload(chunkMesh.instanceColor,chunks.count,3);}

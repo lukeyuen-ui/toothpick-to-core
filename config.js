@@ -107,8 +107,15 @@ export const C = {
   // dug floors heave by floorRipple. Lean, ripple and heave follow world-position noise, so walls and floors of neighbouring cells
   // meet without a seam. The grit texture (scene-assets.js) puts pebbles (pebbles: how much they show, pebbleNormal: their relief) and
   // fine sediment bands (sediment: their contrast, sedimentFreq: bands per unit of depth) in walls at pebbleScale repeats per unit,
-  // and clods in dug floors at clodScale (clodTone: their light and shade, clodNormal: their relief).
-  rimRound:0.055,lean:0.04,leanDepth:0.16,ripple:0.012,rippleFade:0.12,floorRipple:0.014,pebbleScale:1.4,pebbles:0.6,pebbleNormal:0.85,sediment:0.07,sedimentFreq:150,clodScale:1.6,clodTone:0.34,clodNormal:0.55},
+  // and clods in dug floors at clodScale (clodTone: their light and shade, clodNormal: their relief). The top dustCapDepth of a wall is
+  // the grey surface dust over the strata (dustCap of it), as a dug edge shows it.
+  rimRound:0.055,lean:0.04,leanDepth:0.16,ripple:0.012,rippleFade:0.12,floorRipple:0.014,pebbleScale:1.4,pebbles:0.6,pebbleNormal:0.85,sediment:0.07,sedimentFreq:150,clodScale:1.6,clodTone:0.34,clodNormal:0.55,dustCap:0.8,dustCapDepth:0.045,
+  // Spoil heaps: the dirt that left a cell, as its rows dug up to heapRows, raises the lip round its edge by up to heapLift and widens
+  // it by up to heapWidth, and piles into a mound (heapRadius at one row to the full radius, heapHeight tall, with a smaller lump of
+  // heapLump its size beside it where that fits) on the side of the hole away from the hub, searched up to heapReach from the cell's
+  // middle, on solid ground and heapGap clear of the middles of other undug cells. Mounds take heapTint of the last stratum dug there
+  // over the grey dust.
+  heapRows:20,heapLift:0.034,heapWidth:0.09,heapRadius:[0.14,0.33],heapHeight:0.13,heapLump:0.6,heapReach:2.4,heapGap:0.12,heapTint:0.5},
  // Dirt and ground realism by graphics preset (pit-geometry.js, renderer3d.js, dig-fx.js). shape rounds the rims, leans and ripples
  // the walls and heaves the floors, using arcRows rows round each rim and wallDepths rows below it (depths under the rounded rim),
  // straight wall runs cut into segments and floor tiles into floorSegments; detail is the pebbles, sediment and clods; heaps grows
@@ -124,7 +131,8 @@ export const C = {
  // Dig feedback (public/dig-fx.js): chunks of the struck stratum flung out of the cell, bouncing on the rim and sinking into the dirt, a dust
  // puff over every break, and a camera kick of a pixel or two for mech strikes and the boring drill. Pools and the chunk rate are the high
  // preset's; quality.js scales them, and low keeps a small chunk pool with no puffs and no kick. Sizes are world units, times in seconds.
- digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
+// A chunk that comes to rest on a spoil heap settles into it within heapSettle.
+ digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
  protocolVersion:9
 };
 // Layout values are centralized here too; renderer owns no game decisions.

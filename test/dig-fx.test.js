@@ -89,3 +89,11 @@ test('chunks shrink away as they pass the lens instead of filling the view',()=>
  for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,m);p.setFromMatrixPosition(m);const e=m.elements,size=Math.hypot(e[0],e[1],e[2]);if(p.distanceTo(camera.position)<D.chunkClear[0])near=Math.max(near,size);else if(p.distanceTo(camera.position)>D.chunkClear[1])far=Math.max(far,size);}
  assert.equal(near,0,'nothing at the lens');assert.ok(far>0,'chunks away from it keep their size');
 });
+
+test('a chunk that comes to rest on a spoil heap settles into it within heapSettle, and elsewhere lives out its life',()=>{
+ const pool=createPool(4),onHeap=takeSlot(pool),off=takeSlot(pool);for(const [k,x] of [[onHeap,2.5],[off,6.5]]){pool.x[k]=x;pool.y[k]=0.2;pool.z[k]=2.5;pool.vy[k]=-0.1;pool.r[k]=0.02;pool.life[k]=3;}
+ const heapAt=(x,z)=>x<4?0.05:0,ground=(x,z)=>heapAt(x,z);let rested=false;for(let i=0;i<120&&!rested;i++){stepChunks(pool,1/60,ground,heapAt);rested=pool.rest[0]&&pool.rest[1];}
+ assert.ok(rested,'both come to rest');const heapIndex=pool.x[0]<4?0:1;assert.ok(pool.y[heapIndex]>=0.05,'resting on the heap, not in it');
+ assert.ok(pool.life[heapIndex]<=pool.age[heapIndex]+D.heapSettle+1e-9,'settles into the heap soon');assert.equal(pool.life[1-heapIndex],3,'on bare ground it keeps its life');
+ const fx=createDigFx(new T.Scene()),camera=view();fx.burst(2.5,0.06,2.5,{heavy:true},1000);for(let t=0;t<200;t++)fx.update(1/60,camera,ground,1000+t*16,heapAt);assert.equal(fx.chunks.count,0,'and they all clear');
+});

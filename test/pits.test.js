@@ -65,3 +65,26 @@ test('pit shaders take the preset look as shared uniforms and read the dirt text
  const wall={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader},m=new T.MeshStandardMaterial({map:new T.Texture(),normalMap:new T.Texture()});pits.decorate(m,'wall');m.onBeforeCompile(wall);
  assert.match(wall.vertexShader,/pitRipple/);assert.match(wall.fragmentShader,/pitPebbles/);const floor={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader},f=new T.MeshStandardMaterial({normalMap:new T.Texture()});pits.decorate(f,'floor');f.onBeforeCompile(floor);assert.match(floor.vertexShader,/pitFloorBuild\(\);/);assert.match(floor.vertexShader,/objectNormal=pitFloorNormal/);
 });
+
+// Spoil heaps: the dirt that left a cell raises its lip and piles into mounds on the side of the hole away from the hub.
+test('spoil mounds pile on solid ground on the far side from the hub, grow with the rows dug, and one dig touches only its neighbours',()=>{const P=C.pits,[hx,hz]=C.ground.hub,pits=createPits();pits.setLook('high');
+ const dug=new Map(),dig=(x,z,row)=>{pits.update(z*N+x,row);dug.set(z*N+x,row);},rows=(x,z)=>x<0||z<0||x>=N||z>=N?0:dug.get(z*N+x)||0;
+ dig(3,12,24);for(let z=3;z<6;z++)for(let x=10;x<13;x++)dig(x,z,9);dig(5,10,2);
+ const mounds=new Map();pits.heapChanges((key,x,z,r,h,turn,cell)=>{if(r>0)mounds.set(key,{x,z,r,h,cell});});
+ assert.ok(mounds.size>=6,'mounds for the shaft, the 3x3 and the toothpick hole: '+mounds.size);assert.equal(pits.heapCount,new Set([...mounds.values()].map(m=>m.cell)).size);
+ let away=0;for(const m of mounds.values()){assert.ok([m.x,m.z,m.r,m.h].every(Number.isFinite));assert.ok(m.r>0&&m.r<=P.heapRadius[1]+1e-6&&m.h>0&&m.h<=P.heapHeight+1e-6,'bounded (stored as 32 bit floats)');
+  for(let j=0;j<8;j++){const a=j*Math.PI/4;assert.ok(pitSdf(rows,m.x+Math.cos(a)*m.r*0.9,m.z+Math.sin(a)*m.r*0.9)>0,'on solid ground, never over a hole');}
+  assert.ok(m.x-m.r>0&&m.z-m.r>0&&m.x+m.r<N&&m.z+m.r<N,'inside the claim');const cx=m.cell%N+0.5,cz=Math.floor(m.cell/N)+0.5;if((m.x-cx)*(cx-hx)+(m.z-cz)*(cz-hz)>0)away++;}
+ assert.ok(away>=mounds.size*0.6,'most pile up on the side away from the hub: '+away+' of '+mounds.size);
+ const big=[...mounds.values()].find(m=>m.cell===12*N+3),small=[...mounds.values()].find(m=>m.cell===10*N+5);assert.ok(big&&small&&big.r>small.r&&big.h>small.h,'a deeper hole throws a bigger mound');
+ assert.ok(Math.abs(pits.heapAt(big.x,big.z)-big.h)<1e-6,'the mound is as tall as its height at its middle');assert.equal(pits.heapAt(8.5,8.5),0,'nothing by the hub');
+ assert.ok(pits.ringLift(12*N+3)>=0.02,'the target ring floats over a raised lip');
+ dig(5,10,3);let touched=pits.heapChanges(()=>{});assert.equal(touched,1,'digging deeper re-places only its own mound');dig(3,12,25);assert.equal(pits.heapChanges(()=>{}),0,'past heapRows the mound stays as it is');
+ dig(7,13,1);touched=pits.heapChanges(()=>{});assert.ok(touched>=1&&touched<=9+P.heapReach*4,'a new hole re-places its neighbourhood only: '+touched);
+ const rocks=pits.rocks();for(let k=0;k*3<rocks.length;k++){const lift=pits.rockLift(k);assert.ok(lift>=0&&lift<=P.heapHeight+P.lift+P.heapLift+1e-6,'rocks rest on the lip or a mound');}
+ assert.ok([...Array(rocks.length/3).keys()].some(k=>pits.rockLift(k)>0),'some rocks ride up on lips and mounds');
+ const low=createPits();low.setLook('low');low.update(3*N+3,24);let lowMounds=0;low.heapChanges((key,x,z,r)=>{if(r>0)lowMounds++;});assert.equal(lowMounds,0);assert.equal(low.heapCount,0,'no mounds on Low');const lr=low.rocks();for(let k=0;k*3<lr.length;k++)assert.equal(low.rockLift(k),0,'Low rocks sit where they always did');
+ pits.reset();let cleared=0;pits.heapChanges((key,x,z,r)=>{if(!(r>0))cleared++;});assert.ok(cleared>=mounds.size,'a reset takes every mound away');assert.equal(pits.heapCount,0);
+});
+test('lips and wall tops grow with the spoil of the rows dug, capped, and stay continuous where joined cells meet',()=>{const pits=createPits();for(const kind of ['wall','lip']){const m=new T.MeshStandardMaterial({map:new T.Texture(),normalMap:new T.Texture()});pits.decorate(m,kind);const shader={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};m.onBeforeCompile(shader);assert.match(shader.vertexShader,/pitSpoil\(cell,ax,az,ab\)/,kind+' reads the spoil');assert.equal(shader.uniforms.pitHeap,pits.look.pitHeap);}
+ pits.setLook('high');assert.equal(pits.look.pitHeap.value,C.dirt.high.heaps);pits.setLook('low');assert.equal(pits.look.pitHeap.value,0,'Low keeps the original lip');});
