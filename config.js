@@ -387,11 +387,11 @@ body.aboard #drill-road{font-size:10px;white-space:nowrap;overflow:hidden;text-o
 // Hardcore save codes: the lobby's resume panel (a muted one-line paste field until a save is kept, then a card with Resume and Copy) and
 // the hub's save row. A copy the browser refuses shows the code selected in a small box; nothing of the code shows on the HUD.
 export const SAVE_STYLE = `#resume-panel{margin:4px 0 12px}#resume-panel summary{min-height:36px;padding-top:9px;font-size:12px;color:var(--muted)}#resume-panel.saved{margin:10px 0 18px;padding:0 12px 10px;border:1px solid #b6d97899;border-radius:10px;background:#1c2b22cc}#resume-panel.saved summary{color:var(--accent);font-size:10px;letter-spacing:2px;text-transform:uppercase;font-weight:700;list-style:none}#resume-panel.saved summary::-webkit-details-marker{display:none}#resume-detail{margin:2px 0 10px;color:#e2efbe;font-size:14px;line-height:1.4}.resume-actions{display:flex;gap:8px;margin-bottom:8px}.resume-actions button{flex:1}#resume-start{background:var(--accent);color:#182016;font-weight:700}#resume-code-text,#save-text{display:block;width:100%;box-sizing:border-box;font:11px/1.35 ui-monospace,SFMono-Regular,Menlo,monospace;background:#0f1513;color:#cfe3c4;border:1px solid #465146;border-radius:8px;padding:6px 8px;margin:0 0 8px;resize:none;word-break:break-all}#resume-code-text[hidden],#save-text[hidden]{display:none}.resume-note{margin:0 0 12px;font-size:11px;line-height:1.4;color:var(--muted)}#resume-panel label{margin-top:4px}#resume-paste{flex:1;min-width:0}#resume-status{margin:8px 0 2px;font-size:12px;color:#d4ed87}#resume-status:empty{display:none}#save-row:not([hidden]){display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:6px;font-size:12px;color:#b2c5b5}#save-row small{font-size:9px;letter-spacing:1px;color:var(--muted)}#save-row button{min-height:32px;padding:4px 10px;font-size:11px}#save-text{flex-basis:100%;margin:0}`;
-// The room chip. The code used to live only in the hub panel's Share button and the address bar, which phones hide in
-// full screen, and the one-time share reminder never fires beside a computer crew, so in Showcase nobody saw it. The chip
-// sits first in the HUD's action row at every width and taps straight into the share sheet (or copies the room link).
-export const ROOM_STYLE = `#room-chip{display:inline-flex;align-items:center;gap:5px;font-size:11px;padding:6px 10px;min-height:44px;color:var(--ink);white-space:nowrap}
-#room-chip b{font-weight:800;font-size:13px;letter-spacing:2px;color:var(--accent)}
-#room-chip span{color:var(--muted)}
-@media (max-width:600px){#room-chip span{display:none}}
+// The room tag. The code used to live only in the hub panel's Share button and the address bar, which phones hide in
+// full screen, and the one-time share reminder never fires beside a computer crew, so in Showcase nobody saw it. A quiet
+// caption under the minimap shows the code at all times without taking a seat in the action row; tapping it opens the
+// share sheet or copies the room link. In 3D the minimap stays on phones too, so one position serves every width.
+export const ROOM_STYLE = `#room-tag{position:absolute;right:12px;top:120px;z-index:2;display:inline-flex;align-items:center;gap:6px;margin:0;padding:4px 8px;min-height:0;border:1px solid #67715a80;border-radius:6px;background:#1b261ee8;color:var(--muted);font-size:9px;letter-spacing:1px;line-height:1.2;cursor:pointer}
+#room-tag b{color:var(--ink);font-weight:700;font-size:11px;letter-spacing:2px}
+@media (orientation:landscape) and (max-height:500px){#room-tag{top:92px;right:max(8px,env(safe-area-inset-right))}}
 `;
