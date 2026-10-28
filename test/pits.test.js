@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import * as T from '../public/vendor/three.module.js';import {C} from '../config.js';import {createPits,pitSdf,edgePieces} from '../public/pit-geometry.js';
+import * as T from '../public/vendor/three.module.js';import {C} from '../config.js';import {createPits,pitSdf,edgePieces,pieceRows,wallOffset,lipHeight,floorHeave,pitNoise} from '../public/pit-geometry.js';
 const N=C.mapSize,M=C.pits.inset,E=0.5-M,RI=C.pits.innerCorner,grid=cells=>(x,z)=>x<0||z<0||x>=N||z>=N?0:cells.get(z*N+x)||0,near=(a,b,eps=1e-6)=>Math.abs(a-b)<eps;
 test('pit state retains only rows; edge walls, lips and steps are fixed pieces fitted in the shader',()=>{const pits=createPits();for(const kind of ['wall','lip','step']){assert.equal(pits[kind].type,'BufferGeometry');assert.ok(pits[kind].attributes.pitPart,kind);assert.ok(pits[kind].index.count>0,kind);}assert.equal(pits.texture.image.width,N);assert.equal(pits.texture.image.height,N);pits.update(34,30);pits.update(35,400);assert.equal(pits.texture.image.data[34*4],30);assert.equal(pits.texture.image.data[35*4],255);pits.reset();assert.ok(pits.texture.image.data.every(x=>x===0));});
 test('neighbouring dug cells open into one hole: inset only toward solid ground, rounded outer corners, an undug diagonal still pokes in',()=>{
@@ -33,3 +33,35 @@ test('the spoil band and rim rocks follow the joined edge and refresh only aroun
  const shade=(x,z)=>pits.rim.image.data[(Math.floor(z*C.pits.rimTexels)*S+Math.floor(x*C.pits.rimTexels))*4];assert.ok(shade(3.01,4.5)>100,'spoil next to the edge');assert.ok(shade(2.9,4.5)>0,'fading out over the band');assert.equal(shade(1.5,4.5),0,'none far from it');
  pits.update(6*N+8,3);pits.refresh();const full=createPits();for(let z=3;z<6;z++)for(let x=3;x<6;x++)full.update(z*N+x,4);full.update(6*N+8,3);full.refresh();assert.deepEqual([...pits.rim.image.data],[...full.rim.image.data],'incremental refresh matches a rebuild');});
 test('pit shaders share one opening mask and fit walls, steps and floors to the rows texture',()=>{const pits=createPits();for(const kind of ['cap','floor','wall','lip','step']){const material=new T.MeshStandardMaterial({map:new T.Texture()});pits.decorate(material,kind);const shader={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};material.onBeforeCompile(shader);assert.equal(shader.uniforms.pitRows.value,pits.texture);assert.equal(shader.uniforms.pitRim.value,pits.rim);assert.match(shader.fragmentShader,/pitEdge/);assert.ok(!shader.vertexShader.includes('undefined'));assert.ok(!shader.fragmentShader.includes('undefined'));if(kind==='cap'||kind==='floor')assert.match(shader.fragmentShader,/discard/);if(kind==='floor')assert.match(shader.vertexShader,/pitFloor/);if(['wall','lip','step'].includes(kind))assert.match(shader.vertexShader,/pitBuild\(\);/);assert.match(shader.fragmentShader,/pitInner/);}});
+
+// Dirt, not cuts: the presets' wall, lip and floor layouts, the rounded rim, the lean and ripple, the lip shoulder and the floor heave.
+test('wall and lip pieces get more rows on the higher presets, and Low keeps the original pieces exactly',()=>{const pits=createPits(),P=C.pits;
+ assert.deepEqual(pieceRows('wall',C.dirt.low),[0,99]);assert.deepEqual(pieceRows('lip',C.dirt.low),[0,1]);
+ for(const kind of ['wall','lip'])assert.equal(pits.geometry(kind,'low'),pits[kind],'Low draws the original '+kind);
+ const tris=(kind,level)=>pits.geometry(kind,level).index.count/3;assert.equal(tris('wall','low'),36);assert.equal(tris('lip','low'),36);
+ for(const kind of ['wall','lip'])assert.ok(tris(kind,'high')>tris(kind,'balanced')&&tris(kind,'balanced')>tris(kind,'low'),kind);
+ assert.ok(tris('wall','high')<=600,'a quadrant wall stays a few hundred triangles: '+tris('wall','high'));
+ for(const level of ['high','balanced','low']){const rows=pieceRows('wall',C.dirt[level]);assert.equal(rows[0],0,'the top row is the rim');assert.equal(rows.at(-1),99,'the last is the bottom');assert.ok(rows.every((r,i)=>!i||r>rows[i-1]),'rows run down the wall');
+  for(const kind of ['wall','lip']){const g=pits.geometry(kind,level),part=g.attributes.pitPart.array,count=g.attributes.position.count;assert.ok(part.every(Number.isFinite));for(let i=0;i<part.length;i+=3){assert.ok([0,1,2,3].includes(part[i]),'a known piece');assert.ok(part[i+1]>=0&&part[i+1]<=1,'t along the piece');}assert.ok(g.index.array.every(v=>v<count));}}
+ assert.equal(pits.geometry('wall','high'),pits.geometry('wall','high'),'built once per layout');
+ assert.equal(pits.setLook('high'),C.dirt.high);assert.equal(pits.look.pitShape.value,C.dirt.high.shape);pits.setLook('low');assert.equal(pits.look.pitShape.value,0);assert.equal(pits.look.pitDetail.value,0);
+});
+test('walls round over the rim into the lip, then lean in and ripple a little: bounded, continuous, and straight at shape 0',()=>{const P=C.pits;let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
+ for(let n=0;n<120;n++){const x=rnd()*C.mapSize,z=rnd()*C.mapSize;assert.ok(wallOffset(x,z,P.lift,1)===0,'the wall top meets the lip on the opening edge');let last=0;
+  for(let y=P.lift;y>-C.three.depthMax;y-=0.01){const o=wallOffset(x,z,y,1);assert.ok(Number.isFinite(o));assert.ok(o<=0,'never out past the edge, so step faces and floors stay tucked behind it');assert.ok(o>=-(P.rimRound+P.lean+P.ripple)-1e-9,'leans at most rim, lean and ripple: '+o);assert.ok(Math.abs(o-last)<0.035,'no jump down the wall');last=o;assert.ok(wallOffset(x,z,y,0)===0,'shape 0 is the straight cut');}
+  assert.ok(Math.abs(wallOffset(x,z,P.lift-P.rimRound,1)+P.rimRound)<1e-9,'the rounded rim ends a rim radius in');}
+ const pits=createPits();pits.setLook('high');const E=0.5-P.inset;for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const reach=pits.wallReach(4.5,4.5,dx,dz,-1);assert.ok(reach<E+P.edgeNoise&&reach>E-P.edgeNoise-P.rimRound-P.lean-P.ripple,'lamps hang on the wall: '+reach);}
+});
+test('the lip rises from the ground to meet the rounded rim level, and dug floors heave only inside the tile',()=>{const P=C.pits;
+ for(const shape of [0,0.5,1]){assert.ok(Math.abs(lipHeight(0,shape)-P.lift)<1e-12,'meets the wall top');assert.ok(Math.abs(lipHeight(1,shape)-0.004)<1e-12,'meets the ground');for(let u=0;u<1;u+=0.05)assert.ok(lipHeight(u+0.05,shape)<=lipHeight(u,shape)+1e-12,'falls away from the rim');}
+ const d=1e-4;assert.ok(Math.abs(lipHeight(d,1)-lipHeight(0,1))<1e-6&&Math.abs(lipHeight(1,1)-lipHeight(1-d,1))<1e-6,'level where it meets the rim and the ground');
+ for(let k=0;k<400;k++){const cx=k%16,cz=Math.floor(k/16)%16,lx=(k*0.37%1)-0.5,lz=(k*0.61%1)-0.5,h=floorHeave(cx,cz,lx,lz,1);assert.ok(Math.abs(h)<=P.floorRipple+1e-12);assert.ok(floorHeave(cx,cz,lx,lz,0)===0);}
+ for(const l of [-0.5,0.5])for(let t=-0.5;t<=0.5;t+=0.1){assert.ok(floorHeave(3,4,l,t,1)===0,'flat along the tile edge');assert.ok(floorHeave(3,4,t,l,1)===0);}
+});
+test('pit shaders take the preset look as shared uniforms and read the dirt textures without unset numbers',()=>{const pits=createPits(),grit=new T.Texture(),pebbles=new T.Texture();pits.setDirt({grit,pebbles});
+ for(const kind of ['cap','floor','wall','lip','step']){const material=new T.MeshStandardMaterial({map:new T.Texture(),normalMap:new T.Texture()});pits.decorate(material,kind);const shader={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};material.onBeforeCompile(shader);
+  assert.equal(shader.uniforms.pitShape,pits.look.pitShape,'shared, so a preset change never recompiles');assert.equal(shader.uniforms.pitGrit.value,grit);assert.equal(shader.uniforms.pitPebbles.value,pebbles);
+  for(const text of [shader.vertexShader,shader.fragmentShader])assert.ok(!/NaN|undefined/.test(text),kind);}
+ const wall={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader},m=new T.MeshStandardMaterial({map:new T.Texture(),normalMap:new T.Texture()});pits.decorate(m,'wall');m.onBeforeCompile(wall);
+ assert.match(wall.vertexShader,/pitRipple/);assert.match(wall.fragmentShader,/pitPebbles/);const floor={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader},f=new T.MeshStandardMaterial({normalMap:new T.Texture()});pits.decorate(f,'floor');f.onBeforeCompile(floor);assert.match(floor.vertexShader,/pitFloorBuild\(\);/);assert.match(floor.vertexShader,/objectNormal=pitFloorNormal/);
+});
