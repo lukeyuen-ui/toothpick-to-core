@@ -80,3 +80,12 @@ test('the camera kick stays within a couple of pixels, dies away, and never runs
  fx.setBudget(digBudget(QUALITY.low));fx.kick(2,200);assert.equal(fx.kickNow(205),0,'never on low');
  const p=puffShape(0.3,1,0.2,1,0.5);assert.ok(p.alpha>0.2&&p.size>0.2&&p.size<1);assert.equal(puffShape(0,1,0.2,1,0.5).alpha,0);assert.equal(puffShape(1,1,0.2,1,0.5).alpha,0);
 });
+
+test('chunks shrink away as they pass the lens instead of filling the view',()=>{
+ const fx=createDigFx(new T.Scene()),camera=view(),[mesh]=fx.meshes,m=new T.Matrix4(),p=new T.Vector3();
+ fx.burst(camera.position.x,camera.position.y-0.01,camera.position.z,{heavy:true},1000);fx.burst(8.5,0.01,8.5,{heavy:true,key:3},1000);
+ fx.update(0.001,camera,()=>-10,1001);let near=0,far=0;
+ // Read the scale from the matrix columns: decompose reports a scale of 1 for a matrix shrunk to nothing.
+ for(let i=0;i<mesh.count;i++){mesh.getMatrixAt(i,m);p.setFromMatrixPosition(m);const e=m.elements,size=Math.hypot(e[0],e[1],e[2]);if(p.distanceTo(camera.position)<D.chunkClear[0])near=Math.max(near,size);else if(p.distanceTo(camera.position)>D.chunkClear[1])far=Math.max(far,size);}
+ assert.equal(near,0,'nothing at the lens');assert.ok(far>0,'chunks away from it keep their size');
+});

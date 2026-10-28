@@ -115,11 +115,11 @@ export function createDigFx(scene,{puffMap=null}={}){
  const m=new T.Matrix4(),q=new T.Quaternion(),roll=new T.Quaternion(),axis=new T.Vector3(),at=new T.Vector3(),size=new T.Vector3(),facing=new T.Vector3(0,0,1),look={size:0,alpha:0};
  function upload(attribute,count,width){attribute.clearUpdateRanges();attribute.addUpdateRange(0,count*width);attribute.needsUpdate=true;}
  // Releases due bursts, steps both pools and writes the live instances. Puffs turn to face the camera and thin out close to it, so dust
- // you stand in does not fog the view.
+ // you stand in does not fog the view, and chunks passing right by the lens shrink away instead of filling it.
  function update(dt,camera,groundAt,now=performance.now()){
   flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt);
   const cm=chunkMesh.instanceMatrix.array,cc=chunkMesh.instanceColor.array;
-  for(let i=0;i<chunks.count;i++){const s=chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i]);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
+  const cam=camera.position,[c0,c1]=D.chunkClear;for(let i=0;i<chunks.count;i++){const d=Math.hypot(chunks.x[i]-cam.x,chunks.y[i]-cam.y,chunks.z[i]-cam.z),near=d>=c1?1:d<=c0?0:(d-c0)/(c1-c0),s=chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i])*near*near*(3-2*near);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
   chunkMesh.count=chunks.count;chunkMesh.visible=chunks.count>0;if(chunks.count){upload(chunkMesh.instanceMatrix,chunks.count,16);upload(chunkMesh.instanceColor,chunks.count,3);}
   const drag=Math.exp(-dt*1.5),lift=Math.exp(-dt*0.8);
   for(let i=puffs.count-1;i>=0;i--){puffs.age[i]+=dt;if(puffs.age[i]>=puffs.life[i]){dropSlot(puffs,i);continue;}puffs.vx[i]*=drag;puffs.vz[i]*=drag;puffs.vy[i]*=lift;puffs.x[i]+=puffs.vx[i]*dt;puffs.y[i]+=puffs.vy[i]*dt;puffs.z[i]+=puffs.vz[i]*dt;puffs.roll[i]+=puffs.turn[i]*dt;}
