@@ -1,5 +1,10 @@
 export const C = {
- console:{overdriveDrift:1.8,overdriveBonus:0.6,kinds:['PRESSURE','HEAT','ALIGN','POWER'],drift:0.06,crewDrift:0.25,redDrag:0.5,jitter:0.15,flipMs:2500,tuneStep:0.07,green:0.12,yellow:0.28,zoneSpeed:{green:1,yellow:0.75,red:0.4}},
+ // Drill console seats. Rates are needle units per second at pace 1 (one crew, nothing red, no overdrive); more crew, red gauges and the overdrive raise the pace.
+ // HEAT rises at a rate that swings by up to swing at each flip, and one vent tap knocks it back by tuneStep. PRESSURE rises the same way while shut and falls while held.
+ // ALIGN: each axis wanders at drift and the pair spreads apart until both pads are held; then they pull together (per second) and the wander drops to steady.
+ // POWER: the target band eases (per second) toward drift speed in a wandering direction between low and high; W/S move the throttle keys per second. sendMs paces held input.
+ console:{overdriveDrift:1.8,overdriveBonus:0.6,kinds:['PRESSURE','HEAT','ALIGN','POWER'],drift:0.07,crewDrift:0.25,redDrag:0.5,jitter:0.15,flipMs:2500,tuneStep:0.09,green:0.12,yellow:0.28,zoneSpeed:{green:1,yellow:0.75,red:0.4},swing:0.3,
+  heat:{rise:0.055},pressure:{rise:0.07,fall:0.15},align:{spread:0.06,pull:2.5,steady:0.35,edge:0.1},power:{ease:1.5,low:0.15,high:0.85,keys:0.7},sendMs:100},
  core:{heartRadius:0.5,shellRadius:0.64,shards:18,rays:7,rayLength:4.5,debris:28,lightRange:18,lightIntensity:9,haloSize:4.2,haloGlow:1.5,crackGlow:2.2,shellGlow:0.6,beamOpacity:0.55,coneOpacity:0.1,coneTop:2.6,coneBottom:0.85,embers:420,emberSize:0.12,openRings:3,ringGlow:1.8,ringStagger:0.22,ringSeconds:2.2,ringReach:22,ringWidth:0.4,boreScale:1,embed:0.25,openAt:1.5,openSeconds:4,openDistance:0.55,beamTop:14,riseHeight:2.6,capsuleClear:1.5,cinematicSeconds:12,cinematicDistance:7.5},
  // Finale presentation: the flash and aberration when the core opens, the dawn timing, and the camera's slow orbit over the rescued planet.
  finale:{flash:0.6,flashSeconds:0.8,aberration:0.012,aberrationSeconds:0.6,overdriveAberration:0.0022,overdriveHz:1.2,dawnStart:3,dawnEnd:13,diveOffset:0.5,diveAlign:0.6,boreRadius:1.15,boreHeight:3,orbitRadius:13,orbitHeight:6.8,orbitAngle:0.64,orbitSpeed:0.02,orbitPull:0.35,lookHeight:3.2,riseUntil:0.8,sweepFrom:0.3},
@@ -60,7 +65,9 @@ export const C = {
  cover:{pixelRatio:1,width:1200,height:630,seed:9,eyeFov:60,chaseBack:8,chaseUp:4,pitch:-0.12,rovers:[[11.5,13.5],[9.5,11.5]],shaft:[10,10],shaftRow:30},
  resilience:{leaveGraceSeconds:90,actionLimit:4,actionWindowMs:1000,wireLimit:65536,messageLimit:80,queueLimit:128,reconnectMaxMs:15000,reconnectFactor:2,soloNudgeSeconds:60},
  showcase:{site:[4,8],boreRow:156,oilRow:30,pumps:[[11,4],[12,4]],pits:[[10,10,24],[11,10,30],[12,10,26],[5,12,12],[6,12,15]],fundShare:2.5,pods:3,wallet:50000000,boardedMs:12000,limitSeconds:600},
- bots:{suffix:' (bot)',names:['Rook','Pip','Moss','Juno','Vega','Kit'],fillEveryMs:1000,wander:1.2,levels:{easy:{tapEveryMs:450,tradeEveryMs:4000,spare:1.8,tuneAt:0.24,tuneEveryMs:600,voteDelayMs:5000,napChance:0.003,napMs:4000},normal:{tapEveryMs:250,tradeEveryMs:2000,spare:1.4,tuneAt:0.15,tuneEveryMs:320,voteDelayMs:3000,napChance:0.0012,napMs:2500},hard:{tapEveryMs:160,tradeEveryMs:1000,spare:1.2,tuneAt:0.1,tuneEveryMs:200,voteDelayMs:1500,napChance:0.0003,napMs:1500}}},
+ // Bot seat habits: tuneAt is how far off centre HEAT and PRESSURE get before the bot reacts and tuneEveryMs its reaction time; a HEAT vent doubles up (overcools) with chance fumble;
+ // PRESSURE lets go only letGo below centre; ALIGN slips off the pads with chance slip per tick for about slipMs; POWER closes follow of the gap to the target each tick, with shake of hand noise.
+ bots:{suffix:' (bot)',names:['Rook','Pip','Moss','Juno','Vega','Kit'],fillEveryMs:1000,wander:1.2,levels:{easy:{tapEveryMs:450,tradeEveryMs:4000,spare:1.8,tuneAt:0.2,tuneEveryMs:450,voteDelayMs:5000,napChance:0.003,napMs:4000,letGo:0.14,fumble:0.3,slip:0.05,slipMs:1400,follow:0.07,shake:0.09},normal:{tapEveryMs:250,tradeEveryMs:2000,spare:1.4,tuneAt:0.17,tuneEveryMs:360,voteDelayMs:3000,napChance:0.0012,napMs:2500,letGo:0.12,fumble:0.25,slip:0.04,slipMs:1200,follow:0.09,shake:0.08},hard:{tapEveryMs:160,tradeEveryMs:1000,spare:1.2,tuneAt:0.11,tuneEveryMs:240,voteDelayMs:1500,napChance:0.0003,napMs:1500,letGo:0.06,fumble:0.1,slip:0.01,slipMs:800,follow:0.2,shake:0.045}}},
  pacing:{seed:5,navStep:0.25,minimumSeconds:1200,maximumSeconds:2100,spare:1.2,tapEveryMs:150,tradeEveryMs:300,largeDelivery:1000},
  testing:{drillPrice:80,leaveGraceSeconds:1,integrationWaitMs:30000},
  ending:{green:'#639d58'},
@@ -193,3 +200,22 @@ body.hub-open #game>#core-meter:not([hidden]){position:fixed;top:0;left:0;right:
 // Graphics upgrade: the awards sit on a frosted translucent card so the rescued planet shows around them. The backdrop blur is
 // limited to the card: a full-screen blur over the animating canvas measurably cost frame rate behind the ending panel.
 export const GFX_STYLE = `#ending article{background:#14201cb8;-webkit-backdrop-filter:blur(6px) saturate(1.2);backdrop-filter:blur(6px) saturate(1.2);border:1px solid #d4ed8733;border-radius:18px;padding:22px 26px;box-shadow:0 18px 60px #0006}#ending h2,#ending dd{text-shadow:0 1px 8px #000a}@media (max-height:500px){#ending{padding:10px;place-items:start center}#ending article{max-width:620px;padding:12px 18px}#ending h2{font-size:19px;margin:6px 0}#ending p{margin:4px 0}#ending dl{margin:8px 0;display:grid;grid-template-columns:auto 1fr;gap:4px 16px;align-items:baseline}#ending dt{margin:0;font-size:10px}#ending dd{font-size:14px;margin:0}#ending button{min-height:40px}}`;
+
+// Drill console seats: a row of tall thumb pads (two for ALIGN) and a scrolling graph for the ALIGN axes and the POWER band.
+// Pads and graph take touch-action none so a held thumb never scrolls, zooms or long-presses. Docked on a sideways phone, the
+// console starts lower to clear the taller drill readout and the graph takes the spare height. ALIGN needs both thumbs and the
+// most room: its left pad moves to the bottom left corner under the left thumb (rising above the vote banner while a vote is up,
+// when the guide card is hidden anyway), and the teammates' bars give way so the right pad is never cut off; their gauges still
+// show on the cockpit screens.
+export const CONSOLE_STYLE = `#console-pads{display:flex;gap:8px;margin-top:6px}#console-pads>.console-pad{flex:1 1 0;min-width:0;width:auto;min-height:54px;margin:0;padding:6px 8px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;font-weight:700;letter-spacing:2px;background:#24414a;color:#e8f0d8;border:1px solid #80d8ff;border-radius:8px;touch-action:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}.console-pad b{font-size:15px;line-height:1.1}.console-pad small{font-size:10px;font-weight:500;letter-spacing:.3px;color:#a8c6cf}#console-pads>.console-pad.held{background:#2f6f8f;border-color:#d4ed87;box-shadow:inset 0 0 0 2px #d4ed8766,0 0 12px #80d8ff66}#console-graph{display:block;width:100%;height:92px;margin:6px 0 2px;box-sizing:border-box;border:1px solid #2c5966;border-radius:6px;background:#08161b;touch-action:none}#drill-console[data-kind=POWER] #console-graph{height:124px;cursor:ns-resize}#drill-road{margin-top:4px;color:#d4ed87;font-weight:600}
+@media (orientation:landscape) and (max-height:500px){
+body.aboard #game #drill-console:not([hidden]){top:74px}
+body.aboard #console-pads{margin-top:auto;flex:0 0 auto}
+body.aboard #console-pads>#console-tune{margin-top:0;font-size:inherit}
+body.aboard #console-graph{flex:1 1 60px;min-height:40px;height:auto;margin:4px 0}
+body.aboard #drill-console[data-kind=POWER] #console-graph{height:auto;flex:1 1 90px}
+body.aboard #drill-console[data-kind=ALIGN] #console-crew{display:none}
+body.aboard #drill-console[data-kind=ALIGN] #console-pads>#console-pad-left{position:fixed;left:max(12px,env(safe-area-inset-left));bottom:max(12px,env(safe-area-inset-bottom));width:124px;min-height:84px;z-index:6;background:#24414aee}
+#map-wrap:has(#vote-banner:not([hidden])) #drill-console[data-kind=ALIGN] #console-pads>#console-pad-left{bottom:100px}
+body.aboard #drill-road{font-size:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+}`;

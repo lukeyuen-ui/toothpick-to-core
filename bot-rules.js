@@ -39,7 +39,7 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
  if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
   const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&showcaseReady(room,now)?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
- if(p.boarded){if(!crewWanted){add('board');return;}const g=room.console?.[p.publicId];if(g&&Math.abs(g.v-0.5)>L.tuneAt&&now>=b.nextTune){add('tune');b.nextTune=now+L.tuneEveryMs*(0.7+0.6*Math.random());}return;}
+ if(p.boarded){if(!crewWanted){add('board');return;}const g=room.console?.[p.publicId];if(g)workSeat(g,b,L,now,add);return;}
  if(crewWanted){if(p.shaft!=null)add('returnHome');else add('board');return;}
  const full=p.hold.units>=holdCapacity(p),blocked=p.shaft!=null&&(gate(p,room.cells[p.shaft].row,room)||room.cells[p.shaft].row>lightReach(room,p));
  if(full||blocked){add('returnHome');b.route=null;if(blocked)b.work=null;return;}
@@ -55,6 +55,15 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){b.route=null;add('move',{dx:0,dy:0});add('belayDown',{x,y});}else steer(b,p,x+0.5,y+0.5,room,add);}
  else if(!within(p,x,y))steer(b,p,x+0.5,y+0.5,room,add);
  else if(now>=b.nextTap){b.route=null;add('move',{dx:0,dy:0});add('tap',{x,y});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}}
+
+// Each bot plays its seat the way a person might, late and loose by skill: HEAT vents only once the needle is already high and sometimes twice,
+// PRESSURE opens the valve when high and lets go late, ALIGN grips both pads but slips off now and then, POWER chases the target band with lag and a shaky hand.
+export function workSeat(g,b,L,now,add){const d=g.v-0.5,ready=now>=b.nextTune,later=()=>{b.nextTune=now+L.tuneEveryMs*(0.7+0.6*Math.random());};if(b.seat!==g){b.seat=g;b.level=g.level;b.gripAt=0;}
+ if(g.kind==='HEAT'){if(d>L.tuneAt&&ready){add('tune');if(Math.random()<L.fumble)add('tune');later();}return;}
+ if(g.kind==='PRESSURE'){if(ready&&(g.hold?d<-L.letGo:d>L.tuneAt)){add('tune',{hold:!g.hold});later();}return;}
+ // A slipped ALIGN grip comes back when the slip is over, or sooner once the axes visibly fly apart.
+ if(g.kind==='ALIGN'){if(g.hold&&Math.random()<L.slip){add('tune',{hold:false});b.gripAt=now+L.slipMs*(0.5+Math.random());}else if(!g.hold&&(now>=b.gripAt||Math.abs(d)>L.tuneAt+0.05))add('tune',{hold:true});return;}
+ if(g.kind==='POWER'){b.level=Math.min(1,Math.max(0,b.level+(g.target-b.level)*L.follow+(Math.random()-0.5)*L.shake));add('tune',{level:Math.round(b.level*1000)/1000});}}
 
 // Grid path search around open holes (the same walker the pacing simulations use).
 function steer(b,p,x,y,room,add){const key=x+':'+y,unit=C.pacing.navStep,width=Math.round(C.mapSize/unit),goal=Math.floor(y)*C.mapSize+Math.floor(x);

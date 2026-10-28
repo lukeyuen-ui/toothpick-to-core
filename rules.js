@@ -8,7 +8,7 @@ import {cleanNickname,expireDepartures} from './presence-rules.js';
 import {shaftGate,enterShaft,trackSurfaceCell,advanceShaft,walkShaft,startBelay,lightShaft,atHub,rimArrival} from './shaft-rules.js';
 import { C } from './config.js';
 import {applyMove,liveMove,slide,driveStep,validPosition} from './movement-rules.js';
-import {initialTeam,creditFund,markActive,teamAction,runTeam,board,catalog,resolveVote,tuneConsole} from './team-rules.js';
+import {initialTeam,creditFund,markActive,teamAction,runTeam,board,catalog,resolveVote,tuneConsole,publicConsole} from './team-rules.js';
 import {isDepot,addCargo,hoistCargo,haulAlong,runConveyors,publicPiles,returnHome,crossedCells,privateToast} from './hauling-rules.js';
 export function seeded(seed) { let state=seed>>>0; return ()=>{state=(Math.imul(state,C.seed.multiplier)+C.seed.increment)>>>0; return state/C.seed.modulus;}; }
 export function generateFinds(seed) {
@@ -111,7 +111,8 @@ export function action(room,p,message,now) {
  if(['buyExcavator','placeExcavator','toggleExcavator','takeExcavator'].includes(message.type))return excavatorAction(room,p,message,now);
  if(['chip','propose','proposeSite','proposeConveyor','vote','cancelVote','board','reset'].includes(message.type))return teamAction(room,p,message,now);
  if(room.won)return;
- if(message.type==='tune'){p.tapTimes=p.tapTimes.filter(t=>now-t<C.tapWindowMs);if(p.tapTimes.length>=C.tapsPerSecond)return;p.tapTimes.push(now);tuneConsole(room,p);markActive(room,p,now);return;}
+ // A vent tap is rate limited like a dig tap. Hold and level only restate the control's position, so they always land: dropping a release would leave a valve stuck open.
+ if(message.type==='tune'){if(typeof message.hold!=='boolean'&&message.level==null){p.tapTimes=p.tapTimes.filter(t=>now-t<C.tapWindowMs);if(p.tapTimes.length>=C.tapsPerSecond)return;p.tapTimes.push(now);}tuneConsole(room,p,message);markActive(room,p,now);return;}
  if(message.type==='aim'){p.aim=validCell(message.x,message.y)?{x:message.x,y:message.y}:null;p.oilAim=oilAimAt(room,p);return;}
  if(message.type==='belay'){const l=Math.hypot(message.dx||0,message.dy||0);if(p.shaft!=null&&!p.belay)p.exitDir=l>0.1?{dx:message.dx/l,dy:message.dy/l}:null;startBelay(room,p,now);return;}
  if(message.type==='belayDown'){if(p.shaft!=null||p.belay||p.boarded||p.boarding)return;const {x,y}=message;if(!validCell(x,y))return;const index=y*C.mapSize+x;if(!room.cells[index].row||isDepot(x,y))return {type:'toast',text:'Dig a hole first'};if(machineAt(room,x,y))return {type:'toast',text:'Keep out. Excavator running.'};if(room.drill&&index===room.site)return {type:'toast',text:'That is the drill bore. Board the drill instead.'};if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))>1)return {type:'toast',text:'Walk up to the hole first'};markActive(room,p,now);p.lastWorked=now;p.returning=false;enterShaft(room,p,index);return;}
@@ -184,7 +185,7 @@ function delta(previous,next){const patch={};for(const [key,value]of Object.entr
 export function snapshot(room,full=false) {
  full=full||room.resetEvent;
  const metadata={code:room.code,fast:room.fast,quick:room.quick,showcase:!!room.showcase,createdAt:room.createdAt,deepest:room.deepest,depth:depthAt(room.deepest),round:room.round};
- const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil','console'].map(key=>[key,room[key]]));team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
+ const team=Object.fromEntries(['fund','fundIncome','vote','goal','locks','site','drill','coolant','worldBreaker','won','stats','wonAt','oil'].map(key=>[key,room[key]]));team.console=publicConsole(room);team.excavators=publicExcavators(room);team.solo=!!soloPlayer(room);team.fields=Object.entries(room.oilFields).map(([id,f])=>({id,cells:f.cells,wells:f.cells.filter(i=>room.cells[i].pumpBuilt).length}));team.catalog=catalog(room);team.conveyorUnitPrice=C.hauling.conveyorCostPerCell;team.conveyorLines=room.conveyorLines.map(line=>({source:line.source,length:line.length,ownerId:line.ownerId,oreCells:line.path.filter(index=>room.piles[index]?.units).length}));
  const players=room.players.map(publicPlayer),hintStrings=Object.fromEntries(Object.entries(room.hints).map(([key,value])=>[key,JSON.stringify(value)]));
  const piles=publicPiles(room),belts=room.belts;
  const envelope={type:full?'full':'diff',tick:room.tick,serverNow:room.now};
