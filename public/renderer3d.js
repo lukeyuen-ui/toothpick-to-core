@@ -31,7 +31,7 @@ export function createRenderer3D(canvas,mini,rods,money,options={}){
  // Antialiasing comes from the multisampled scene target in glow.js, so the canvas skips a multisampled buffer of its own.
  const gl=new T.WebGLRenderer({canvas,antialias:false,alpha:false,powerPreference:'high-performance'});gl.setPixelRatio(settings.pixelRatio);gl.shadowMap.enabled=settings.shadows;gl.shadowMap.type=T.PCFShadowMap;gl.outputColorSpace=T.SRGBColorSpace;gl.toneMapping=T.ACESFilmicToneMapping;gl.toneMappingExposure=L.exposure;const glow=createGlow(gl,L.post);
  const scene=new T.Scene();scene.background=new T.Color(L.night.horizon);scene.fog=new T.Fog(L.haze.color,L.haze.near,L.haze.far);const camera=new T.PerspectiveCamera(V.fov,1,V.near,V.far);
- // Sun and sky (C.look): a warm low sun whose shadows soften on High, and a lavender-blue hemisphere fill so the shade never goes black.
+ // Sun and sky (C.look): a low sun warmed by dust whose shadows soften on High, and an ash-grey hemisphere fill so the shade never goes black.
  const skyLight=new T.HemisphereLight(L.sky.color,L.sky.ground,L.sky.intensity);scene.add(skyLight);const sun=new T.DirectionalLight(L.sun.color,L.sun.intensity);sun.position.set(...V.sun);sun.castShadow=true;sun.shadow.mapSize.setScalar(settings.shadowMapSize);sun.shadow.radius=settings.shadowSoftness;sun.shadow.bias=L.shadow.bias;sun.shadow.normalBias=L.shadow.normalBias;scene.add(sun);sun.target.position.set(N/2,0,N/2);scene.add(sun.target);
  // The shadow box hugs the claim: the corners of the claim plus margin (the forest's reach in the finale), from the deepest floor to the
  // rig's crown, seen from the sun, set the orthographic bounds, so the map spends its texels on ground that can be seen.
