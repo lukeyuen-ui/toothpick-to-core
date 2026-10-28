@@ -63,7 +63,7 @@ export function makeFactory(scene,assets){
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,hull,0.07,RY-G,0.07,x,(RY+G)/2,z);
  for(let k=1;k<4;k++){const x=(k-2)*D.seatGap;for(const z of [-PZ,PZ])box(capsule,hull,0.045,RY-G,0.045,x,(RY+G)/2,z);}
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,'#ff7a3a',0.05,0.05,0.05,x,RY+0.05,z,true);
- const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.position.set(0,D.eye+0.12,D.eyeZ+0.2);capsule.add(cabin);
+ const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.position.set(0,D.roofY-0.06,D.bodyZ+0.3);capsule.add(cabin);
  // Cutter head: a toothed wheel under the pod. Its spokes turning are how the crew see the drill working.
  const cutter=new T.Group();cutter.name='Plasma cutter head';cutter.position.y=D.cutterY;capsule.add(cutter);const CR=D.cutterRadius,steel2='#8f989c';
  const rim=new T.Mesh(new T.TorusGeometry(CR,0.07,8,56).rotateX(Math.PI/2),mat(steel2));rim.castShadow=true;cutter.add(rim);
