@@ -14,11 +14,17 @@ export function textures(){
  const seep=canvasTexture(128,128,(c,w,h)=>{const g=c.createRadialGradient(64,64,6,64,64,56);g.addColorStop(0,'#101c20dd');g.addColorStop(0.6,'#162026bb');g.addColorStop(1,'#15252b00');c.fillStyle=g;c.fillRect(0,0,w,h);c.strokeStyle='#789e9d44';c.lineWidth=2;c.beginPath();c.ellipse(64,65,30,19,-0.4,0,Math.PI*2);c.stroke();});
  const planet=canvasTexture(1024,512,(c,w,h)=>{c.fillStyle='#c8c0a3';c.fillRect(0,0,w,h);for(let y=0;y<h;y++){const tone=0.5+0.5*Math.sin(y*0.08+Math.sin(y*0.023));c.fillStyle=`rgba(126,111,90,${0.05+tone*0.22})`;c.fillRect(0,y,w,1);}for(let i=0;i<80;i++){c.fillStyle='#eee5cd22';c.beginPath();c.ellipse(Math.random()*w,Math.random()*h,70,3+Math.random()*10,0,0,Math.PI*2);c.fill();}});
  const strata=canvasTexture(V.textureSize,V.strataHeight,(c,w,h)=>{let row=0;for(const l of C.layers){const from=row/C.finalRow*h;row+=l.rows;c.fillStyle=l.color;c.fillRect(0,from,w,row/C.finalRow*h-from+1);}for(let y=0;y<h;y++){c.fillStyle=y%7===0?'#08090655':'#ffffff0b';c.fillRect(0,y,w,1);for(let n=0;n<3;n++){c.fillStyle='#00000022';c.fillRect(Math.random()*w,y,Math.random()*8,1);}}for(let row=10;row<C.finalRow;row+=10){c.fillStyle='#090b0dcc';c.fillRect(0,row/C.finalRow*h,w,3);}c.strokeStyle='#15191ab0';c.lineWidth=1;for(let i=0;i<100;i++){const x=Math.random()*w,y=Math.random()*h;c.beginPath();c.moveTo(x,y);c.lineTo(x+7,y+4);c.lineTo(x+3,y+9);c.lineTo(x+12,y+17);c.stroke();}});
- const cracks=canvasTexture(V.textureSize,V.textureSize,(c,w,h)=>{c.clearRect(0,0,w,h);c.strokeStyle='#10150eee';c.lineWidth=C.polish.crackWidth*4;for(const ray of C.polish.crackRays){c.beginPath();ray.forEach(([x,y],i)=>i?c.lineTo((0.5+x)*w,(0.5+y)*h):c.moveTo(w/2,h/2));c.stroke();}});
+ // Cracks that grow out from the middle of a cell as it takes damage. Alpha is the crack; red is how far along its ray it lies (0 at the
+ // centre, 1 at the tips), so the floor shader draws only the part the cell's damage has reached. Wandering rays, each with a side branch.
+ const cracks=canvasTexture(V.textureSize,V.textureSize,(c,w,h)=>{c.clearRect(0,0,w,h);c.lineCap=c.lineJoin='round';let seed=7;const rnd=()=>{seed=(Math.imul(seed^(seed>>>15),2246822519)+0x9e3779b9)>>>0;return seed/4294967296;};
+  const ray=(x,y,a,length,t0,t1,width,branch)=>{const steps=8;for(let s=1;s<=steps;s++){a+=(rnd()-0.5)*0.7;const nx=x+Math.cos(a)*length/steps,ny=y+Math.sin(a)*length/steps,t=t0+(t1-t0)*s/steps,v=Math.round(255*(t0+(t1-t0)*(s-0.5)/steps));c.strokeStyle=`rgba(${v},${v},${v},0.92)`;c.lineWidth=Math.max(1.5,width*(1-0.6*s/steps));c.beginPath();c.moveTo(x,y);c.lineTo(nx,ny);c.stroke();if(branch&&s===3)ray(nx,ny,a+(rnd()<0.5?-1:1)*(0.55+rnd()*0.5),length*0.45,t,Math.min(1,t+0.4),width*0.55,false);x=nx;y=ny;}};
+  for(let k=0;k<6;k++)ray(w/2,h/2,k/6*Math.PI*2+rnd()*0.7,w*(0.3+rnd()*0.14),0,1,w*0.024,true);});cracks.colorSpace=T.NoColorSpace;
+ // A lumpy dust cloud for dig puffs: soft blobs clustered round the middle, fading to nothing well inside the edge.
+ const puff=canvasTexture(128,128,(c,w,h)=>{c.clearRect(0,0,w,h);for(let i=0;i<9;i++){const a=i*2.4,r=i?w*(0.1+0.06*(i%3)):0,x=w/2+Math.cos(a)*r,y=h/2+Math.sin(a)*r*0.8,s=w*(i?0.2+0.04*(i%2):0.28),g=c.createRadialGradient(x,y,0,x,y,s);g.addColorStop(0,'#ffffff50');g.addColorStop(0.55,'#ffffff24');g.addColorStop(1,'#ffffff00');c.fillStyle=g;c.fillRect(0,0,w,h);}});
  const stripes=canvasTexture(V.textureSize,V.textureSize,(c,w,h)=>{c.fillStyle='#b5ad63';c.fillRect(0,0,w,h);c.strokeStyle='#303b39';c.lineWidth=w/8;for(let x=-w;x<w*2;x+=w/4){c.beginPath();c.moveTo(x,0);c.lineTo(x-w,h);c.stroke();}});stripes.wrapS=stripes.wrapT=T.RepeatWrapping;stripes.repeat.set(4,1);
  const belt=canvasTexture(V.textureSize,V.textureSize,(c,w,h)=>{c.fillStyle='#424d4d';c.fillRect(0,0,w,h);c.strokeStyle='#b0b9a0';c.lineWidth=6;for(let y=-h;y<h*2;y+=h/3){c.beginPath();c.moveTo(w/4,y+h/5);c.lineTo(w/2,y);c.lineTo(w*3/4,y+h/5);c.stroke();}});belt.wrapS=belt.wrapT=T.RepeatWrapping;
  const trackCanvas=document.createElement('canvas');trackCanvas.width=trackCanvas.height=V.trackSize;const tracks=new T.CanvasTexture(trackCanvas);tracks.colorSpace=T.SRGBColorSpace;
- return {veinSign,seep,dust:regolith,regolith,normal,softDust,sunDisk,crater,solar,planet,strata,cracks,stripes,belt,tracks,trackCanvas};
+ return {veinSign,seep,dust:regolith,regolith,normal,softDust,puff,sunDisk,crater,solar,planet,strata,cracks,stripes,belt,tracks,trackCanvas};
 }
 export function mergeStatic(meshes,material){let count=0;const geometries=meshes.map(m=>{m.updateMatrix();const g=(m.geometry.index?m.geometry.toNonIndexed():m.geometry.clone());g.applyMatrix4(m.matrix);count+=g.attributes.position.count;return g;});const geometry=new T.BufferGeometry();for(const key of ['position','normal','uv']){const size=key==='uv'?2:3,array=new Float32Array(count*size);let offset=0;for(const g of geometries){array.set(g.attributes[key].array,offset);offset+=g.attributes[key].array.length;}geometry.setAttribute(key,new T.BufferAttribute(array,size));}for(const g of geometries)g.dispose();return new T.Mesh(geometry,material);}
 export function makeFactory(scene,assets){
@@ -52,7 +58,7 @@ export function makeFactory(scene,assets){
  // Surface frame: straddles the 3 by 3 bore and stays put.
  for(const s of [-1,1]){box(root,frame,2*R+0.16,0.14,0.16,0,0.08,s*R);box(root,frame,0.16,0.14,2*R+0.16,s*R,0.08,0);box(root,frame,2*R+0.1,0.12,0.12,0,top,s*R);box(root,frame,0.12,0.12,2*R+0.1,s*R,top,0);}
  for(const x of [-R,R])for(const z of [-R,R])box(root,steel,0.1,top,0.1,x,top/2,z);
- box(root,frame,2*R,0.08,0.1,0,top,0);box(root,frame,0.1,0.08,2*R,0,top,0);box(root,'#2f3a3e',0.5,0.22,0.5,0,top+0.12,0);
+ box(root,frame,2*R,0.08,0.1,0,top,0);box(root,frame,0.1,0.08,2*R,0,top,0);const crown=box(root,'#2f3a3e',0.5,0.22,0.5,0,top+0.12,0);
  // Cockpit pod: lowered on cables as the bore deepens. Its local zero sits on the dig face.
  // Up to four crew lie face down side by side above a glass floor, like a shuttle crew turned to face the ground.
  // Each station has a dashboard, a gauge screen and two control sticks held in gloved hands; the cutter head spins below the glass.
@@ -63,7 +69,7 @@ export function makeFactory(scene,assets){
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,hull,0.07,RY-G,0.07,x,(RY+G)/2,z);
  for(let k=1;k<4;k++){const x=(k-2)*D.seatGap;for(const z of [-PZ,PZ])box(capsule,hull,0.045,RY-G,0.045,x,(RY+G)/2,z);}
  for(const x of [-PX,PX])for(const z of [-PZ,PZ])box(capsule,'#ff7a3a',0.05,0.05,0.05,x,RY+0.05,z,true);
- const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.position.set(0,D.roofY-0.06,D.bodyZ+0.3);capsule.add(cabin);
+ const cabin=new T.PointLight('#ffe6c2',D.cabinLight,D.cabinRange,2);cabin.name='Drill cabin light';cabin.position.set(0,D.roofY-0.06,D.bodyZ+0.3);capsule.add(cabin);
  // Cutter head: a toothed wheel under the pod. Its spokes turning are how the crew see the drill working.
  const cutter=new T.Group();cutter.name='Plasma cutter head';cutter.position.y=D.cutterY;capsule.add(cutter);const CR=D.cutterRadius,steel2='#8f989c';
  const rim=new T.Mesh(new T.TorusGeometry(CR,0.07,8,56).rotateX(Math.PI/2),mat(steel2));rim.castShadow=true;cutter.add(rim);
@@ -78,7 +84,7 @@ export function makeFactory(scene,assets){
  const housing=cylinder(capsule,'#3a4348',0.13,0.05,0,G-0.035,0);cylinder(capsule,'#4c565c',0.065,G-D.cutterY-0.06,0,(G+D.cutterY)/2-0.03,0);
  const plasma=new T.Group();plasma.name='Plasma glow';capsule.add(plasma);const plasmaMat=new T.MeshBasicMaterial({color:'#7fd0ff',transparent:true,opacity:0.85,blending:T.AdditiveBlending,depthWrite:false});
  const ringGlow=new T.Mesh(new T.TorusGeometry(CR,0.05,6,56).rotateX(Math.PI/2),plasmaMat);ringGlow.position.y=D.cutterY-0.16;plasma.add(ringGlow);const disc=new T.Mesh(new T.CircleGeometry(0.3,24).rotateX(-Math.PI/2),plasmaMat);disc.position.y=D.cutterY-0.14;plasma.add(disc);
- const glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.position.y=0.12;plasma.add(glow);
+ const glow=new T.PointLight('#7cc8ff',D.plasmaLight,D.plasmaRange,2);glow.name='Drill plasma light';glow.position.y=0.12;plasma.add(glow);
  // Crew stations. Seat order fills the middle first, so a crew of two sit side by side in the centre.
  const view=new T.Quaternion().setFromRotationMatrix(new T.Matrix4().lookAt(new T.Vector3(),new T.Vector3(0,Math.sin(D.boardPitch),-Math.cos(D.boardPitch)),new T.Vector3(0,1,0)));
  const seats=[],pads=[],seatSpots=[],consoles=[],stations=[],glove=mat('#e4e9e3'),fingerGeo=new T.CapsuleGeometry(0.0072,0.022,3,6),suit=mat('#e9ece6'),grip='#2a2a2c';
@@ -95,6 +101,6 @@ export function makeFactory(scene,assets){
    const sleeve=new T.Mesh(geometries.cylinder,suit);sleeve.scale.set(0.028,0.1,0.028);g.add(sleeve);sleeves.push(sleeve);const band=new T.Mesh(geometries.cylinder,mat('#2f6f8f'));band.scale.set(0.03,0.018,0.03);g.add(band);bands.push(band);sticks.push({pivot,hand,button,side});}
   stations.push({group:g,dash,sticks,sleeves,bands,cuffs,lights,screen:{canvas,ctx:canvas.getContext('2d'),texture:screenTexture,key:''},tunedAt:-Infinity});}
  const cables=[];for(const x of [-PX+0.03,PX-0.03])for(const z of [-PZ+0.03,PZ-0.03])cables.push(cylinder(root,'#9aa6a8',0.012,1,x,top/2,z));
- scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,jets,jetGroup,seats,pads,seatSpots,consoles,stations,housing};}
+ scene.add(root);return {root,capsule,cables,bit:cutter,cutter,plasma,jets,jetGroup,seats,pads,seatSpots,consoles,stations,housing,cabin,plasmaLight:glow,crown};}
  return {box,cylinder,mesh,label,rover,depot,pump,drill,mat,geometries};
 }

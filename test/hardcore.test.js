@@ -11,7 +11,7 @@ import {mergeSnapshot} from '../public/protocol.js';
 const H=C.hardcore,near=(a,b)=>assert.ok(Math.abs(a-b)<=1e-6*Math.max(1,Math.abs(b)),`${a} != ${b}`),cmd=(p,type,extra={})=>({player:p,message:{type,...extra}});
 function room({hardcore=true,quick=false,fast=false,count=1}={}){const r=createRoom('HARD',42,fast,0,quick,hardcore);r.finds=[];for(let i=0;i<count;i++){const p=join(r,'p'+i,'P'+i,0);p.publicId='p'+i;p.x=p.y=6.5;p.lastActive=0;}return r;}
 // Toothpick taps, sent the way a person does (a tap every 200 ms), until the cell at (3,2) gives up its first row.
-function toothpickTaps(r){const p=r.players[0],i=2*C.mapSize+3;p.x=p.y=2.5;let taps=0;while(r.cells[i].row===0&&taps<100){taps++;step(r,[cmd(p,'tap',{x:3,y:2})],r.now+2*C.tickMs);}return {p,i,taps};}
+function toothpickTaps(r){const p=r.players[0],i=2*C.mapSize+3;p.x=p.y=2.5;let taps=0;while(r.cells[i].row===0&&taps<10000){taps++;step(r,[cmd(p,'tap',{x:3,y:2})],r.now+2*C.tickMs);}return {p,i,taps};}
 
 test('a Hardcore room says so in every snapshot, on the client too, and keeps the mode through Dig again',()=>{
  const r=room(),p=r.players[0];assert.equal(r.hardcore,true);
@@ -34,6 +34,13 @@ test(`Hardcore ore, finds and oil pay 1/${H.valueDivisor} as much at the same pr
   r.cells[2].pumpBuilt=true;p.lastWorked=0;const before=r.fund;step(r,[],100);near(r.fund-before,C.team.barrelPrice*C.tickSeconds*factor*C.team.machinePersonalFraction);}
  const hard=room({count:2}),full=room({hardcore:false,count:2});assert.deepEqual(catalog(hard).map(e=>[e.item,e.price]),catalog(full).map(e=>[e.item,e.price]));
  const r=room(),p=r.players[0];p.wallet=100;step(r,[cmd(p,'buy',{kind:'tool'})],r.now+C.tickMs);assert.equal(p.tool,1);near(p.wallet,100-C.tools[1].cost);});
+
+test('a hardcore explorer lands with the starting wallet: the first tools and the Headlamp the poor daylight ore cannot pay for',()=>{
+ const r=room({count:2});for(const p of r.players)assert.equal(p.wallet,H.startWallet);
+ assert.ok(H.startWallet>=C.tools[1].cost+C.tools[2].cost+C.lighting[0].cost,'Spoon, Trowel and Headlamp');
+ const p=r.players[0];p.wallet=7;p.connected=false;assert.equal(join(r,p.token,'Again',r.now).wallet,7,'a reconnect keeps the wallet: no second grant');
+ r.won=true;step(r,[cmd(p,'reset')],r.now+C.tickMs);assert.equal(r.round,1);for(const q of r.players)assert.equal(q.wallet,H.startWallet,'Dig again lands everyone with it again');
+ for(const other of [room({hardcore:false}),room({hardcore:false,quick:true})])assert.equal(other.players[0].wallet,0,'Full and Quick still start at $0');});
 
 test('Quick and Showcase are untouched: no hardcore flag, ordinary rock, ordinary pay',()=>{
  const quick=createRoom('QUIK',42,false,0,true,true);assert.equal(quick.hardcore,false,'quick wins if a message asks for both');assert.equal(quick.quick,true);assert.ok(quick.cells.every(c=>c.hp===hp(0)));near(incomeMultiplier(quick),C.quickValueMultiplier);assert.equal(snapshot(quick,true).hardcore,false);

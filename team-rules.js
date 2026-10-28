@@ -80,6 +80,9 @@ export function boreCells(room){const N=C.mapSize,x=room.site%N,y=Math.floor(roo
 // and the bots read all four alike. More crew, any red gauge and the overdrive raise the pace of every seat.
 // The crew's average zone scales drill speed: green speeds it up, red stalls it.
 export function consoleZone(v){const K=C.console,d=Math.abs(v-0.5);return d<=K.green?'green':d<=K.yellow?'yellow':'red';}
+// How deep a needle sits in the red: 0 anywhere short of red, rising from the red line to 1 at the end stop. The drill cab's
+// red-zone rumble and vignette scale with it.
+export function consoleRedDepth(v){const K=C.console;return consoleZone(v)==='red'?Math.min(1,(Math.abs(v-0.5)-K.yellow)/(0.5-K.yellow)):0;}
 function consoleRandom(room){room.consoleSeed=((room.consoleSeed??(room.seed||1))*1103515245+12345)%2147483648;return room.consoleSeed/2147483648;}
 const unit=x=>Math.min(1,Math.max(0,x)),sign=room=>consoleRandom(room)<0.5?-1:1;
 function newGauge(room,kind,now){const g={kind,v:0.5,dir:sign(room),rate:1,flipAt:now+C.console.flipMs};if(kind==='PRESSURE')g.hold=false;if(kind==='ALIGN')Object.assign(g,{a:0.5,b:0.5,da:g.dir,db:sign(room),hold:false});if(kind==='POWER')Object.assign(g,{level:0.5,target:0.5,speed:0});return g;}
