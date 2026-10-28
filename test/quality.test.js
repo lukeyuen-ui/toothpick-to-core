@@ -22,6 +22,14 @@ test('post: bloom, vignette and the grade come from C.look.post; grain starts of
  assert.equal(u.threshold.value,P.threshold);assert.ok(P.threshold>1,'sunlit white paint stays under the bloom threshold');assert.ok(P.vignette>0&&P.vignette<0.2,'a light vignette');
  assert.equal(u.grain.value,0);assert.deepEqual(u.lift.value.toArray(),P.lift);assert.ok(P.shadowTint[2]>P.shadowTint[0],'shade graded cool');
 });
+test('shaft light: the surface keeps its full fill and sun; down a shaft both fade faster than daylight, dark beyond the lamp by row 20',async()=>{
+ const {C}=await import('../config.js'),{shaftLight}=await import('../public/dawn.js'),L=C.look;
+ assert.deepEqual(shaftLight(0),{daylight:1,fill:1,sun:1},'the surface is untouched');assert.deepEqual(shaftLight(-2),{daylight:1,fill:1,sun:1},'and so is a camera above it');
+ const out={daylight:0,fill:0,sun:0};assert.equal(shaftLight(20,out),out,'writes into out, so a frame allocates nothing');assert.ok(out.fill<out.daylight&&out.sun<out.daylight,'fill and sun fade faster than daylight');
+ assert.ok(L.sky.intensity*out.fill<0.05&&L.sun.intensity*out.sun<1,'by row 20 the fill and the sun are back near the old lights there (0.032 and 0.64)');
+ let last=1;for(let row=1;row<=C.shafts.darkRow+5;row++){const {fill,sun}=shaftLight(row);assert.ok(fill<=last&&sun<=1,'never brighter deeper');last=fill;}
+ const deep=shaftLight(60);assert.ok(L.sky.intensity*deep.fill<1e-3&&L.sun.intensity*deep.sun<0.05,'deep down only your lamp lights the shaft');
+});
 
 test('pickQuality: the URL beats the saved choice, unknown values mean auto, and auto starts at high',()=>{
  assert.deepEqual((({choice,auto,level})=>({choice,auto,level}))(pickQuality({})),{choice:'auto',auto:true,level:'high'});

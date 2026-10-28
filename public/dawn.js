@@ -29,6 +29,12 @@ function cloudTexture(){const canvas=document.createElement('canvas');canvas.wid
 // The direction toward the sun from the claim's centre (three.sun, which visual.sunPosition sits on): the light and its shadows,
 // the sky's glow and the baked reflections all share it.
 export function sunDirection(center){return new T.Vector3(...C.three.sun).sub(center).normalize();}
+// Light down a shaft at a depth in rows (your own row in first person in a shaft, else the camera's depth, so a chase or overview
+// camera above the ground sees the surface in full light): daylight (1 at the surface, C.cab.daylightFloor past C.shafts.darkRow)
+// and the shares of their full strength the sky fill and the sun keep there (C.look.underground), written into out so a frame
+// allocates nothing. Both fall faster than daylight, so beyond your lamp a shaft is as dark as it always was by about row 20; at the
+// surface all three are 1.
+export function shaftLight(row,out={daylight:1,fill:1,sun:1}){const d=Math.max(C.cab.daylightFloor,1-Math.max(0,row)/C.shafts.darkRow),U=C.look.underground;out.daylight=d;out.fill=d**U.sky;out.sun=d**U.sun;return out;}
 export function createDawn(scene,{sky,skyLight,sun,sunHalo,sunDisk,stars,moon,center}){
  const D=C.dawn,L=C.look,col=hex=>new T.Color(hex),palette=key=>({zenith:col(D[key].zenith),horizon:col(D[key].horizon),below:col(D[key].below),sunGlow:col(D[key].sunGlow),fog:col(D[key].fog),hemiSky:col(D[key].hemiSky),hemiGround:col(D[key].hemiGround),sun:col(D[key].sun),halo:col(D[key].halo)});
  const night={fog:scene.fog.color.clone(),fogNear:scene.fog.near,fogFar:scene.fog.far,background:scene.background.clone(),hemiSky:skyLight.color.clone(),hemiGround:skyLight.groundColor.clone(),sun:sun.color.clone(),halo:sunHalo.material.color.clone(),disk:sunDisk.material.color.clone(),moon:moon.material.color.clone(),haloOpacity:sunHalo.material.opacity,haloScale:sunHalo.scale.x,stars:stars.material.opacity};

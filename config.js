@@ -113,6 +113,10 @@ export const C = {
  // Lighting (renderer3d.js), after the Moon Sweepers style sheet: a high-key lavender-grey Moon under a low warm sun (three.sun places
  // it about 21 degrees up; visual.sunPosition puts the disc on the same line) and soft lavender-blue shade that never goes black.
  // Intensities are three.js physical units and exposure feeds ACES tone mapping; the finale's day keeps its absolute values (dawn).
+ // underground: daylight runs from 1 at the surface to cab.daylightFloor at shafts.darkRow rows down (your own row in first person
+ // in a shaft, else the camera's depth). The sky fill (hemisphere, reflections, and the break flash beyond your lamp) keeps
+ // daylight^sky of itself and the sun daylight^sun: both are far brighter than the old lights, so they fade faster than daylight,
+ // and by about row 20 a shaft is as dark beyond your lamp as it always was, while the surface (daylight 1) keeps its full light.
  // shadow: the sun's shadow box hugs the claim plus margin cells (forest cells in the finale) from top (the rig's crown) to bottom
  // (the deepest floor), so the map spends its texels where they show; normalBias is in world units.
  // env: a small reflection map baked once from a gradient sky over pale regolith (cube size in pixels), with a day version the
@@ -132,7 +136,7 @@ export const C = {
  // while lamps, screens and plasma glow; emissiveGain lifts the factory's glowing parts and lampGlow the shaft lamps to clear it.
  // The vignette darkens the corners lightly; grain (High only, none with reduced motion) is a faint film grain; the grade, after
  // ACES, lifts the blacks toward navy (lift), cools the shade (shadowTint) and keeps the highlights neutral-warm (highlightTint).
- look:{sun:{color:'#fff1e0',intensity:6.2},sky:{color:'#a9b2dc',ground:'#6e6c78',intensity:2.1},exposure:1.1,
+ look:{sun:{color:'#fff1e0',intensity:6.2},sky:{color:'#a9b2dc',ground:'#6e6c78',intensity:2.1},exposure:1.1,underground:{sky:2.6,sun:1.4},
   shadow:{margin:1.5,forest:6.5,top:3.6,bottom:-6.2,bias:-0.0005,normalBias:0.04},
   env:{size:64,zenith:'#070a16',horizon:'#262f52',ground:'#8b8a98',glow:'#ffe2bd',day:{zenith:'#3c80d6',horizon:'#cfe6f6',ground:'#56773f',glow:'#fff1d2'}},
   night:{zenith:'#05060c',horizon:'#1d2236',band:'#262c44',bandNormal:[0.35,0.55,0.76],bandWidth:0.17},
