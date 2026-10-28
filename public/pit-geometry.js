@@ -182,6 +182,9 @@ export function createPits(){
   reset(){data.fill(0);texture.needsUpdate=true;all=true;for(let i=0;i<N*N;i++)if(heaps[i*10+2]>0)heapChanged.add(i);heaps.fill(0);overCount.fill(0);heapStale.clear();heapsLive=0;},refresh,rocks(){refresh();settleHeaps();if(rocksStale){rockList=rimRocks();rocksStale=false;liftRocks();}else if(liftsStale)liftRocks();return rockList;},
   // Each rock's lift onto the lip or a mound (rocks()[k*3] is rock k), and a number that changes whenever the rocks or their lifts do.
   rockLift(k){return rockLift[k]||0;},get rocksVersion(){return rocksVersion;},
+  // The dug cell rock k lies beside and how far past that cell's edge it lies (rolling pebbles pick the ones near the edge), and the
+  // height of the lip a distance push beyond the edge of cell i (its crest at 0).
+  rockCell(k){return rockMeta[k*2]??-1;},rockPush(k){return rockMeta[k*2+1]??1;},lipAt(i,push){return lipTop(i,push);},
   // Spoil mounds: for each cell whose mound changed since the last call, fn(key, x, z, radius, height, turn, cell) for its mound (key
   // cell*2) and its lump (key cell*2+1), radius 0 for none;
   // the height of the mounds at a point; how many mounds there are; and which cells they must keep off (blocked(i), from the renderer).

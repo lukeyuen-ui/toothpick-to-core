@@ -95,3 +95,13 @@ test('the plain reads the dust layer over the ground shader, smoothed on spoil a
  assert.match(ground('floor').fragmentShader,/pitRegolith>0\.0&&!pitDug/,'dug floors keep their clods instead');
  const plain=new T.MeshStandardMaterial({normalMap:new T.Texture()});pits.decorate(plain,'cap');const sh={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};plain.onBeforeCompile(sh);assert.doesNotMatch(sh.fragmentShader,/pitDust,/,'only where the ground shader set its bump strength');
  pits.setLook('high');assert.equal(pits.look.pitRegolith.value,C.dirt.high.regolith);pits.setLook('low');assert.equal(pits.look.pitRegolith.value,0);});
+
+// Rolling pebbles (physics pass) pick stones near an edge: each rim rock knows its cell and how far past that cell's edge it lies, and the
+// lip's crest is its highest point.
+test('rim rocks know their dug cell and their distance past its edge; the lip is highest at its crest',()=>{
+ const pits=createPits();pits.setLook('high');pits.update(8*N+8,6);const rocks=pits.rocks(),rows=grid(new Map([[8*N+8,6]]));let near=0;
+ for(let k=0;k*3<rocks.length;k++){assert.equal(pits.rockCell(k),8*N+8);const push=pits.rockPush(k);assert.ok(push>=-C.pits.edgeNoise-1e-6&&push<=C.pits.spoil+C.pits.gravelReach+0.1,'push '+push);if(push<C.digFx.rollEdge)near++;
+  assert.ok(pitSdf(rows,rocks[k*3],rocks[k*3+1])>0,'on solid ground');}
+ assert.ok(near>0,'some stones lie close enough to the edge to roll in');assert.equal(pits.rockCell(1e6),-1);
+ const crest=pits.lipAt(8*N+8,0);assert.ok(crest>=C.pits.lift-1e-9,'the crest is the wall top');for(const push of [0.02,0.05,0.07])assert.ok(pits.lipAt(8*N+8,push)<=crest+1e-9);assert.equal(pits.lipAt(8*N+8,1),0,'past the lip, the ground');
+});

@@ -170,3 +170,17 @@ test('a rock meeting its leaning wall is knocked off it, and the walls facing th
  for(let n=0;n<40;n++){fx.reset();fx.rockfall(8.5,8.5,{sides:3,floor:-0.6,key:n,count:6,eyeX:5,eyeZ:8.5},1000);for(let i=0;i<fx.chunks.count;i++)fx.chunks.nx[i]>0?far++:near++;}
  assert.ok(far>near*3,'far wall '+far+', near wall '+near);
 });
+
+// Rolling pebbles: a stone set rolling off the lip climbs to the crest, rolls over the rounded rim, drops down the wall and rests on the floor.
+test('a pebble rolls up to the crest, over the rounded rim and down into the hole, keeping off the wall; none on Low',()=>{
+ assert.deepEqual(['high','balanced','low'].map(level=>digBudget(qualitySettings(level)).rolls),[C.dirt.high.rolls,C.dirt.balanced.rolls,0]);assert.ok(C.dirt.high.rolls>=C.dirt.balanced.rolls&&C.dirt.balanced.rolls>0);
+ const fx=createDigFx(new T.Scene()),camera=view(),floor=-0.7,edge=8.11,rb=C.pits.rimRound;fx.setBudget(digBudget(qualitySettings('high')));
+ // Cell (8, 8) is dug; the stone lies on the lip 0.06 outside its -z edge at z = 8.11 and rolls in along +z.
+ const groundAt=(x,z)=>z>edge?floor:0,spot={wx:8.5,wz:edge+rb,top:0.022+0.02-rb,lean:0.04,round:rb,cr:0.4,cg:0.4,cb:0.38};
+ assert.equal(fx.pebble(8.5,0.03,edge-0.06,0.015,0,1,0.06,0.042+0.009,spot),true);const i=0;assert.ok(fx.chunks.rollAll[i]>0.06+rb);
+ let topY=0,fell=false,now=1000;for(let t=0;t<200;t++){now+=16;fx.update(0.016,camera,groundAt,now);if(!fx.chunks.count)break;const y=fx.chunks.y[i],z=fx.chunks.z[i];topY=Math.max(topY,y);
+  assert.ok(Math.abs(fx.chunks.x[i]-8.5)<1e-6,'rolls straight in');if(fx.chunks.roll[i]>0)assert.ok(y>=spot.top+0.015*0.6-1e-5,'on the lip and over the rim while it rolls');
+  if(y<spot.top-0.01)assert.ok(z>=spot.wz+0.009*0.6-0.02,'clear of the wall below the rim');if(y<floor+0.05)fell=true;}
+ assert.ok(topY>=0.042,'it climbs to the crest first');assert.ok(fell,'and ends on the floor');
+ fx.setBudget(digBudget(qualitySettings('low')));assert.equal(fx.pebble(8.5,0.03,8,0.015,0,1,0.06,0.05,spot),false,'none on Low');
+});
