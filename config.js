@@ -141,15 +141,50 @@ export const C = {
   regolith:{surge:0.35,power:8,roughness:0.95},craters:{lit:'#f6f4fc',shade:'#47456a',strength:0.42},
   finish:{metal:{roughness:0.34,metalness:0.7,env:1},white:{roughness:0.42,metalness:0,env:0.55},paint:{roughness:0.5,metalness:0,env:0.6},rubber:{roughness:0.86,metalness:0,env:0.25},fabric:{roughness:0.9,metalness:0,env:0.3},env:{metal:1,other:0.6},scuff:0.45,scuffScale:6},
   post:{strength:0.6,threshold:1.6,knee:0.8,vignette:0.12,saturation:1.04,contrast:1.02,grain:0.028,lift:[0.008,0.01,0.022],shadowTint:[0.95,0.97,1.06],highlightTint:[1.01,1,0.98],emissiveGain:1.7,lampGlow:2.4}},
- pits:{inset:0.11,corner:0.32,innerCorner:0.2,edgeNoise:0.022,lift:0.022,lipWidth:0.075,spoil:0.28,spoilTint:[1.04,0.9,0.76],spoilClumps:0.14,lipShade:0.62,floorShade:0.55,floorBias:0.03,wallClumps:0.16,strataWobble:0.45,blendRows:1,rimTexels:8,seamGlow:0.2,segments:32,radius:0.36,mergeRow:1,rubblePerCell:8,rubbleDensity:5,rubbleSize:0.028,gravelPerCell:16,gravelDensity:12,gravelSize:0.012,gravelReach:0.42,targetRadius:0.43,targetGlowRadius:0.47},
+ pits:{inset:0.11,corner:0.32,innerCorner:0.2,edgeNoise:0.022,lift:0.022,lipWidth:0.075,spoil:0.28,spoilTint:[1.04,0.9,0.76],spoilClumps:0.14,lipShade:0.62,floorShade:0.55,floorBias:0.03,wallClumps:0.16,strataWobble:0.45,blendRows:1,rimTexels:8,seamGlow:0.2,segments:32,radius:0.36,mergeRow:1,rubblePerCell:8,rubbleDensity:5,rubbleSize:0.028,gravelPerCell:16,gravelDensity:12,gravelSize:0.012,gravelReach:0.42,targetRadius:0.43,targetGlowRadius:0.47,
+  // Dirt, not cuts (pit-geometry.js): the top of every wall rounds over into the spoil lip with radius rimRound; below that the wall
+  // leans into the hole by up to lean (most of it within three leanDepth of the rim) and ripples by ripple, faded in over rippleFade;
+  // dug floors heave by floorRipple. Lean, ripple and heave follow world-position noise, so walls and floors of neighbouring cells
+  // meet without a seam. The grit texture (scene-assets.js) puts pebbles (pebbles: how much they show, pebbleNormal: their relief) and
+  // fine sediment bands (sediment: their contrast, sedimentFreq: bands per unit of depth) in walls at pebbleScale repeats per unit,
+  // and clods in dug floors at clodScale (clodTone: their light and shade, clodNormal: their relief). The top dustCapDepth of a wall is
+  // the grey surface dust over the strata (dustCap of it), as a dug edge shows it.
+  rimRound:0.055,lean:0.04,leanDepth:0.16,ripple:0.012,rippleFade:0.12,floorRipple:0.014,pebbleScale:1.8,pebbles:0.6,pebbleNormal:0.85,sediment:0.07,sedimentFreq:150,clodScale:1.6,clodTone:0.34,clodNormal:0.55,dustCap:0.8,dustCapDepth:0.045,
+  // Spoil heaps: the dirt that left a cell, as its rows dug up to heapRows, raises the lip round its edge by up to heapLift and widens
+  // it by up to heapWidth, and piles into a mound (heapRadius at one row to the full radius, heapHeight tall, with a smaller lump of
+  // heapLump its size beside it where that fits) on the side of the hole away from the hub, searched up to heapReach from the cell's
+  // middle, on solid ground and heapGap clear of the middles of other undug cells. Mounds take heapTint of the last stratum dug there
+  // over the grey dust.
+  heapRows:20,heapLift:0.034,heapWidth:0.09,heapRadius:[0.1,0.33],heapHeight:0.13,heapLump:0.6,heapReach:2.4,heapGap:0.12,heapTint:0.42},
+ // Dirt and ground realism by graphics preset (pit-geometry.js, renderer3d.js, dig-fx.js). shape rounds the rims, leans and ripples
+ // the walls and heaves the floors, using arcRows rows round each rim and wallDepths rows below it (depths under the rounded rim),
+ // straight wall runs cut into segments and floor tiles into floorSegments; detail is the pebbles, sediment and clods; heaps grows
+ // the spoil lips and piles the spoil mounds; trickle is the crumble pool; regolith the fine grit on the plain. Low is the game as it
+ // was before this pass: every effect off and the original geometry.
+ dirt:{high:{shape:1,detail:1,heaps:1,trickle:1,regolith:1,arcRows:3,wallDepths:[0.05,0.14,0.28,0.5,0.85,1.5,2.8],segments:3,lipRows:5,floorSegments:6},
+  balanced:{shape:0.85,detail:0.7,heaps:1,trickle:0.5,regolith:0.6,arcRows:2,wallDepths:[0.08,0.25,0.6,1.3,2.6],segments:2,lipRows:4,floorSegments:4},
+  low:{shape:0,detail:0,heaps:0,trickle:0,regolith:0,arcRows:0,wallDepths:[],segments:1,lipRows:2,floorSegments:2}},
  // Surface ground (public/ground-detail.js): one baked texture over the claim and the dunes ring gives a broad brightness mottle, darker
  // patches of fine dust, pale streaks and crater ejecta, warm and cool greys, the bump strength, and ground worn round the hub, along
  // conveyor lines and on the paths to the drill and the pumps. It adds no draw calls; inside the finale's meadow only meadowKeep of it stays.
- ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500},
+// Over it the plain's top layer of dust (scene-assets.js dust texture, dustScale repeats per unit, scaled by the preset's regolith)
+// gives fine grain and small dimples: dustNormal of relief, dustTone of light and shade, a little roughness variation, and a
+// parallax shift of up to dustDepth where the ground's bump strength allows. The churned ground round holes keeps dustSpoil less
+// of it, and worn ground less again. Explorers walking the plain leave boot prints (bootSize: width and length, bootStride apart, left
+// and right of their path by bootSpread) and a player in the mining mech its broad tread marks (mechSize, mechStride); prints darken
+// the dust to printShade and fade over printLife seconds, from a pool of prints (scaled by the preset's regolith; none on Low).
+ ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500,dustScale:1,dustNormal:0.4,dustTone:0.14,dustDepth:0.02,dustSpoil:0.7,prints:160,printLife:60,printShade:'#4f5254',bootSize:[0.085,0.165],bootStride:0.27,bootSpread:0.06,mechSize:[0.26,0.22],mechStride:0.24},
  // Dig feedback (public/dig-fx.js): chunks of the struck stratum flung out of the cell, bouncing on the rim and sinking into the dirt, a dust
  // puff over every break, and a camera kick of a pixel or two for mech strikes and the boring drill. Pools and the chunk rate are the high
  // preset's; quality.js scales them, and low keeps a small chunk pool with no puffs and no kick. Sizes are world units, times in seconds.
- digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
+// A chunk that comes to rest on a spoil heap settles into it within heapSettle. Crumble: when a cell breaks, its rim gives a little:
+// a trickle of crumbleGrains grains runs down each wall it has on solid ground (from the rim, or crumbleSpan above the new floor in
+// a deeper hole) and, in a hole no deeper than sheetDepth, a sheet of crumbleSheet soft clots falls from one rim, at most once per
+// crumbleCooldownMs a cell, from a pool of
+// grains points (scaled by the preset's trickle in C.dirt). Grains fall at grainGravity, fade within the last grainFade of their life,
+// and thin out within grainClear of the camera; they are unlit, so grainTone darkens their stratum colour to sit with lit dirt and the
+// sheet's clots lean toward the grey dust.
+ digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,grains:160,crumbleGrains:12,crumbleSheet:6,crumbleSpan:0.6,sheetDepth:1.2,crumbleCooldownMs:900,grainSize:[0.013,0.024],sheetSize:[0.05,0.09],grainLife:[0.8,1.3],grainGravity:4.2,grainFade:0.25,grainAlpha:0.95,sheetAlpha:0.5,grainTone:0.62,grainClear:[0.12,0.45],pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6},
  protocolVersion:9
 };
 // Layout values are centralized here too; renderer owns no game decisions.

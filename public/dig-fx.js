@@ -8,10 +8,11 @@ import {C} from '../config.js';
 // skips all of it under reduced motion. Budgets, colours, the physics step and the kick curve are plain functions for the node tests.
 const D=C.digFx,lerp=([a,b],t)=>a+(b-a)*t;
 
-// Pools, spawn rate (chunks per second), the share of each burst's chunks and whether the camera may kick, for one preset's settings.
-export function digBudget(settings={}){
- const debris=Math.max(0,settings.debris??1),puffs=Math.max(0,settings.puffs??1);
- return {chunks:Math.round(D.chunks*Math.min(1,debris)),puffs:Math.round(D.puffs*Math.min(1,puffs)),rate:D.chunkRate*debris,perBurst:Math.min(1,debris*1.5),kick:!!settings.kick};
+// Pools, spawn rate (chunks per second), the share of each burst's chunks and whether the camera may kick, for one preset's settings;
+// grains is the crumble pool, scaled by that preset's trickle (C.dirt; none unless the preset is known).
+export function digBudget(settings={},dirt=C.dirt?.[settings.level]){
+ const debris=Math.max(0,settings.debris??1),puffs=Math.max(0,settings.puffs??1),trickle=Math.max(0,Math.min(1,dirt?.trickle??0));
+ return {chunks:Math.round(D.chunks*Math.min(1,debris)),puffs:Math.round(D.puffs*Math.min(1,puffs)),rate:D.chunkRate*debris,perBurst:Math.min(1,debris*1.5),kick:!!settings.kick,grains:Math.round(D.grains*trickle)};
 }
 
 const STRATA=[];{let end=0;for(const layer of C.layers){end+=layer.rows;STRATA.push([end,layer.color]);}}
@@ -29,6 +30,7 @@ export function shareChunks(requests,tokens,count=requests.length,got=new Int32A
 
 const CHUNK_KEYS=['x','y','z','vx','vy','vz','r','age','life','angle','spin','ax','ay','az','cr','cg','cb','bounces','rest'];
 const PUFF_KEYS=['x','y','z','vx','vy','vz','age','life','s0','s1','alpha','roll','turn','cr','cg','cb'];
+const GRAIN_KEYS=['x','y','z','vx','vy','vz','age','life','floor','size','alpha','cr','cg','cb'];
 export function createPool(capacity,keys=CHUNK_KEYS){const pool={capacity,limit:capacity,count:0,victim:0,keys};for(const key of keys)pool[key]=new Float32Array(capacity);return pool;}
 // A free slot. When the pool is full a chunk pool hands over its slots in turn (recycle); a puff pool just declines.
 export function takeSlot(pool,recycle=true){if(pool.limit<=0)return -1;if(pool.count<pool.limit)return pool.count++;if(!recycle||!pool.count)return -1;pool.victim=(pool.victim+1)%pool.count;return pool.victim;}
@@ -36,8 +38,9 @@ function dropSlot(pool,i){const last=--pool.count;if(i!==last)for(const key of p
 
 // Moves every live chunk on by dt seconds. groundAt(x,z) is the ground height under a point. A chunk coming down onto ground bounces,
 // losing most of its speed, and rests after a few bounces; one that runs sideways into ground higher than itself has met a wall and
-// turns back. A resting chunk falls again when the ground under it is dug away. Chunks past their life are removed.
-export function stepChunks(pool,dt,groundAt){
+// turns back. A resting chunk falls again when the ground under it is dug away. One that comes to rest on a spoil heap (heapAt, the
+// mounds' height at a point) settles into it within heapSettle seconds. Chunks past their life are removed.
+export function stepChunks(pool,dt,groundAt,heapAt=null){
  for(let i=pool.count-1;i>=0;i--){
   pool.age[i]+=dt;if(pool.age[i]>=pool.life[i]){dropSlot(pool,i);continue;}
   const r=pool.r[i]*0.6;
@@ -45,10 +48,21 @@ export function stepChunks(pool,dt,groundAt){
   const ox=pool.x[i],oy=pool.y[i],oz=pool.z[i];pool.vy[i]-=D.gravity*dt;
   let x=ox+pool.vx[i]*dt,y=oy+pool.vy[i]*dt,z=oz+pool.vz[i]*dt,g=groundAt(x,z);
   if(oy-r<g-0.002){x=ox;z=oz;pool.vx[i]*=-D.wall;pool.vz[i]*=-D.wall;g=groundAt(x,z);}
-  if(y-r<=g){y=g+r;if(pool.vy[i]<0){pool.bounces[i]++;const up=-pool.vy[i]*D.bounce;if(up<D.restSpeed||pool.bounces[i]>=D.maxBounces){pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.rest[i]=1;}else{pool.vy[i]=up;pool.vx[i]*=D.friction;pool.vz[i]*=D.friction;pool.spin[i]*=0.6;}}}
+  if(y-r<=g){y=g+r;if(pool.vy[i]<0){pool.bounces[i]++;const up=-pool.vy[i]*D.bounce;if(up<D.restSpeed||pool.bounces[i]>=D.maxBounces){pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.rest[i]=1;if(heapAt&&heapAt(x,z)>0.004)pool.life[i]=Math.min(pool.life[i],pool.age[i]+D.heapSettle);}else{pool.vy[i]=up;pool.vx[i]*=D.friction;pool.vz[i]*=D.friction;pool.spin[i]*=0.6;}}}
   pool.x[i]=x;pool.y[i]=y;pool.z[i]=z;pool.angle[i]+=pool.spin[i]*dt;
  }
 }
+// Moves the crumble's grains on by dt. A grain waits while its age is below zero (a trickle runs out over a moment), then falls at
+// grainGravity, drifting off the wall; on reaching its floor it stops and fades out quickly. Grains past their life are removed.
+export function stepGrains(pool,dt){
+ for(let i=pool.count-1;i>=0;i--){
+  pool.age[i]+=dt;if(pool.age[i]>=pool.life[i]){dropSlot(pool,i);continue;}if(pool.age[i]<0)continue;
+  pool.vy[i]-=D.grainGravity*dt;pool.x[i]+=pool.vx[i]*dt;pool.y[i]+=pool.vy[i]*dt;pool.z[i]+=pool.vz[i]*dt;
+  if(pool.y[i]<=pool.floor[i]){pool.y[i]=pool.floor[i];pool.vx[i]=pool.vy[i]=pool.vz[i]=0;pool.life[i]=Math.min(pool.life[i],pool.age[i]+D.grainFade);}
+ }
+}
+// A grain's opacity: in over its first 50 ms, out over the last grainFade seconds of its life.
+export function grainAlpha(age,life,alpha){if(age<0||age>=life)return 0;return alpha*Math.min(1,age/0.05)*Math.min(1,(life-age)/D.grainFade);}
 // A chunk keeps its size until the last settle fraction of its life, then shrinks smoothly to nothing as it sinks into the dirt.
 export function chunkScale(age,life){const k=(life-age)/(life*D.settle);return k>=1?1:k<=0?0:k*k*(3-2*k);}
 // A puff swells fast then slowly, fades in over its first eighth and thins away over the rest.
@@ -66,7 +80,7 @@ function rockGeometry(){const g=new T.IcosahedronGeometry(1,0),p=g.attributes.po
 
 export function createDigFx(scene,{puffMap=null}={}){
  const color=new T.Color(),tint=new T.Color(),grey=new T.Color(C.three.dust),pale=new T.Color('#d8d4cc');
- const chunks=createPool(D.chunks),puffs=createPool(D.puffs,PUFF_KEYS),lastBurst=new Map(),lastPuff=new Map();
+ const chunks=createPool(D.chunks),puffs=createPool(D.puffs,PUFF_KEYS),grains=createPool(D.grains,GRAIN_KEYS),lastBurst=new Map(),lastPuff=new Map(),lastCrumble=new Map();
  // Bursts wait in a fixed pool until they are due; nothing here allocates once the effect is built.
  const pending=Array.from({length:D.pendingMax},()=>({at:0,x:0,y:0,z:0,n:0,row:0,heavy:false,shade:1,away:false,ax:0,az:0,key:-1,puff:true,color:null})),asks=new Int32Array(D.pendingMax),got=new Int32Array(D.pendingMax);let waiting=0;
  let budget=digBudget({}),tokens=D.chunks/3,tokenAt=null,kickAt=-Infinity,kickSize=0;
@@ -79,6 +93,13 @@ export function createDigFx(scene,{puffMap=null}={}){
  puffMaterial.onBeforeCompile=s=>{s.vertexShader='attribute float puffAlpha;varying float vPuffAlpha;\n'+s.vertexShader.replace('#include <begin_vertex>','#include <begin_vertex>\n vPuffAlpha=puffAlpha;');s.fragmentShader='varying float vPuffAlpha;\n'+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.a*=vPuffAlpha;');};puffMaterial.customProgramCacheKey=()=>'dig-puff';
  const puffMesh=new T.InstancedMesh(puffGeometry,puffMaterial,D.puffs);puffMesh.name='Dig dust puffs';puffMesh.instanceColor=new T.InstancedBufferAttribute(new Float32Array(D.puffs*3),3);
  for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;mesh.castShadow=mesh.receiveShadow=false;scene.add(mesh);}
+ // The crumble: one Points cloud of round grains, each with its own colour, opacity and size, drawn up to the live count. A grain is a
+ // firm little dot; a clot of the sheet (a negative size) a soft one. No texture: the disc is drawn in the shader.
+ const grainGeometry=new T.BufferGeometry(),grainPos=new T.BufferAttribute(new Float32Array(D.grains*3),3),grainColor=new T.BufferAttribute(new Float32Array(D.grains*4),4),grainSize=new T.BufferAttribute(new Float32Array(D.grains),1);
+ for(const a of [grainPos,grainColor,grainSize])a.setUsage(T.DynamicDrawUsage);grainGeometry.setAttribute('position',grainPos);grainGeometry.setAttribute('color',grainColor);grainGeometry.setAttribute('grainSize',grainSize);grainGeometry.setDrawRange(0,0);
+ const grainMaterial=new T.PointsMaterial({size:1,sizeAttenuation:true,vertexColors:true,transparent:true,depthWrite:false});
+ grainMaterial.onBeforeCompile=s=>{s.vertexShader='attribute float grainSize;varying float grainSoft;\n'+s.vertexShader.replace('gl_PointSize = size;','gl_PointSize = size * abs(grainSize);grainSoft = grainSize < 0.0 ? 0.05 : 0.6;');s.fragmentShader='varying float grainSoft;\n'+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.a *= 1.0 - smoothstep(grainSoft, 1.0, length(gl_PointCoord * 2.0 - 1.0));');};grainMaterial.customProgramCacheKey=()=>'dig-grain';
+ const grainPoints=new T.Points(grainGeometry,grainMaterial);grainPoints.name='Dig crumble grains';grainPoints.frustumCulled=false;grainPoints.visible=false;scene.add(grainPoints);
  const cooled=(map,key,now,ms)=>{if(key==null||key<0)return true;const t=map.get(key);if(t!==undefined&&now-t<ms)return false;map.set(key,now);return true;};
  function refill(now){if(tokenAt!==null)tokens=Math.min(Math.max(1,budget.chunks/3),tokens+Math.max(0,now-tokenAt)/1000*budget.rate);tokenAt=now;}
  // n chunks from a point in the stratum's colour (the surface mixes in grey regolith and every stratum some darker rock), flung up and
@@ -116,8 +137,20 @@ export function createDigFx(scene,{puffMap=null}={}){
  function upload(attribute,count,width){attribute.clearUpdateRanges();attribute.addUpdateRange(0,count*width);attribute.needsUpdate=true;}
  // Releases due bursts, steps both pools and writes the live instances. Puffs turn to face the camera and thin out close to it, so dust
  // you stand in does not fog the view, and chunks passing right by the lens shrink away instead of filling it.
- function update(dt,camera,groundAt,now=performance.now()){
-  flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt);
+ // The crumble when a cell breaks (x, z its middle): a trickle down each wall on solid ground (sides: 1 +x, 2 -x, 4 +z, 8 -z) from the
+ // rim (rim: its height) or crumbleSpan above the new floor (floor), and in a shallow hole a sheet of soft clots from one rim, in the stratum's colour
+ // darkened like the floor (row, shade, colorHex), starting at `at` (ms). At most once per crumbleCooldownMs a cell (key), so a mech
+ // breaking nine cells a tick throws a few thin trickles, never a cloud; grains decline when the pool is full.
+ function crumble(x,z,o={},now=performance.now()){if(!budget.grains||!o.sides||!cooled(lastCrumble,o.key,now,D.crumbleCooldownMs))return false;
+  color.set(o.colorHex||stratumColor(o.row||0));const shade=o.shade??1,floor=o.floor??0,rim=o.rim??0.03,top=Math.max(floor+0.05,Math.min(rim,floor+D.crumbleSpan)),wait=Math.max(0,((o.at??now)-now)/1000),reach=o.reach??0.3;let sheetSide=-1;
+  for(let side=0;side<4;side++){if(!(o.sides&(1<<side)))continue;if(sheetSide<0||Math.random()<0.5)sheetSide=side;const nx=side===0?1:side===1?-1:0,nz=side===2?1:side===3?-1:0,along=(Math.random()-0.5)*0.5;
+   for(let k=0;k<D.crumbleGrains;k++)grain(x+nx*reach-nz*(along+(Math.random()-0.5)*0.05),top-Math.random()*0.04,z+nz*reach+nx*(along+(Math.random()-0.5)*0.05),-nx,-nz,floor,wait+k*0.035+Math.random()*0.02,lerp(D.grainSize,Math.random()),D.grainAlpha,shade*D.grainTone*(0.75+Math.random()*0.4),0.04+Math.random()*0.12,0);}
+  if(sheetSide>=0&&rim-floor<=D.sheetDepth){const nx=sheetSide===0?1:sheetSide===1?-1:0,nz=sheetSide===2?1:sheetSide===3?-1:0;for(let k=0;k<D.crumbleSheet;k++){const along=(k/(D.crumbleSheet-1)-0.5)*0.5;grain(x+nx*(reach+0.04)-nz*along,rim,z+nz*(reach+0.04)+nx*along,-nx,-nz,floor,wait+Math.random()*0.08,-lerp(D.sheetSize,Math.random()),D.sheetAlpha,shade*D.grainTone*1.25,0.1+Math.random()*0.15,D.dustLighten);}}
+  return true;}
+ function grain(x,y,z,dx,dz,floor,delay,size,alpha,shade,speed,dusty){const i=takeSlot(grains,false);if(i<0)return;grains.x[i]=x;grains.y[i]=y;grains.z[i]=z;grains.vx[i]=dx*speed+(Math.random()-0.5)*0.05;grains.vz[i]=dz*speed+(Math.random()-0.5)*0.05;grains.vy[i]=-Math.random()*0.25;
+  grains.age[i]=-delay;grains.life[i]=lerp(D.grainLife,Math.random());grains.floor[i]=floor;grains.size[i]=size;grains.alpha[i]=alpha;tint.copy(color).lerp(grey,dusty).multiplyScalar(Math.min(1.2,shade));grains.cr[i]=tint.r;grains.cg[i]=tint.g;grains.cb[i]=tint.b;}
+ function update(dt,camera,groundAt,now=performance.now(),heapAt=null){
+  flush(now);if(chunks.count)stepChunks(chunks,dt,groundAt,heapAt);
   const cm=chunkMesh.instanceMatrix.array,cc=chunkMesh.instanceColor.array;
   const cam=camera.position,[c0,c1]=D.chunkClear;for(let i=0;i<chunks.count;i++){const d=Math.hypot(chunks.x[i]-cam.x,chunks.y[i]-cam.y,chunks.z[i]-cam.z),near=d>=c1?1:d<=c0?0:(d-c0)/(c1-c0),s=chunks.r[i]*chunkScale(chunks.age[i],chunks.life[i])*near*near*(3-2*near);q.setFromAxisAngle(axis.set(chunks.ax[i],chunks.ay[i],chunks.az[i]),chunks.angle[i]);m.compose(at.set(chunks.x[i],chunks.y[i]-(chunks.r[i]-s)*0.8,chunks.z[i]),q,size.set(s,s,s));m.toArray(cm,i*16);cc[i*3]=chunks.cr[i];cc[i*3+1]=chunks.cg[i];cc[i*3+2]=chunks.cb[i];}
   chunkMesh.count=chunks.count;chunkMesh.visible=chunks.count>0;if(chunks.count){upload(chunkMesh.instanceMatrix,chunks.count,16);upload(chunkMesh.instanceColor,chunks.count,3);}
@@ -126,6 +159,9 @@ export function createDigFx(scene,{puffMap=null}={}){
   const pm=puffMesh.instanceMatrix.array,pc=puffMesh.instanceColor.array,pa=puffAlpha.array;
   for(let i=0;i<puffs.count;i++){puffShape(puffs.age[i],puffs.life[i],puffs.s0[i],puffs.s1[i],puffs.alpha[i],look);q.copy(camera.quaternion).multiply(roll.setFromAxisAngle(facing,puffs.roll[i]));m.compose(at.set(puffs.x[i],puffs.y[i],puffs.z[i]),q,size.set(look.size,look.size,1));m.toArray(pm,i*16);const d=Math.hypot(puffs.x[i]-camera.position.x,puffs.y[i]-camera.position.y,puffs.z[i]-camera.position.z),clear=Math.min(1,Math.max(0,(d-D.puffClear[0])/(D.puffClear[1]-D.puffClear[0])));pa[i]=look.alpha*clear*clear*(3-2*clear);pc[i*3]=puffs.cr[i];pc[i*3+1]=puffs.cg[i];pc[i*3+2]=puffs.cb[i];}
   puffMesh.count=puffs.count;puffMesh.visible=puffs.count>0;if(puffs.count){upload(puffMesh.instanceMatrix,puffs.count,16);upload(puffMesh.instanceColor,puffs.count,3);upload(puffAlpha,puffs.count,1);}
+  if(grains.count)stepGrains(grains,dt);const gp=grainPos.array,gc=grainColor.array,gs=grainSize.array,g0=D.grainClear[0],g1=D.grainClear[1];
+  for(let i=0;i<grains.count;i++){gp[i*3]=grains.x[i];gp[i*3+1]=grains.y[i];gp[i*3+2]=grains.z[i];const d=Math.hypot(grains.x[i]-cam.x,grains.y[i]-cam.y,grains.z[i]-cam.z),near=d>=g1?1:d<=g0?0:(d-g0)/(g1-g0);gc[i*4]=grains.cr[i];gc[i*4+1]=grains.cg[i];gc[i*4+2]=grains.cb[i];gc[i*4+3]=grainAlpha(grains.age[i],grains.life[i],grains.alpha[i])*near*near*(3-2*near);gs[i]=grains.size[i];}
+  grainGeometry.setDrawRange(0,grains.count);grainPoints.visible=grains.count>0;if(grains.count){upload(grainPos,grains.count,3);upload(grainColor,grains.count,4);upload(grainSize,grains.count,1);}
  }
  return {queue,flush,update,
   burst(x,y,z,options={},now=performance.now()){const queued=queue(x,y,z,options,now);flush(now);return queued;},
@@ -134,7 +170,7 @@ export function createDigFx(scene,{puffMap=null}={}){
   // A kick of px pixels; a smaller kick never cuts a bigger one short.
   kick(px,now=performance.now()){if(budget.kick&&px>=kickOffset(kickSize,now-kickAt)){kickAt=now;kickSize=px;}},
   kickNow(now=performance.now()){return budget.kick?kickOffset(kickSize,now-kickAt):0;},
-  setBudget(next){budget=next;chunks.limit=Math.min(D.chunks,next.chunks);puffs.limit=Math.min(D.puffs,next.puffs);chunks.count=Math.min(chunks.count,chunks.limit);puffs.count=Math.min(puffs.count,puffs.limit);tokens=Math.min(tokens,Math.max(1,next.chunks/3));if(!next.kick)kickSize=0;},
-  reset(){chunks.count=puffs.count=0;waiting=0;lastBurst.clear();lastPuff.clear();kickSize=0;kickAt=-Infinity;for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;}},
-  get budget(){return budget;},chunks,puffs,meshes:[chunkMesh,puffMesh]};
+  setBudget(next){budget=next;chunks.limit=Math.min(D.chunks,next.chunks);puffs.limit=Math.min(D.puffs,next.puffs);grains.limit=Math.min(D.grains,next.grains||0);chunks.count=Math.min(chunks.count,chunks.limit);puffs.count=Math.min(puffs.count,puffs.limit);grains.count=Math.min(grains.count,grains.limit);tokens=Math.min(tokens,Math.max(1,next.chunks/3));if(!next.kick)kickSize=0;},
+  reset(){chunks.count=puffs.count=grains.count=0;waiting=0;lastBurst.clear();lastPuff.clear();lastCrumble.clear();kickSize=0;kickAt=-Infinity;for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;}grainGeometry.setDrawRange(0,0);grainPoints.visible=false;},
+  crumble,get budget(){return budget;},chunks,puffs,grains,meshes:[chunkMesh,puffMesh],points:grainPoints};
 }
