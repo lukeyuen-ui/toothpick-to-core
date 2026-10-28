@@ -104,7 +104,7 @@ Run npm test (103 checks), npm run test:integration, and npm run test:pacing. PA
 Visual acceptance:
 
 - [ ] In cab, chase and overview, inspect the whole plain at 375 px phone width and desktop: soft powder with very weak irregular bumps, no golf-ball/dimple lattice, no long parallel white lines. Maximum anisotropy and mipmaps remain on. Global track overlay is disabled; shadow bias is -0.001 and normal bias 0.12.
-- [ ] Move the planet from center to corners of the view; rotate between portrait and landscape. Its silhouette remains round. The test checks projected right/up radii using the actual scene geometry and camera, but cannot certify GPU pixels here.
+- [ ] Move the Moon from center to corners of the view; rotate between portrait and landscape. Its silhouette remains round. The test checks projected right/up radii using the actual scene geometry and camera, but cannot certify GPU pixels here.
 - [ ] Disconnect the other seat: its explorer becomes gray and counts down in both 3D and 2D. Refresh before 90 seconds restores its color and stops the countdown. Past the deadline the explorer/rope disappear; old records must not draw over a new occupant.
 
 Presence and resilience, two devices in normal or fast mode:
@@ -123,7 +123,7 @@ First impression and sharing:
 - [ ] Open a valid room link on another device: "Joining Luke's expedition: n crew, ... deep" uses live metadata. An ended link says "That room has ended". Returning-seat autojoin still works. Changing the code manually uses the ordinary Join action.
 - [ ] Alone for sixty seconds alone: one friendly toast and a Share button appear. Clicking Share uses the native sheet where supported or copies the room link; Close dismisses the reminder. Joining a friend hides it. It does not repeat every tick or reopen after dismissal during the same planet.
 - [ ] Inspect initial HTML over the public HTTPS URL: Open Graph and Twitter title/description/image tags, 1200 by 630 dimensions, absolute host-derived og:url, and explorer favicon. Host callsign is escaped HTML; /room/CODE still exposes only its three metadata fields.
-- [ ] Capture /cover.html at a 1200 by 630 viewport in a WebGL-enabled browser. Check the actual habitat, two explorers, lit shaft and round planet, then save as public/cover.png and redeploy. Verify /cover.png returns image/png and social cards load it. There is intentionally no fake cover PNG in this ZIP because the current cloud browser disables WebGL.
+- [ ] Capture /cover.html at a 1200 by 630 viewport in a WebGL-enabled browser. Check the actual habitat, two explorers, lit shaft and the Moon under the ash overcast, then save as public/cover.png and redeploy. Verify /cover.png returns image/png and social cards load it. There is intentionally no fake cover PNG in this ZIP because the current cloud browser disables WebGL.
 - [ ] Run the earlier sound, phone FPS, reduced-motion and fallback checks. Test the actual HTTP /room link preview on a phone rather than the raw-source mirror, which serves code only.
 
 Browser evidence for this delivery: simplified lobby and valid/ended-room context render; actual authority stop showed Reconnecting in the HUD, and restart returned to the ended-expedition lobby. WebGL remains disabled, and /cover.html displays its explicit capture instructions in that environment. Phone frame rate and GPU look require the checklist above. Render deployment/pinger have not been connected or run from this environment.
@@ -132,7 +132,7 @@ Browser evidence for this delivery: simplified lobby and valid/ended-room contex
 
 - [ ] Fresh claim: undug cells have no bright edge dashes anywhere. The scene smoke subtest asserts zero ground-rim, wall and lit-rim instances, full-width undug floor tiles, exactly four of each shaft surface after one real cell is dug, and zero again after reset. Shafts retain their rim/wall detail.
 - [ ] Rocks are regolith gray with lit tops, visible darker undersides and soft contact shadows; occasional boulders are lighter, never pure-black dots.
-- [ ] /cover.html remains a fixed 1200 by 630 frame even in a taller/wider browser window. Title stays upper left; tagline stays within the bottom edge. Habitat is closer and lit; both explorers, a lit shaft, ore pile and larger round planet at upper right are in the scene. Recapture public/cover.png.
+- [ ] /cover.html remains a fixed 1200 by 630 frame even in a taller/wider browser window. Title stays upper left; tagline stays within the bottom edge. Habitat is closer and lit; both explorers, a lit shaft, ore pile and the Moon at upper right are in the scene. Recapture public/cover.png.
 - [ ] Before joining, the lobby card sits over a slow dusk orbit of the same claim scene. No room is created and no WebSocket is opened. Joining removes/disposes the backdrop. Returning to the lobby can recreate it. WebGL-disabled or reduced-motion devices show the plain background; changing reduced-motion preference while in the lobby stops the orbit.
 - [ ] At the hub: coach says "Press E to open the hub". Outside the hub radius: it directs you to the habitat as before. Purchases, shaft rules and all economy timings remain unchanged.
 
