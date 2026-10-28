@@ -206,14 +206,15 @@ export function createRenderer3D(canvas,mini,rods,money,options={}){
  // inertiaMax; chaseInertia times that on the chase boom), a change of forward speed nods the head (nodPush, at most nodMax) and turning
  // leans it into the turn (rollPush of the turn rate, at most rollMax). Like the kick it moves only the rendered view: aiming and clicks use
  // the steady camera, so the aimed cell never moves with it. Off with reduced motion, in the overview and covers, aboard the drill and in
- // the finale, and a jump faster than inertiaJump (a teleport, a change of view) is not a push.
- const glide={x:0,z:0,vx:0,vz:0},bob={x:0,z:0,vx:0,vz:0},lean={x:0,z:0,vx:0,vz:0},inertiaRest={position:new T.Vector3(),quaternion:new T.Quaternion()},inertiaLast=new Float64Array(7),shakeOut=[0,0,0];let inertiaReady=false;
+ // the finale, and a jump faster than inertiaJump (a teleport, a change of view) is not a push. Positions arrive at the server's tick, so
+ // the speeds that push it are smoothed over inertiaSmooth seconds first: the tick's stepping never shakes the view, a real start or stop does.
+ const glide={x:0,z:0,vx:0,vz:0},bob={x:0,z:0,vx:0,vz:0},lean={x:0,z:0,vx:0,vz:0},inertiaRest={position:new T.Vector3(),quaternion:new T.Quaternion()},inertiaLast=new Float64Array(8),shakeOut=[0,0,0];let inertiaReady=false;
  const within=(v,m)=>Math.max(-m,Math.min(m,v));
  function applyInertia(state,me,dt,viewMode){const K=C.cab,on=!reduced&&!presentation&&!state.team.won&&!me.boarded&&(viewMode==='first'||viewMode==='chase');
   if(!on){inertiaReady=false;glide.x=glide.z=glide.vx=glide.vz=bob.x=bob.z=bob.vx=bob.vz=lean.x=lean.z=lean.vx=lean.vz=0;return false;}if(!(dt>0))return false;
-  const L=inertiaLast,px=focus.x,pz=focus.z,py=camera.position.y;if(!inertiaReady){L[0]=px;L[1]=pz;L[2]=py;L[3]=L[4]=L[5]=0;L[6]=yaw;inertiaReady=true;}
-  let vx=(px-L[0])/dt,vz=(pz-L[1])/dt,vy=(py-L[2])/dt;if(Math.hypot(vx,vy,vz)>K.inertiaJump){vx=L[3];vz=L[4];vy=L[5];}const dvx=vx-L[3],dvz=vz-L[4],dvy=vy-L[5],turn=Math.atan2(Math.sin(yaw-L[6]),Math.cos(yaw-L[6]))/dt;
-  L[0]=px;L[1]=pz;L[2]=py;L[3]=vx;L[4]=vz;L[5]=vy;L[6]=yaw;
+  const L=inertiaLast,px=focus.x,pz=focus.z,py=camera.position.y;if(!inertiaReady){L[0]=px;L[1]=pz;L[2]=py;L[3]=L[4]=L[5]=L[7]=0;L[6]=yaw;inertiaReady=true;}
+  let vx=(px-L[0])/dt,vz=(pz-L[1])/dt,vy=(py-L[2])/dt;if(Math.hypot(vx,vy,vz)>K.inertiaJump){vx=L[3];vz=L[4];vy=L[5];}const f=1-Math.exp(-dt/K.inertiaSmooth),sx=L[3]+(vx-L[3])*f,sz=L[4]+(vz-L[4])*f,sy=L[5]+(vy-L[5])*f,dvx=sx-L[3],dvz=sz-L[4],dvy=sy-L[5],turn=L[7]+(Math.atan2(Math.sin(yaw-L[6]),Math.cos(yaw-L[6]))/dt-L[7])*f;
+  L[0]=px;L[1]=pz;L[2]=py;L[3]=sx;L[4]=sz;L[5]=sy;L[6]=yaw;L[7]=turn;
   glide.vx-=dvx*K.inertiaPush;glide.vz-=dvz*K.inertiaPush;swayStep(glide,dt,K.inertiaHz,K.inertiaDamping);bob.vx-=dvy*K.inertiaPush;bob.vz+=(dvx*Math.sin(yaw)-dvz*Math.cos(yaw))*K.nodPush;swayStep(bob,dt,K.inertiaHz,K.inertiaDamping);
   const roll=within(-turn*K.rollPush,K.rollMax);lean.x-=roll;swayStep(lean,dt,K.inertiaHz,K.inertiaDamping);lean.x+=roll;
   const k=viewMode==='chase'?K.chaseInertia:1,m=K.inertiaMax;inertiaRest.position.copy(camera.position);inertiaRest.quaternion.copy(camera.quaternion);
