@@ -56,7 +56,7 @@ A refresh uses the token in localStorage to restore the same seat. A lost connec
 
 Four occupied seats, including grace reservations, produce "This expedition is full (4 of 4)" for another joiner. Callsigns are trimmed, capped and stripped of control/format characters; empty becomes Digger. Missing/expired rooms show "That expedition has ended. Start a new one." and clear their stored token. Reconnect uses exponential backoff from 1.5 to fifteen seconds, keeping Reconnecting in the field strip until a snapshot arrives. Garbage/binary/oversized messages are discarded; buy, chip, proposal, vote and belay controls share a four-per-second limit. The server also bounds ingress and queued commands. A floating-point grid-corner traversal fix prevents unbounded cargo-path loops.
 
-GET /health returns ok, the room count, the connected player count and humans, the connected people with the bot crews left out, so a deploy can wait for people only. GET /room/CODE returns only code, connected crew count and deepest depth in meters (404 when ended). The host callsign for the link preview is escaped into the initial lobby HTML, so this endpoint exposes no names, player state, tokens or finds. Rooms are in memory and expire after thirty idle minutes. Restarting the server loses them.
+GET /health returns ok, the room count, the connected player count and humans, the connected people with the bot crews left out, so a deploy can wait for people only. GET /room/CODE returns only code, connected crew count, bot count and deepest depth in meters (404 when ended). The host callsign for the link preview is escaped into the initial lobby HTML, so this endpoint exposes no names, player state, tokens or finds. Rooms are in memory and expire after thirty idle minutes. Restarting the server loses them.
 
 ## Deploy on Render
 
@@ -72,9 +72,9 @@ Render's free service sleeps after fifteen idle minutes and can restart independ
 
 ## Share image and favicon
 
-The lobby includes Open Graph and Twitter large-card metadata, an absolute og:url/image URL derived from the HTTP request host, and a explorer SVG favicon. The screenshot image is the one remaining manual step because this environment cannot create a WebGL context.
+The lobby includes Open Graph and Twitter large-card metadata, an absolute og:url/image URL derived from the HTTP request host, and an explorer SVG favicon. public/cover.png, the 1200 by 630 image behind the link card, is the contest cover art (the plasma drill opening the core), the same picture as the submission, so a pasted link and the entry look alike.
 
-Run the app and open /cover.html in your WebGL-enabled browser at a 1200 by 630 viewport, 100 percent zoom. It renders the actual shared 3D renderer, with the habitat, two explorers, a lit shaft and planet, plus the title/tagline. Wait for it to draw and capture the page as public/cover.png. Keep that exact filename, commit it, and redeploy. The /cover.png route and card tags are already wired for it. Until it is captured, that image route returns 404; there is no fabricated or placeholder scene image. Cover config is isolated to the cover page and never connects to a live game room.
+To use a scene capture instead, run the app and open /cover.html in a WebGL-enabled browser at a 1200 by 630 viewport, 100 percent zoom. It renders the shared 3D renderer, with the hub, two explorers and a lit shaft under the ash sky, plus the title and tagline. Wait for it to draw, capture the page as public/cover.png, keep that exact filename, commit it and redeploy; the /cover.png route and card tags are already wired for it. Cover config is isolated to the cover page and never connects to a live game room.
 
 ## Design notes
 
