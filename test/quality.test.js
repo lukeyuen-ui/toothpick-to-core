@@ -10,7 +10,9 @@ test('presets: high, balanced and low get cheaper in every dimension',()=>{
  assert.equal(QUALITY.high.shadows,true);assert.equal(QUALITY.balanced.shadows,true);assert.equal(QUALITY.low.shadows,false);
  assert.equal(QUALITY.high.particles,1);assert.equal(QUALITY.balanced.particles,1);assert.equal(QUALITY.low.particles,0.5);
  assert.ok(QUALITY.high.shadowSoftness>QUALITY.balanced.shadowSoftness,'high filters shadows wider');
- for(const key of ['flora','embers'])assert.ok(QUALITY.high[key]>QUALITY.balanced[key]&&QUALITY.balanced[key]>QUALITY.low[key],key);
+ for(const key of ['flora','embers','debris','puffs'])assert.ok(QUALITY.high[key]>QUALITY.balanced[key]&&QUALITY.balanced[key]>QUALITY.low[key],key);
+ assert.deepEqual([QUALITY.high.kick,QUALITY.balanced.kick,QUALITY.low.kick],[true,true,false],'no camera kick on low');
+ assert.equal(QUALITY.low.puffs,0,'low throws no dust puffs');
 });
 
 test('pickQuality: the URL beats the saved choice, unknown values mean auto, and auto starts at high',()=>{
