@@ -93,18 +93,22 @@ export function printField(size=64){const S=size,data=new Uint8Array(S*2*S*4),pu
 // The prints themselves: one pooled instanced mesh of lit decals on the plain, a ring of slots so the oldest print gives way, drawn up
 // to the slots used. Each print keeps its birth time and kind as instance attributes and fades in the shader against one clock, so
 // nothing is written per frame. walk(id, x, z, kind, now) follows one walker, dropping a print every stride along its path; lift(id)
-// breaks its trail (in a shaft, on a mound, aboard). kind 0 is boots, 1 the mech.
-export function createFootprints(scene,{count=G.prints}={}){
+// breaks its trail (in a shaft, on a mound, aboard). kind 0 is boots, 1 the mech. A fresh print is ringed for scuffLife seconds by a
+// soft scuff of lighter kicked-up dust (scuffAlpha at first, scuffTone, its quad grown by scuffSpread while it lasts), and each print
+// laid calls onStep(x, z, ax, az, kind, now) with its middle and the walker's heading, for the step's puff of dust.
+export function createFootprints(scene,{count=G.prints,onStep=null}={}){
  const field=printField(),map=new T.DataTexture(field.data,field.width,field.height,T.RGBAFormat);map.colorSpace=T.NoColorSpace;map.magFilter=T.LinearFilter;map.minFilter=T.LinearMipmapLinearFilter;map.generateMipmaps=true;map.needsUpdate=true;
  const geometry=new T.PlaneGeometry(1,1).rotateX(-Math.PI/2),born=new T.InstancedBufferAttribute(new Float32Array(count).fill(-1e6),1),kinds=new T.InstancedBufferAttribute(new Float32Array(count),1);geometry.setAttribute('printBorn',born);geometry.setAttribute('printKind',kinds);
  const clock={value:0},material=new T.MeshStandardMaterial({map,color:G.printShade,transparent:true,depthWrite:false,polygonOffset:true,polygonOffsetFactor:-2,roughness:1});
- material.onBeforeCompile=s=>{s.uniforms.printClock=clock;s.vertexShader='attribute float printBorn;attribute float printKind;varying float printAge;uniform float printClock;\n'+s.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n vMapUv.x=vMapUv.x*0.5+printKind*0.5;printAge=printClock-printBorn;');
-  s.fragmentShader='varying float printAge;\n'+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n diffuseColor.a*=smoothstep(0.0,0.4,printAge)*(1.0-smoothstep('+(G.printLife*0.6).toFixed(2)+','+G.printLife.toFixed(2)+',printAge));');};material.customProgramCacheKey=()=>'dust-print';
+ const f=v=>Number(v).toFixed(4),scuff=new T.Color(G.scuffTone),scuffRgb='vec3('+[scuff.r,scuff.g,scuff.b].map(f).join(',')+')';
+ material.onBeforeCompile=s=>{s.uniforms.printClock=clock;s.vertexShader='attribute float printBorn;attribute float printKind;varying float printAge;varying vec2 printUv;varying vec2 printQ;uniform float printClock;\n'+s.vertexShader.replace('#include <uv_vertex>','#include <uv_vertex>\n printAge=printClock-printBorn;float printGrow=printAge<'+f(G.scuffLife)+'?'+f(G.scuffSpread)+':0.0;printQ=uv-0.5;printUv=printQ*(1.0+printGrow)+0.5;vMapUv=vec2(printUv.x*0.5+printKind*0.5,printUv.y);').replace('#include <begin_vertex>','#include <begin_vertex>\n transformed.xz*=1.0+printGrow;');
+  s.fragmentShader='varying float printAge;varying vec2 printUv;varying vec2 printQ;\n'+s.fragmentShader.replace('#include <color_fragment>','#include <color_fragment>\n {float printA=all(greaterThanEqual(printUv,vec2(0.0)))&&all(lessThanEqual(printUv,vec2(1.0)))?diffuseColor.a*smoothstep(0.0,0.4,printAge)*(1.0-smoothstep('+(G.printLife*0.6).toFixed(2)+','+G.printLife.toFixed(2)+',printAge)):0.0;\n float scuffA='+f(G.scuffAlpha)+'*(1.0-smoothstep(0.0,'+f(G.scuffLife)+',printAge))*smoothstep(0.0,0.06,printAge)*(1.0-smoothstep(0.3,1.0,length(printQ*2.0)));\n diffuseColor.rgb=mix(diffuseColor.rgb,'+scuffRgb+',scuffA/max(0.0001,scuffA+printA));diffuseColor.a=max(printA,scuffA);}');};material.customProgramCacheKey=()=>'dust-print';
  const mesh=new T.InstancedMesh(geometry,material,count);mesh.name='Dust footprints';mesh.count=0;mesh.visible=false;mesh.frustumCulled=false;mesh.receiveShadow=true;scene.add(mesh);
  const dummy=new T.Object3D(),walkers=new Map();let next=0,used=0,limit=count;
  function print(x,z,ax,az,kind,side,now){if(limit<=0)return;const i=next;next=(next+1)%limit;used=Math.max(used,next===0?limit:next);const w=kind?G.mechSize[0]:G.bootSize[0],l=kind?G.mechSize[1]:G.bootSize[1],spread=kind?0:G.bootSpread*side;
   dummy.position.set(x+az*spread,0.006,z-ax*spread);dummy.rotation.set(0,Math.atan2(-ax,-az),0);dummy.scale.set(w*(side<0?-1:1),1,l);dummy.updateMatrix();mesh.setMatrixAt(i,dummy.matrix);born.array[i]=now/1000;kinds.array[i]=kind;
-  mesh.instanceMatrix.addUpdateRange(i*16,16);born.addUpdateRange(i,1);kinds.addUpdateRange(i,1);mesh.instanceMatrix.needsUpdate=born.needsUpdate=kinds.needsUpdate=true;mesh.count=used;mesh.visible=true;}
+  mesh.instanceMatrix.addUpdateRange(i*16,16);born.addUpdateRange(i,1);kinds.addUpdateRange(i,1);mesh.instanceMatrix.needsUpdate=born.needsUpdate=kinds.needsUpdate=true;mesh.count=used;mesh.visible=true;onStep?.(dummy.position.x,dummy.position.z,ax,az,kind,now);}
+
  return {mesh,
   walk(id,x,z,kind,now){let w=walkers.get(id);if(!w){w={x,z,run:0,side:1,kind};walkers.set(id,w);return;}const dx=x-w.x,dz=z-w.z,d=Math.hypot(dx,dz);if(d>0.6||w.kind!==kind){w.x=x;w.z=z;w.run=0;w.kind=kind;return;}if(d<1e-6)return;
    const stride=kind?G.mechStride:G.bootStride,ax=dx/d,az=dz/d;w.run+=d;while(w.run>=stride){w.run-=stride;w.side=-w.side;print(x-ax*w.run,z-az*w.run,ax,az,kind,w.side,now);}w.x=x;w.z=z;},

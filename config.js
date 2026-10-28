@@ -142,8 +142,10 @@ export const C = {
 // parallax shift of up to dustDepth where the ground's bump strength allows. The churned ground round holes keeps dustSpoil less
 // of it, and worn ground less again. Explorers walking the plain leave boot prints (bootSize: width and length, bootStride apart, left
 // and right of their path by bootSpread) and a player in the mining mech its broad tread marks (mechSize, mechStride); prints darken
-// the dust to printShade and fade over printLife seconds, from a pool of prints (scaled by the preset's regolith; none on Low).
- ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500,dustScale:1,dustNormal:0.4,dustTone:0.14,dustDepth:0.02,dustSpoil:0.7,prints:160,printLife:60,printShade:'#4f5254',bootSize:[0.085,0.165],bootStride:0.27,bootSpread:0.06,mechSize:[0.26,0.22],mechStride:0.24},
+// the dust to printShade and fade over printLife seconds, from a pool of prints (scaled by the preset's regolith; none on Low). A fresh
+// print is ringed by a soft scuff of lighter kicked-up dust (scuffTone, scuffAlpha at first) that settles within scuffLife seconds, on
+// a quad grown by scuffSpread while it lasts.
+ ground:{texels:8,margin:8,seed:23,albedo:[0.12,0.07,0.035],albedoScales:[5.5,2.4,1.1],patches:9,patchRadius:[1.1,2.4],patchDark:0.2,drifts:6,driftLight:0.05,ejecta:0.12,cool:[0.975,0.99,1.025],warm:[1.03,1.0,0.965],hub:[8,8],hubRing:[1.05,3.2],hubWear:0.8,beltWear:0.75,beltWidth:0.62,pathWear:0.42,pathWidth:0.42,wornTone:[0.8,0.815,0.84],wornFlat:0.55,normalRange:[0.35,1.7],meadowKeep:0.4,rebakeMs:1500,dustScale:1,dustNormal:0.4,dustTone:0.14,dustDepth:0.02,dustSpoil:0.7,prints:160,printLife:60,printShade:'#4f5254',bootSize:[0.085,0.165],bootStride:0.27,bootSpread:0.06,mechSize:[0.26,0.22],mechStride:0.24,scuffLife:1.1,scuffSpread:0.9,scuffAlpha:0.42,scuffTone:'#bdbcb7'},
  // Dig feedback (public/dig-fx.js): chunks of the struck stratum flung out of the cell, bouncing on the rim and sinking into the dirt, a dust
  // puff over every break, and a camera kick of a pixel or two for mech strikes and the boring drill. Pools and the chunk rate are the high
  // preset's; quality.js scales them, and low keeps a small chunk pool with no puffs and no kick. Sizes are world units, times in seconds.
@@ -166,9 +168,14 @@ export const C = {
 // (rollDigChance for each). It rolls at rollSpeed, slides onto the wall below the rounded rim over a few steps (rollSlide of the way
 // each), takes rollTone of the rubble's colour and lives rollLife; each holds one of the preset's rolls for rollBusyMs, and the last
 // rollKeep stones to roll stay gone from the rim when the rubble is laid again.
+// Footstep dust: every boot print laid on the plain (C.ground) throws a low puff of grey dust from the puff pool, stepPuff in size over
+// stepPuffLife at stepAlpha (stepTone of a dig puff's brightness), kicked stepKick along the stride and rising at stepRise; a mech's
+// tread throws two bigger ones (mechStepPuff, mechStepLife, mechStepAlpha) mechStepSpread either side. Steps leave stepReserve puffs
+// of the pool for digging.
  digFx:{chunks:160,puffs:36,chunkRate:150,hitChunks:5,breakChunks:15,findChunks:18,chunkLife:[0.9,1.5],chunkSize:[0.02,0.048],breakSize:1.4,hitSpeed:[0.8,1.5],breakSpeed:[1.5,2.6],spread:[0.3,1.0],gravity:5.2,bounce:0.36,friction:0.55,wall:0.35,restSpeed:0.22,maxBounces:3,settle:0.3,spin:14,emissive:0.16,surfaceGrey:0.5,darkRock:0.3,cellCooldownMs:150,puffCooldownMs:600,puffClear:[0.7,2.2],chunkClear:[0.22,0.55],flashEveryMs:600,impactSkipMs:300,reach:14,cameraClear:1.2,hitPuff:[0.16,0.42],breakPuff:[0.35,1.15],hitPuffLife:0.8,breakPuffLife:1.8,puffAlpha:[0.42,0.68],puffRise:0.16,dustLighten:0.42,puffBrightness:1.9,heapSettle:0.4,grains:160,crumbleGrains:12,crumbleSheet:6,crumbleSpan:0.6,sheetDepth:1.2,crumbleCooldownMs:900,grainSize:[0.013,0.024],sheetSize:[0.05,0.09],grainLife:[0.8,1.3],grainGravity:4.2,grainFade:0.25,grainAlpha:0.95,sheetAlpha:0.5,grainTone:0.62,grainClear:[0.12,0.45],pendingMax:48,syncMs:260,findColor:'#e8d9a0',kickPx:1.5,breakKickPx:2,kickMs:120,rumblePx:0.8,nearRumblePx:0.5,rumbleReach:2.6,
   fallCount:[2,2,3,3,4,4,5,5,6],fallScale:[1,1.15,1.3,1.6,2,2.3,2.9,3.2,3.9],fallSize:[0.009,0.016],fallTone:0.8,fallBackWall:0.15,fallSpan:0.9,fallAlong:0.3,fallOut:[0.04,0.3],fallPop:0.25,fallStagger:0.07,fallSpin:7,fallScrape:0.8,fallLife:[1.9,2.8],fallRate:30,fallBurst:14,fallCooldownMs:600,fallHitCooldownMs:350,fallHitTier:4,fallHitChance:0.5,
-  rollEdge:0.1,rollMinSize:0.01,rollWalkReach:0.8,rollWalkMs:450,rollWalkChance:0.3,rollDigReach:1.3,rollDigChance:[0.2,0.6],rollSpeed:[0.12,0.26],rollSlide:0.35,rollTone:0.9,rollLife:[2.2,3],rollBusyMs:1500,rollKeep:48},
+  rollEdge:0.1,rollMinSize:0.01,rollWalkReach:0.8,rollWalkMs:450,rollWalkChance:0.3,rollDigReach:1.3,rollDigChance:[0.2,0.6],rollSpeed:[0.12,0.26],rollSlide:0.35,rollTone:0.9,rollLife:[2.2,3],rollBusyMs:1500,rollKeep:48,
+  stepPuff:[0.07,0.3],stepPuffLife:0.9,stepAlpha:0.4,stepTone:1.05,stepRise:0.06,stepKick:0.25,mechStepPuff:[0.12,0.52],mechStepLife:1.15,mechStepAlpha:0.48,mechStepSpread:0.09,stepReserve:14},
 
 
  protocolVersion:9

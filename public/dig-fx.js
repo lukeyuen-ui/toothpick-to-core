@@ -200,6 +200,16 @@ export function createDigFx(scene,{puffMap=null}={}){
   chunks.angle[i]=Math.random()*Math.PI*2;chunks.spin[i]=v/Math.max(0.004,r*0.8);chunks.ax[i]=dz;chunks.ay[i]=0;chunks.az[i]=-dx;chunks.bounces[i]=chunks.rest[i]=0;
   chunks.tip[i]=Math.max(0,o.round??0);chunks.roll[i]=chunks.rollAll[i]=Math.max(0,to)+chunks.tip[i]+r*0.6;chunks.y0[i]=y;chunks.y1[i]=y1;chunks.wx[i]=o.wx;chunks.wz[i]=o.wz;chunks.nx[i]=-dx;chunks.nz[i]=-dz;chunks.wy[i]=o.top;chunks.wl[i]=o.lean;chunks.wo[i]=0;
   chunks.cr[i]=o.cr*D.rollTone;chunks.cg[i]=o.cg*D.rollTone;chunks.cb[i]=o.cb*D.rollTone;return true;}
+ // A foot planted in the dust (ground-detail.js footprints): a low puff of grey dust at x, z kicked a little along the stride (ax, az),
+ // or for a mech's tread (kind 1) two bigger ones either side of it. Steps leave stepReserve of the puff pool for digging and decline
+ // when that is all that is left, so a crew walking never thins a break's dust. Returns how many puffs it threw.
+ function step(x,z,ax,az,kind){if(!budget.puffs||puffs.count>=puffs.limit-D.stepReserve)return 0;const mech=kind===1,[s0,s1]=mech?D.mechStepPuff:D.stepPuff;let made=0;
+  tint.copy(grey).lerp(pale,D.dustLighten).multiplyScalar(D.puffBrightness*D.stepTone);
+  for(let k=0;k<(mech?2:1);k++){const i=takeSlot(puffs,false);if(i<0)break;const side=mech?(k?1:-1)*D.mechStepSpread:0,kick=D.stepKick*(0.6+0.4*Math.random());
+   puffs.x[i]=x+az*side+(Math.random()-0.5)*0.04;puffs.z[i]=z-ax*side+(Math.random()-0.5)*0.04;puffs.y[i]=0.012+s0*0.45;puffs.vx[i]=ax*kick+(Math.random()-0.5)*0.08;puffs.vz[i]=az*kick+(Math.random()-0.5)*0.08;puffs.vy[i]=D.stepRise;
+   puffs.age[i]=0;puffs.life[i]=(mech?D.mechStepLife:D.stepPuffLife)*(0.85+0.3*Math.random());puffs.s0[i]=s0;puffs.s1[i]=s1*(0.85+0.3*Math.random());puffs.alpha[i]=mech?D.mechStepAlpha:D.stepAlpha;
+   puffs.roll[i]=Math.random()*Math.PI*2;puffs.turn[i]=(Math.random()-0.5)*0.6;puffs.cr[i]=tint.r;puffs.cg[i]=tint.g;puffs.cb[i]=tint.b;made++;}
+  return made;}
  function grain(x,y,z,dx,dz,floor,delay,size,alpha,shade,speed,dusty){const i=takeSlot(grains,false);if(i<0)return;grains.x[i]=x;grains.y[i]=y;grains.z[i]=z;grains.vx[i]=dx*speed+(Math.random()-0.5)*0.05;grains.vz[i]=dz*speed+(Math.random()-0.5)*0.05;grains.vy[i]=-Math.random()*0.25;
   grains.age[i]=-delay;grains.life[i]=lerp(D.grainLife,Math.random());grains.floor[i]=floor;grains.size[i]=size;grains.alpha[i]=alpha;tint.copy(color).lerp(grey,dusty).multiplyScalar(Math.min(1.2,shade));grains.cr[i]=tint.r;grains.cg[i]=tint.g;grains.cb[i]=tint.b;}
  function update(dt,camera,groundAt,now=performance.now(),heapAt=null){
@@ -225,7 +235,8 @@ export function createDigFx(scene,{puffMap=null}={}){
   kickNow(now=performance.now()){return budget.kick?kickOffset(kickSize,now-kickAt):0;},
   setBudget(next){budget=next;rockTokens=Math.min(rockTokens,next.fallBurst||0);chunks.limit=Math.min(D.chunks,next.chunks);puffs.limit=Math.min(D.puffs,next.puffs);grains.limit=Math.min(D.grains,next.grains||0);chunks.count=Math.min(chunks.count,chunks.limit);puffs.count=Math.min(puffs.count,puffs.limit);grains.count=Math.min(grains.count,grains.limit);tokens=Math.min(tokens,Math.max(1,next.chunks/3));if(!next.kick)kickSize=0;},
   reset(){chunks.count=puffs.count=grains.count=0;waiting=0;lastBurst.clear();lastPuff.clear();lastCrumble.clear();lastFall.clear();lastFallHit.clear();rockTokens=0;rockAt=null;kickSize=0;kickAt=-Infinity;for(const mesh of [chunkMesh,puffMesh]){mesh.count=0;mesh.visible=false;}grainGeometry.setDrawRange(0,0);grainPoints.visible=false;},
-  crumble,rockfall,pebble,get budget(){return budget;},
+  crumble,rockfall,pebble,step,get budget(){return budget;},
+
 chunks,puffs,grains,meshes:[chunkMesh,puffMesh],points:grainPoints};
 
 }

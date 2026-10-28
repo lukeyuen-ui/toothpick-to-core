@@ -82,3 +82,16 @@ test('walkers leave boot prints left and right along their path, the mech its tr
  prints.setBudget(0);assert.equal(prints.count,0);assert.equal(mesh.visible,false);prints.walk('ada',1,1,0,now);prints.walk('ada',3,1,0,now);assert.equal(prints.count,0,'none on Low');
  prints.setBudget(G.prints);prints.walk('ada',1,1,0,now);prints.walk('ada',1.5,1,0,now);assert.ok(prints.count>0);prints.reset();assert.equal(prints.count,0);
 });
+
+// Footstep dust (physics pass): each print laid calls onStep with its middle and the heading, for the step's puff; a fresh print wears a
+// short-lived scuff of lighter dust drawn in the same decal, so the pool and its one draw are unchanged.
+test('each print laid reports the step for its puff, and a fresh print is ringed by a scuff that settles within scuffLife',()=>{
+ const steps=[],scene=new T.Scene(),prints=createFootprints(scene,{onStep:(x,z,ax,az,kind,now)=>steps.push([x,z,ax,az,kind])});let now=1000;
+ for(let k=0;k<=60;k++){prints.walk('ada',2+k*0.02,5,0,now);now+=20;}assert.equal(steps.length,prints.count,'one step per print');assert.ok(steps.length>=3);
+ for(const [x,z,ax,az,kind] of steps){assert.ok(x>=2&&x<=3.3&&Math.abs(z-5)<G.bootSpread+1e-6);assert.ok(Math.abs(ax-1)<1e-6&&Math.abs(az)<1e-6);assert.equal(kind,0);}
+ prints.lift('ada');prints.walk('ada',8,8,0,now);prints.walk('ada',8,8,0,now+100);assert.equal(steps.length,prints.count,'standing still lays no steps');
+ prints.setBudget(0);const before=steps.length;prints.walk('ada',1,1,0,now);prints.walk('ada',3,1,0,now);assert.equal(steps.length,before,'no prints, no steps on Low');
+ const mesh=scene.getObjectByName('Dust footprints'),shader={uniforms:{},vertexShader:T.ShaderLib.standard.vertexShader,fragmentShader:T.ShaderLib.standard.fragmentShader};mesh.material.onBeforeCompile(shader);
+ assert.ok(shader.vertexShader.includes('printGrow')&&shader.vertexShader.includes('transformed.xz*=1.0+printGrow'),'the quad grows while the scuff lasts');assert.ok(shader.fragmentShader.includes('scuffA'),'and the scuff is drawn');
+ assert.ok(!shader.vertexShader.includes('undefined')&&!shader.fragmentShader.includes('undefined')&&!shader.fragmentShader.includes('NaN'));assert.ok(G.scuffLife>0&&G.scuffLife<3&&G.scuffAlpha>0&&G.scuffAlpha<1);
+});

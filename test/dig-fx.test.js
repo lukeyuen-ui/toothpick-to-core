@@ -184,3 +184,15 @@ test('a pebble rolls up to the crest, over the rounded rim and down into the hol
  assert.ok(topY>=0.042,'it climbs to the crest first');assert.ok(fell,'and ends on the floor');
  fx.setBudget(digBudget(qualitySettings('low')));assert.equal(fx.pebble(8.5,0.03,8,0.015,0,1,0.06,0.05,spot),false,'none on Low');
 });
+
+// Footstep dust: a planted boot throws one low puff, a mech's tread two bigger ones; steps never take the last stepReserve puffs.
+test('a step throws a low puff of dust, a mech tread two, and steps leave the dig its share of the puff pool',()=>{
+ const fx=createDigFx(new T.Scene()),camera=view();fx.setBudget(digBudget(qualitySettings('high')));
+ assert.equal(fx.step(4.5,6.5,1,0,0),1);assert.equal(fx.puffs.count,1);assert.ok(fx.puffs.y[0]<0.1,'low to the ground');assert.ok(fx.puffs.vx[0]>0,'kicked along the stride');
+ assert.equal(fx.step(5.5,6.5,1,0,1),2,'a mech tread throws two');assert.ok(fx.puffs.s1[1]>fx.puffs.s1[0]*1.2,'and bigger');
+ let thrown=3;for(let k=0;k<100;k++)thrown+=fx.step(3+k*0.05,4,0,1,k%2);assert.ok(fx.puffs.count<=fx.puffs.limit-D.stepReserve,'steps leave '+D.stepReserve+' puffs for digging');
+ fx.burst(8.5,0,8.5,{heavy:true,key:5},1000);assert.equal(fx.puffs.count,fx.puffs.limit-D.stepReserve+1,'a break still gets its puff');
+ for(let t=0;t<160;t++)fx.update(0.016,camera,()=>0,1000+t*16);assert.equal(fx.puffs.count,0,'step dust (and the break) settles within a couple of seconds');
+ fx.setBudget(digBudget(qualitySettings('low')));assert.equal(fx.step(4.5,6.5,1,0,0),0,'none on Low');
+ fx.setBudget(digBudget(qualitySettings('balanced')));let some=0;for(let k=0;k<40;k++)some+=fx.step(3+k*0.05,4,0,1,0);assert.ok(some>0&&fx.puffs.count<=Math.max(0,digBudget(qualitySettings('balanced')).puffs-D.stepReserve),'Balanced a smaller share');
+});
