@@ -10,6 +10,7 @@ import {createRoom,join,step,snapshot,snapshotForPlayer,depthAt} from './rules.j
 import {disconnect} from './presence-rules.js';
 import {decodeMessage,escapeHtml,allowAction} from './resilience.js';
 import {decodeSave,restoreRoom,claimSaved,makeSaveCode,saveDue,markSaved,saveMessage,usingDefaultSecret,SaveError,SAVE_TEXT} from './save-rules.js';
+import {startKeepWarm} from './keep-warm.js';
 // Each deploy gets a build id; clients that reconnect to a newer server reload to pick up the new code.
 const BUILD=process.env.RENDER_GIT_COMMIT||String(Date.now());
 const rooms=new Map(),sockets=new Map(),queues=new Map();
@@ -67,3 +68,5 @@ setInterval(()=>{
  }
 },C.tickMs);
 const portFlag=process.argv.indexOf('--port');server.listen(Number(process.env.PORT)||Number(portFlag>=0?process.argv[portFlag+1]:null)||C.defaultPort,'0.0.0.0',()=>console.log('Toothpick authority listening on',server.address().port));
+// Only the live service sets RENDER_EXTERNAL_URL (KEEP_WARM_URL overrides it), so local runs and tests never ping anything.
+startKeepWarm(process.env.KEEP_WARM_URL||process.env.RENDER_EXTERNAL_URL);
