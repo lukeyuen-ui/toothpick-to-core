@@ -10,3 +10,7 @@ export function dragLook(yaw,pitch,dx,dy,sensitivity,minPitch,maxPitch){return {
 // never their sum, and reduced motion shows neither.
 export function cabShake(overdrive,red,reduced,seconds,K,random=Math.random){const od=overdrive?K.overdriveShake:0,rr=K.redRumble*Math.min(1,Math.max(0,red||0));if(reduced||!(od>0||rr>0))return null;
  if(od>=rr)return [(random()-0.5)*od,(random()-0.5)*od,(random()-0.5)*od];const t=seconds*Math.PI*2*K.redRumbleHz;return [Math.sin(t*1.37)*rr*0.25,Math.sin(t)*rr*0.5,0];}
+// One step of a slow damped spring for swaying ropes, cables and hanging loads: s.x, s.z is an offset and s.vx, s.vz its velocity, pulled
+// back at hz with damping ratio zeta (below 1 it swings and settles within a few periods). Taken in steps of at most 20 ms, so it stays
+// stable at any frame time the renderer allows. Returns s; allocates nothing.
+export function swayStep(s,dt,hz,zeta){const w=2*Math.PI*hz,k=w*w,c=2*zeta*w;for(let left=Math.max(0,dt||0);left>1e-6;){const h=Math.min(left,0.02);s.vx+=(-k*s.x-c*s.vx)*h;s.vz+=(-k*s.z-c*s.vz)*h;s.x+=s.vx*h;s.z+=s.vz*h;left-=h;}return s;}

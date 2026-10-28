@@ -1,4 +1,4 @@
-import test from 'node:test';import assert from 'node:assert/strict';import {worldMove,arrowYaw,dragLook,cabShake}from '../public/control-math.js';import {C}from '../config.js';import {createRoom,join,step}from '../rules.js';
+import test from 'node:test';import assert from 'node:assert/strict';import {worldMove,arrowYaw,dragLook,cabShake,swayStep}from '../public/control-math.js';import {C}from '../config.js';import {createRoom,join,step}from '../rules.js';
 const near=(a,b)=>assert.ok(Math.abs(a-b)<1e-8,`${a} != ${b}`);
 test('camera-relative forward and strafing rotate with yaw and preserve analog movement',()=>{for(const yaw of [0,Math.PI/2,Math.PI,Math.PI*1.5,0.37]){const forward=worldMove(0,1,yaw),side=worldMove(1,0,yaw);near(forward.dx,Math.sin(yaw));near(forward.dy,-Math.cos(yaw));near(side.dx,Math.cos(yaw));near(side.dy,Math.sin(yaw));near(forward.dx*side.dx+forward.dy*side.dy,0);const diagonal=worldMove(1,1,yaw);near(Math.hypot(diagonal.dx,diagonal.dy),1);near(Math.hypot(...Object.values(worldMove(0.2,0.3,yaw))),Math.hypot(0.2,0.3));}});
 test('authority applies analog magnitude at every mobility speed',()=>{for(let tier=0;tier<C.mobility.length;tier++){const r=createRoom('TEST',42,false,0),p=join(r,'t','T',0);p.x=p.y=4.5;p.mobility=tier;step(r,[{player:p,message:{type:'move',dx:0.3,dy:0.4}}],100);near(p.x,4.5+0.3*C.mobility[tier].speed*C.tickSeconds);near(p.y,4.5+0.4*C.mobility[tier].speed*C.tickSeconds);}});
@@ -13,3 +13,13 @@ test('the drill seat shakes for the overdrive or a red gauge, the larger and nev
  assert.ok(deep>K.redRumble*0.45&&deep<=K.redRumble/2+1e-12,'a red gauge buzzes up to a third of the overdrive reach: '+deep);near(half,deep/2);
  const dice=()=>{let k=0;return ()=>[0.9,0.05,0.7][k++%3];};assert.deepEqual(cabShake(true,1,false,0.3,K,dice()),cabShake(true,0,false,0.3,K,dice()),'in the overdrive a red gauge adds nothing');
  for(let i=0;i<240;i++)assert.ok(peak(cabShake(true,1,false,i/997,K))<=K.overdriveShake/2,'never past the overdrive on its own');});
+
+// Rope and cable sway (physics pass): a slow damped spring that swings after a kick and settles, at any frame rate.
+test('a kicked rope swings back and forth at its own slow rate and settles, the same at 30 and 144 frames a second',()=>{
+ const K=C.cab;const run=fps=>{const s={x:0,z:0,vx:K.ropeDrop,vz:0};let crossings=0,last=0,peak=0;for(let t=0;t<6;t+=1/fps){swayStep(s,1/fps,K.ropeHz,K.ropeDamping);peak=Math.max(peak,Math.abs(s.x));if(t<2.5&&Math.sign(s.x)!==Math.sign(last)&&last!==0)crossings++;last=s.x;}return {s,crossings,peak};};
+ const slow=run(30),fast=run(144);for(const r of [slow,fast]){assert.ok(r.crossings>=2&&r.crossings<=5,'a slow pendulum: '+r.crossings+' swings in 2.5 s');assert.ok(r.peak>0.02&&r.peak<K.ropeMax*1.5,'a few centimetres: '+r.peak);assert.ok(Math.hypot(r.s.x,r.s.z)<r.peak*0.2,'settled after six seconds');}
+ assert.ok(Math.abs(slow.peak-fast.peak)<0.01,'frame rate does not change the swing');
+ const still={x:0,z:0,vx:0,vz:0};swayStep(still,0.05,K.ropeHz,K.ropeDamping);assert.deepEqual([still.x,still.z],[0,0],'nothing moves it, nothing moves');
+ const big={x:0,z:0,vx:0,vz:0};swayStep(big,10,K.ropeHz,K.ropeDamping);assert.ok([big.x,big.z,big.vx,big.vz].every(Number.isFinite));
+ assert.ok(C.cab.ropePoints>=4,'a rope bends through a few points');
+});
