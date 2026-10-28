@@ -1,6 +1,74 @@
 import * as T from './vendor/three.module.js';import {holdCapacity} from '../hauling-rules.js';
 import {C} from '../config.js';
 const tv=C.toolVisual;
+// ---- Model kit ----------------------------------------------------------------------------------------------------------------
+// Bevelled boxes, lathed and swept solids, hoses, bolts, hazard stripes and decal quads, plus parts(): a builder that merges every
+// static piece of a model per material, so richer models cost triangles rather than draw calls. Curved surfaces carry smooth normals;
+// flat faces stay flat behind a small rounded bevel. Merged meshes get object-space box-projected UVs (for the procedural wear maps)
+// and vertex colours: each part's paint colour, darkened by grime toward the ground and worn toward bare metal on bevelled edges.
+const tri=(pos,nor,a,b,c,na,nb,nc)=>{const ux=b[0]-a[0],uy=b[1]-a[1],uz=b[2]-a[2],vx=c[0]-a[0],vy=c[1]-a[1],vz=c[2]-a[2],fx=uy*vz-uz*vy,fy=uz*vx-ux*vz,fz=ux*vy-uy*vx;if(fx*fx+fy*fy+fz*fz<1e-18)return;
+ if(fx*(na[0]+nb[0]+nc[0])+fy*(na[1]+nb[1]+nc[1])+fz*(na[2]+nb[2]+nc[2])<0){const t=b;b=c;c=t;const u=nb;nb=nc;nc=u;}pos.push(a[0],a[1],a[2],b[0],b[1],b[2],c[0],c[1],c[2]);nor.push(na[0],na[1],na[2],nb[0],nb[1],nb[2],nc[0],nc[1],nc[2]);};
+const quad=(pos,nor,a,b,c,d,na,nb,nc,nd)=>{tri(pos,nor,a,b,c,na,nb,nc);tri(pos,nor,a,c,d,na,nc,nd);};
+function geometry(pos,nor,uv){const g=new T.BufferGeometry();g.setAttribute('position',new T.Float32BufferAttribute(pos,3));g.setAttribute('normal',new T.Float32BufferAttribute(nor,3));if(uv)g.setAttribute('uv',new T.Float32BufferAttribute(uv,2));return g;}
+const kitCache=new Map(),cached=(key,make)=>{let g=kitCache.get(key);if(!g){g=make();kitCache.set(key,g);}return g;};
+// A box with every edge rounded by r (s steps per bevel): flat faces, smooth bevels. Marked as bevelled for edge wear.
+export function roundBox(w,h,d,r=Math.min(w,h,d)*0.2,s=1){return cached(['rb',w,h,d,r,s].join(),()=>{r=Math.max(1e-4,Math.min(r,w/2-1e-5,h/2-1e-5,d/2-1e-5));const n=2*s+1,g=new T.BoxGeometry(1,1,1,n,n,n).toNonIndexed(),p=g.attributes.position.array,q=g.attributes.normal.array,half=0.5/n,b=[w/2-r,h/2-r,d/2-r];g.deleteAttribute('uv');
+ for(let i=0;i<p.length;i+=3){let l=0;for(let k=0;k<3;k++){const c=p[i+k];q[i+k]=c-Math.sign(c)*half;l+=q[i+k]*q[i+k];}l=Math.sqrt(l)||1;for(let k=0;k<3;k++){q[i+k]/=l;p[i+k]=b[k]*Math.sign(p[i+k])+q[i+k]*r;}}g.userData.bevel=true;return g;});}
+// Turns a profile of [radius, y] points about the y axis, bottom to top. A third entry true marks a crease; the rest is smooth.
+export function lathe(points,segments=24,phi0=0,phiLength=Math.PI*2){return cached(['la',JSON.stringify(points),segments,phi0,phiLength].join(),()=>{const pos=[],nor=[],M=points.length,edge=[];
+ for(let j=0;j<M-1;j++){const dr=points[j+1][0]-points[j][0],dy=points[j+1][1]-points[j][1],l=Math.hypot(dr,dy)||1;edge.push([dy/l,-dr/l]);}
+ const at=(j,e)=>{if(points[j][2]||j===0||j===M-1)return edge[e];const a=edge[j-1],b=edge[j],x=a[0]+b[0],y=a[1]+b[1],l=Math.hypot(x,y)||1;return [x/l,y/l];};
+ for(let i=0;i<segments;i++){const a0=phi0+i/segments*phiLength,a1=phi0+(i+1)/segments*phiLength,s0=Math.sin(a0),c0=Math.cos(a0),s1=Math.sin(a1),c1=Math.cos(a1);
+  for(let j=0;j<M-1;j++){const p=points[j],q=points[j+1],np=at(j,j),nq=at(j+1,j);quad(pos,nor,[p[0]*s0,p[1],p[0]*c0],[q[0]*s0,q[1],q[0]*c0],[q[0]*s1,q[1],q[0]*c1],[p[0]*s1,p[1],p[0]*c1],[np[0]*s0,np[1],np[0]*c0],[nq[0]*s0,nq[1],nq[0]*c0],[nq[0]*s1,nq[1],nq[0]*c1],[np[0]*s1,np[1],np[0]*c1]);}}
+ return geometry(pos,nor);});}
+// A cylinder along y with rounded rims (bevel b); caps flat, sides smooth.
+export function roundCylinder(r,h,b=Math.min(r,h)*0.15,segments=20){const k=[];k.push([0,-h/2],[r-b,-h/2]);for(let i=1;i<4;i++){const a=-Math.PI/2+i/4*Math.PI/2;k.push([r-b+Math.cos(a)*b,-h/2+b+Math.sin(a)*b]);}k.push([r,-h/2+b],[r,h/2-b]);for(let i=1;i<4;i++){const a=i/4*Math.PI/2;k.push([r-b+Math.cos(a)*b,h/2-b+Math.sin(a)*b]);}k.push([r-b,h/2],[0,h/2]);return lathe(k,segments);}
+// A rounded-rectangle path in the xz plane, counter-clockwise, as [x, z, nx, nz] points with exact outward normals.
+export function roundRect(hx,hz,r,steps=6){const out=[];for(const [cx,cz,a0] of [[hx-r,hz-r,0],[-(hx-r),hz-r,Math.PI/2],[-(hx-r),-(hz-r),Math.PI],[hx-r,-(hz-r),Math.PI*1.5]])for(let k=0;k<=steps;k++){const a=a0+k/steps*Math.PI/2,c=Math.cos(a),s=Math.sin(a);out.push([cx+c*r,cz+s*r,c,s]);}return out;}
+// A closed rounded-rectangle profile [out, up] centred on the path, counter-clockwise.
+export function profileRect(w,h,r=Math.min(w,h)*0.25,steps=3){return roundRect(w/2,h/2,r,steps).map(p=>[p[0],p[1]]);}
+export function profileCircle(r,n=10){return Array.from({length:n},(_,i)=>[Math.cos(i/n*Math.PI*2)*r,Math.sin(i/n*Math.PI*2)*r]);}
+// Sweeps a closed profile ([out, up] points, a third entry true for a crease) along a horizontal path of [x, z(, nx, nz)] points.
+// Paths without normals get mitred ones. Open paths are capped.
+export function sweep(profile,path,closed=true){return cached(['sw',JSON.stringify(profile),JSON.stringify(path),closed].join(),()=>{const P=path.length,M=profile.length,frames=path.map((p,i)=>{if(p.length>=4)return [p[0],p[1],p[2],p[3],1];
+  const a=path[closed?(i-1+P)%P:Math.max(0,i-1)],b=path[closed?(i+1)%P:Math.min(P-1,i+1)];let tx=b[0]-a[0],tz=b[1]-a[1];const l=Math.hypot(tx,tz)||1;tx/=l;tz/=l;let scale=1;if(closed||(i>0&&i<P-1)){const q=path[closed?(i-1+P)%P:i-1],sx=p[0]-q[0],sz=p[1]-q[1],sl=Math.hypot(sx,sz)||1;scale=1/Math.max(0.5,(sz/sl)*tz+(sx/sl)*tx);}return [p[0],p[1],tz,-tx,scale];});
+ const edge=[];for(let j=0;j<M;j++){const a=profile[j],b=profile[(j+1)%M],du=b[0]-a[0],dv=b[1]-a[1],l=Math.hypot(du,dv)||1;edge.push([dv/l,-du/l]);}
+ const vn=(j,e)=>{if(profile[j][2])return edge[e];const a=edge[(j-1+M)%M],b=edge[j],x=a[0]+b[0],y=a[1]+b[1],l=Math.hypot(x,y)||1;return [x/l,y/l];};
+ const pt=(f,u,v)=>[f[0]+f[2]*u*f[4],v,f[1]+f[3]*u*f[4]],nm=(f,n)=>[f[2]*n[0],n[1],f[3]*n[0]],pos=[],nor=[],segs=closed?P:P-1;
+ for(let j=0;j<M;j++){const a=profile[j],b=profile[(j+1)%M],na=vn(j,j),nb=vn((j+1)%M,j);for(let i=0;i<segs;i++){const f0=frames[i],f1=frames[(i+1)%P];quad(pos,nor,pt(f0,a[0],a[1]),pt(f0,b[0],b[1]),pt(f1,b[0],b[1]),pt(f1,a[0],a[1]),nm(f0,na),nm(f0,nb),nm(f1,nb),nm(f1,na));}}
+ if(!closed)for(const [f,a,b] of [[frames[0],path[0],path[1]],[frames[P-1],path[P-1],path[P-2]]]){const dx=a[0]-b[0],dz=a[1]-b[1],l=Math.hypot(dx,dz)||1,t=[dx/l,0,dz/l],c=pt(f,0,0);for(let j=0;j<M;j++)tri(pos,nor,c,pt(f,profile[j][0],profile[j][1]),pt(f,profile[(j+1)%M][0],profile[(j+1)%M][1]),t,t,t);}
+ return geometry(pos,nor);});}
+// A hose or cable through 3D points, smooth (Catmull-Rom).
+export function hose(points,r,tubular=24,radial=8){return cached(['ho',JSON.stringify(points),r,tubular,radial].join(),()=>new T.TubeGeometry(new T.CatmullRomCurve3(points.map(p=>new T.Vector3(p[0],p[1],p[2]))),tubular,r,radial,false));}
+// A hex bolt head standing on y=0 with a chamfered top.
+export function bolt(r=0.012,h=0.008){return lathe([[0,0],[r,0,true],[r,h*0.65,true],[r*0.78,h],[0,h]],6);}
+// Slanted hazard stripes over a w by h face in the xy plane, facing +z: the stripe colour only, the face shows between them.
+export function stripes(w,h,width=h*0.75,gap=width){return cached(['st',w,h,width,gap].join(),()=>{const pos=[],nor=[],n=[0,0,1],clip=(pts,keep,x)=>{const out=[];for(let i=0;i<pts.length;i++){const a=pts[i],b=pts[(i+1)%pts.length],ia=keep(a[0]),ib=keep(b[0]);if(ia)out.push(a);if(ia!==ib){const t=(x-a[0])/(b[0]-a[0]);out.push([x,a[1]+(b[1]-a[1])*t]);}}return out;};
+ for(let x=-w/2-h;x<w/2;x+=width+gap){const poly=clip(clip([[x,-h/2],[x+width,-h/2],[x+width+h,h/2],[x+h,h/2]],p=>p>=-w/2,-w/2),p=>p<=w/2,w/2);for(let k=1;k<poly.length-1;k++)tri(pos,nor,[poly[0][0],poly[0][1],0],[poly[k][0],poly[k][1],0],[poly[k+1][0],poly[k+1][1],0],n,n,n);}return geometry(pos,nor);});}
+// A decal quad (w by h, facing +z) showing atlas rectangle uv=[u0,v0,u1,v1].
+export function decalQuad(uv,w,h){return cached(['dq',uv.join(),w,h].join(),()=>{const g=new T.PlaneGeometry(w,h),a=g.attributes.uv;for(let i=0;i<a.count;i++)a.setXY(i,uv[0]+(uv[2]-uv[0])*a.getX(i),uv[1]+(uv[3]-uv[1])*a.getY(i));g.userData.decal=true;return g;});}
+// A finish handle: the material plus the paint colour written into the merged mesh's vertex colours. Without the factory's finishes
+// (unit tests) it falls back to a plain material in that colour.
+export function finishOf(factory,kind,color){if(factory.finish)return factory.finish(kind,color);return {material:factory.mat(color),color:null};}
+const _c=new T.Color(),_m4=new T.Matrix4(),_o3=new T.Object3D();
+// Collects static parts per material and merges them: add(handle, geometry, x, y, z, rx, ry, rz, sx, sy, sz); build(parent, options).
+export function parts(){const groups=new Map(),api={
+ add(h,g,x=0,y=0,z=0,rx=0,ry=0,rz=0,sx=1,sy=sx,sz=sx){_o3.position.set(x,y,z);_o3.rotation.set(rx,ry,rz);_o3.scale.set(sx,sy,sz);_o3.updateMatrix();return api.addMatrix(h,g,_o3.matrix);},
+ addMatrix(h,g,matrix){const material=h.isMaterial?h:h.material,color=h.isMaterial?null:h.color;if(!groups.has(material))groups.set(material,[]);groups.get(material).push({g,m:matrix.clone(),color});return api;},
+ get size(){return groups.size;},
+ // ground and grime: how far toward the ground parts darken (object space y), uvScale: wear texture repeats per unit.
+ build(parent,{shadows=true,receive=shadows,ground=0,grime=0.3,uvScale=1,name=null}={}){const meshes=[];for(const [material,list] of groups){const mesh=new T.Mesh(merged(list,{ground,grime,uvScale,decal:!!material.userData?.decal}),material);mesh.castShadow=shadows&&!material.userData?.decal;mesh.receiveShadow=receive;if(name)mesh.name=name;parent.add(mesh);meshes.push(mesh);}groups.clear();return meshes;}};
+ return api;}
+function merged(list,{ground,grime,uvScale,decal}){let count=0;for(const {g} of list)count+=g.index?g.index.count:g.attributes.position.count;
+ const pos=new Float32Array(count*3),nor=new Float32Array(count*3),uv=new Float32Array(count*2),col=decal?null:new Float32Array(count*3),v=new T.Vector3(),n=new T.Vector3(),nm=new T.Matrix3(),tp=[new T.Vector3(),new T.Vector3(),new T.Vector3()];let o=0,part=0;
+ for(const {g,m,color} of list){nm.getNormalMatrix(m);const p=g.attributes.position,q=g.attributes.normal,t=g.attributes.uv,idx=g.index,c=idx?idx.count:p.count,flip=m.determinant()<0,bevel=!!g.userData.bevel,shift=(part++*0.6180339)%1;
+  const base=color?_c.copy(color):_c.setRGB(1,1,1);const br=base.r,bg=base.g,bb=base.b;
+  for(let k=0;k<c;k+=3){for(let s=0;s<3;s++){const i=idx?idx.getX(k+s):k+s,w=o+(flip&&s?3-s:s);v.fromBufferAttribute(p,i).applyMatrix4(m);tp[s].copy(v);pos[w*3]=v.x;pos[w*3+1]=v.y;pos[w*3+2]=v.z;n.fromBufferAttribute(q,i);
+    if(col){const e=bevel?Math.min(1,Math.max(0,(1-Math.max(Math.abs(n.x),Math.abs(n.y),Math.abs(n.z)))*3.2)):0,gy=Math.min(1,Math.max(0,(v.y-ground)/0.5)),dirt=1-grime*(1-gy*gy*(3-2*gy));col[w*3]=(br+(0.42-br)*e*0.32)*dirt;col[w*3+1]=(bg+(0.43-bg)*e*0.32)*dirt;col[w*3+2]=(bb+(0.44-bb)*e*0.32)*dirt*0.985;}
+    n.applyMatrix3(nm).normalize();nor[w*3]=n.x;nor[w*3+1]=n.y;nor[w*3+2]=n.z;if(decal&&t){uv[w*2]=t.getX(i);uv[w*2+1]=t.getY(i);}}
+   if(!decal){const ax=tp[1].clone().sub(tp[0]).cross(tp[2].clone().sub(tp[0])),fx=Math.abs(ax.x),fy=Math.abs(ax.y),fz=Math.abs(ax.z);for(let s=0;s<3;s++){const w=o+s,X=pos[w*3],Y=pos[w*3+1],Z=pos[w*3+2];let U,Vv;if(fx>=fy&&fx>=fz){U=Z;Vv=Y;}else if(fy>=fz){U=X;Vv=Z;}else{U=X;Vv=Y;}uv[w*2]=U*uvScale+shift;uv[w*2+1]=Vv*uvScale+shift*0.37;}}
+   o+=3;}}
+ const out=new T.BufferGeometry();out.setAttribute('position',new T.BufferAttribute(pos,3));out.setAttribute('normal',new T.BufferAttribute(nor,3));out.setAttribute('uv',new T.BufferAttribute(uv,2));if(col)out.setAttribute('color',new T.BufferAttribute(col,3));out.computeBoundingSphere();return out;}
 // Explorer joints in body space: hips (the legs hang from them), neck (the helmet pivots on it), helmet centre and radius, and shoulders
 // (the arms hang from them).
 const HIP=0.45,NECK=0.78,HELMET=0.97,HELMET_RADIUS=0.22,SHOULDER=[0.23,0.73];
