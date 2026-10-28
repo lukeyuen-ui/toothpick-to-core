@@ -5,6 +5,7 @@ import {createRoom,join,step,snapshot} from '../rules.js';
 import {fillBots,botCommands,crewBots,makeRoomForPerson} from '../bot-rules.js';
 import {setupShowcase,equipShowcase,breakerPrice} from '../showcase-rules.js';
 import {boreCells} from '../team-rules.js';
+import {isDepot} from '../hauling-rules.js';
 import {showcaseStep,showcaseCopy,showcaseGoals} from '../public/goals.js';
 import {playShowcase} from './showcase-play.js';
 
@@ -34,6 +35,16 @@ test('the first mech hole swallows you, and your shaft stays a 3 by 3 all the wa
  const far=fresh(4),q=far.p,fx=Math.floor(q.x)-3,fy=Math.floor(q.y);q.tool=MECH;q.tour.mechAt=0;run(far.r,q,{until:3000,make:now=>now===500?[{type:'tap',x:fx,y:fy}]:[],done:()=>q.shaft!=null});
  assert.equal(q.shaft,fy*N+fx,'a first hole further away but in reach swallows you too');
  assert.ok(p.wallet>0&&p.hold.units===0,'showcase ore is paid on the spot');});
+
+test('the crew lays a free conveyor to the shaft you dig and says so once; from then on your ore rides the hoist and the belt to the hub',()=>{const {r,p}=fresh(3),x=Math.floor(p.x)-1,y=Math.floor(p.y);p.tool=MECH;p.tour.mechAt=0;
+ const lines=new Set(),capture=()=>{for(const a of r.announcements)if(a.type==='crew')lines.add(a.text);};let next=0,last=p.wallet,dropped=false;
+ const now=run(r,p,{until:30000,make:now=>{capture();if(p.wallet<last)dropped=true;last=p.wallet;if(now<next)return [];next=now+330;return [p.shaft!=null?{type:'tap',x:p.shaft%N,y:Math.floor(p.shaft/N)}:{type:'tap',x,y}];},done:()=>{capture();return p.shaft!=null&&r.conveyorLines.some(l=>l.source===p.shaft);}});
+ const line=r.conveyorLines.find(l=>l.source===p.shaft);assert.ok(line,'a conveyor line starts at the shaft you dropped into');assert.equal(line.ownerId,p.publicId,'the belt is yours, so its deliveries pay you');
+ const end=line.path.at(-1);assert.ok(isDepot(end%N,Math.floor(end/N)),'the belt runs to the hub');assert.ok(!dropped,'the crew pays for the belt, not you');assert.equal(p.beltsBuilt,1);
+ assert.equal([...lines].filter(t=>t.startsWith("Belt's on your shaft")).length,1,'the crew says so, once: '+[...lines].join(' | '));
+ const wallet=p.wallet;let hoisted=false;run(r,p,{from:now,until:now+20000,make:t=>{capture();if(Object.values(r.piles).some(pile=>pile.lots.some(l=>l.viaHoist&&l.ownerId===p.publicId)))hoisted=true;/* the belt moves the lot off the shaft cell within the same tick */if(t<next)return [];next=t+330;return [{type:'tap',x:p.shaft%N,y:Math.floor(p.shaft/N)}];},done:()=>hoisted&&p.wallet>wallet});
+ assert.ok(hoisted,'ore dug down the shaft goes up the hoist onto the belt instead of paying on the spot');assert.ok(p.wallet>wallet,'and arrives in your wallet at the hub');assert.equal(p.hold.units,0,'the hold stays empty');
+ assert.equal(r.conveyorLines.filter(l=>l.source===p.shaft).length,1,'one belt per shaft');assert.equal([...lines].filter(t=>/^Belt/.test(t)).length,1,'no second belt line for the same shaft');});
 
 test('a visitor who follows the guide plays every beat in order and reaches the core in two and a half to three minutes',()=>{
  for(const [seed,level] of [[1,'normal'],[2,'normal'],[5,'normal'],[3,'easy'],[4,'hard']]){const {r,p,t}=playShowcase({seed,level,policy:'follow'}),tag=level+' '+seed+' '+JSON.stringify(t);

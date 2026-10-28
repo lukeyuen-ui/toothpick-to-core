@@ -2,7 +2,7 @@ import {C} from './config.js';
 import {hp,cellPayout} from './rules.js';
 import {teamAction,boreCells} from './team-rules.js';
 import {enterShaft,startBelay,rimArrival} from './shaft-rules.js';
-import {privateToast,isDepot} from './hauling-rules.js';
+import {privateToast,isDepot,conveyorQuote,buildConveyor} from './hauling-rules.js';
 import {incomeMultiplier} from './economy-rules.js';
 
 // Showcase: the whole title in about three minutes, carried by a bot crew. Everyone starts at the hub with the toothpick, a crewmate throws them the
@@ -34,7 +34,7 @@ export function runShowcase(room,now){if(!room.showcase||room.won)return;
  const arc=room.arc,humans=people(room),bots=crew(room),lead=humans[0],voice=bots[0]||lead;
  for(const q of [...bots,...humans])q.lastActive=now;// everyone counts as active: every visitor may vote, and the bot crew's ballots carry each vote
  for(const b of bots)if(b.shaft!=null&&b.target&&room.cells[b.shaft].row>=crewCap(room,b))b.target=null;// the mech digs on by itself: stop a crew pit at its depth
- for(const p of humans){p.tour??={joinedAt:now};if(p.tool===0)toothpick(room,p,now,voice);else if(arc.beat==='dig')dropIn(room,p);if(arc.beat==='dig'&&p.shaft!=null&&!p.belay)p.tour.shaft=p.shaft;}
+ for(const p of humans){p.tour??={joinedAt:now};if(p.tool===0)toothpick(room,p,now,voice);else if(arc.beat==='dig')dropIn(room,p);if(arc.beat==='dig'&&p.shaft!=null&&!p.belay)p.tour.shaft=p.shaft;if(p.shaft!=null)layBelt(room,p,voice);}
  // Once the World Breaker runs, the bore stops paying: the overdrive is about the core, not about the fund.
  if(room.worldBreaker&&arc.beat!=='breaker'){go(arc,'breaker',now);room.drillScale=0;}
  else if(room.drill&&['dig','site','rig'].includes(arc.beat))go(arc,'board',now);
@@ -47,6 +47,12 @@ export function runShowcase(room,now){if(!room.showcase||room.won)return;
  if(room.drill)walkAboard(room,arc,humans,bots,voice,now);
  // The readout's income line shows what the bore earns at the current speed: it climbs with depth and with green gauges instead of jumping as rows break.
  if(room.drill&&room.oil){const bore=boreCells(room);room.oil.rate=bore.length*cellPayout(room.cells[room.site])*incomeMultiplier(room)*C.team.drillYield*(room.drillScale??1)*(room.oil.speed||0)/C.team.drillSecondsPerBlock;}}
+
+// Any shaft a person digs gets a conveyor from its mouth to the hub, laid by the crew at no charge the moment they are down it, and said
+// once: with a line at the shaft the hoist lifts everything they dig onto the belt (rules.js hoists a showcase digger's ore at their own
+// shaft), so their ore rides home on its own and the hold stays empty. One belt per shaft; the drill site keeps its rig clear.
+function layBelt(room,p,voice){const i=p.shaft;if(i==null||i===room.site||room.conveyorLines.some(l=>l.source===i))return;const quote=conveyorQuote(room,i,p);buildConveyor(room,{index:i,...quote,ownerId:p.publicId});p.beltsBuilt=(p.beltsBuilt||0)+1;
+ say(room,voice,p.tour.belted?'Belt laid to your new shaft too, '+p.nickname+'.':"Belt's on your shaft, "+p.nickname+'. The hoist lifts your ore onto it and it rides home to the hub on its own.');p.tour.belted=true;}
 
 // Beat 1: three taps with the toothpick (or a short wait) and the nearest crewmate throws over the mech.
 function toothpick(room,p,now,voice){const S=C.showcase,t=p.tour;if((p.taps||0)>=S.toothpickTaps)t.tappedAt??=now;

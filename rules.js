@@ -95,7 +95,8 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
   for(const who of room.players) {
    const fraction=(cell.damage[who.id]||0)/total, earnedBonus=bonus*fraction, share=(value+bonus)*fraction;
    if(share){shares[who.publicId]=share;bonuses[who.publicId]=earnedBonus;}
-   if(fraction>0){units[who.publicId]=1+(earnedBonus>0?1:0);if(hoistCargo(room,who,index,value*fraction)){if(earnedBonus>0)hoistCargo(room,who,index,earnedBonus);viaBelt[who.publicId]=share;spilled[who.publicId]=0;}else{spilled[who.publicId]=addCargo(room,who,index,value*fraction)?1:0;if(earnedBonus>0&&addCargo(room,who,index,earnedBonus))spilled[who.publicId]++;}}
+   if(fraction>0){units[who.publicId]=1+(earnedBonus>0?1:0);const hoistAt=room.showcase&&who.shaft!=null?who.shaft:index;// a showcase digger's ore rides the hoist at their own shaft, whichever cell the mech raked
+   if(hoistCargo(room,who,hoistAt,value*fraction)){if(earnedBonus>0)hoistCargo(room,who,hoistAt,earnedBonus);viaBelt[who.publicId]=share;spilled[who.publicId]=0;}else{spilled[who.publicId]=addCargo(room,who,index,value*fraction)?1:0;if(earnedBonus>0&&addCargo(room,who,index,earnedBonus))spilled[who.publicId]++;}}
    if(earnedBonus>who.bestFind){who.bestFind=earnedBonus;who.bestFindAt=++room.achievement;}
   }
   const teamFraction=(cell.damage[C.team.damagerId]||0)/total;
