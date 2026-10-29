@@ -113,7 +113,7 @@ export function runTeam(room,now,dt){
  for(const p of crew){p.drillSeconds+=dt;p.drillAt=++room.achievement;}
  const production=room.cells.filter(c=>c.pumpBuilt).length*T.pumpBarrelsPerSecond,demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
  const burn=Math.min(production,demand),ratio=demand?Math.min(1,production/demand):0;
- const panel=runConsole(room,crew,now,dt,room.worldBreaker?C.console.overdriveDrift:1),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel:0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
+ const panel=runConsole(room,crew,now,dt,room.worldBreaker?C.console.overdriveDrift:1),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel*(room.showcase?1:T.expeditionTempo):0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
  if(speed||room.worldBreaker)for(const p of crew)p.lastWorked=now;
  if(production>burn)creditMachine(room,(production-burn)*T.barrelPrice*dt*incomeMultiplier(room),'oil');
  const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};const bore={...team,id:'bore',publicId:'bore'},digger=i=>i===room.site?team:bore;// the World Breaker's ring cells stay uncredited: 60 seconds of nine inner-core cells would flood the ending
