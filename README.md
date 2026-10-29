@@ -34,7 +34,7 @@ During play the room code sits as a small ROOM ABCD caption under the minimap. T
 
 ## Controls
 
-WASD walk relative to the camera. Left/Right arrows turn; Up/Down walk. Drag with either mouse button to look; short click or Space digs. Mouse capture is optional, and Esc releases it. E opens the hub when home; R belays up; V toggles chase; M toggles overview; N toggles remembered sound. On phones, the left joystick walks, dragging on the right looks, and tapping digs. Hub and camera buttons replace keyboard shortcuts. Site/conveyor picking switches temporarily to overview.
+WASD walk relative to the camera. Left/Right arrows turn; Up/Down walk. Click in the 3D view to capture the mouse: moving it looks around, a click digs, and Esc frees the cursor for the HUD buttons. Dragging with either mouse button still looks when the cursor is free, and Space digs. E opens the hub when home; R belays up; V toggles chase; M toggles overview; N toggles remembered sound. On phones, the left joystick walks, dragging on the right looks, and tapping digs. Hub and camera buttons replace keyboard shortcuts. Site/conveyor picking switches temporarily to overview.
 
 Only the server owns money, cells, damage, movement and timers. The pure rules modules run at ten ticks per second; renderers draw merged snapshots/diffs. No physics engine, database, accounts, bundler, image downloads or audio files are needed. Three.js 0.186.1 is vendored with its license. Sounds are procedural WebAudio, started by the first gesture, with a fixed twelve-voice pool and remembered mute.
 
@@ -92,7 +92,7 @@ The lobby reuses the scene renderer with local visual set dressing and a slow du
 
 ### Embedded browser controls
 
-Click and drag with either mouse button to look; a short click digs immediately. The game never captures the mouse, so the cursor stays free for HUD buttons such as Belay up (R key). Left and Right arrows turn at 90 degrees per second; Up and Down drive, and WASD keep camera-relative driving and strafing. Space digs the outlined cell. A one-time controls card and a pulsing reachable target explain the first dig before the hub coach. Phone look gestures are unchanged.
+A click in the 3D view captures the mouse, so moving it looks around and a click digs; Esc frees the cursor for HUD buttons such as Belay up (R key), and the overview releases it on its own. Dragging with either mouse button still looks while the cursor is free. Left and Right arrows turn at 90 degrees per second; Up and Down drive, and WASD keep camera-relative driving and strafing. Space digs the outlined cell. A one-time controls card and a pulsing reachable target explain the first dig before the hub coach. Phone look gestures are unchanged.
 
 ### Belay and purchase confirmation
 

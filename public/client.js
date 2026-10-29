@@ -117,7 +117,7 @@ function endedRoom(text,clearToken=true){confirmation.cancel();const code=state?
 function endedNote(code){return code&&saves.hasSave(code.toUpperCase())?'That room has closed, but your hardcore expedition is saved. Resume it below.':'That room has ended';}
 async function roomPreview(){const code=params.get('room')?.toUpperCase();if(!code)return;const box=$('join-preview');box.hidden=false;try{const response=await fetch('/room/'+encodeURIComponent(code));if(!response.ok){box.textContent=endedNote(code);return;}const info=await response.json(),host=document.body.dataset.host;box.textContent='Joining '+(host?host+"'s":'the')+' expedition: '+info.crew+' crew'+(info.bots?' plus '+info.bots+' bot'+(info.bots>1?'s':'')+' (you take a bot\'s seat)':'')+', '+depth(info.depth)+' deep';}catch{box.textContent='Room details unavailable. You can still try joining.';}}
 roomPreview();
-if(params.get('room')&&storeGet('toothpick:'+params.get('room').toUpperCase()))enter('join');
+if(params.get('room')&&storeGet('toothpick:'+params.get('room').toUpperCase())){enter('join');$('lobby-error').textContent='Rejoining room '+params.get('room').toUpperCase()+'. One moment.';}
 
 const machineRows=new Map();let nearbyMachine=null;
 function interactHub(){if(nearbyMachine&&!hubOpen&&!atHub(state.players.find(p=>p.id===myId))){send({type:'toggleExcavator',id:nearbyMachine.id});return;}setHub(!hubOpen);}
