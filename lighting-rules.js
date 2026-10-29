@@ -1,5 +1,7 @@
 import {C} from './config.js';
-export const darkMessage='Too dark to dig. A better light at the hub reaches deeper.';
+// The next lamp on the hub's shelf, by name and price, so the message says what to do rather than hinting at it.
+export function darkMessageFor(p){const next=C.lighting[p?.lighting||0];return next?`Too dark to dig. Buy a ${next.name} at the hub, $${next.cost.toLocaleString('en-US')}.`:'Too dark to dig.';}
+export const darkMessage=darkMessageFor({lighting:0});
 export function personalLightRows(p){return p.lighting>=C.lighting.length?C.finalRow:C.lighting[(p.lighting||0)-1]?.rows??C.shafts.daylightRows;}
 export function lightReach(room,p,index=p.shaft){if(p.isTeam)return C.finalRow;const cell=room.cells[index];if(cell?.shaftLights)return C.finalRow;let reach=personalLightRows(p);if(index!=null)for(const other of room.players)if(other.connected&&!other.departed&&!other.belay&&other.shaft===index&&other.depth+C.damageEpsilon>=cell.row)reach=Math.max(reach,personalLightRows(other));return reach;}
 export function surfaceVisible(type,p){return !!(type==='oil'?p.dowsing:type==='diamond'?p.diamond:type==='gold'||type==='silver'?p.metal:0);}
