@@ -4,8 +4,8 @@ import {heldTool,animateTool,nextStrike,strikeCurve,explorerGloves,parts,roundBo
 import * as T from './vendor/three.module.js';
 import {C} from '/config.js';
 import {swayStep} from './control-math.js';
+import {depth as down} from './depth-map.js';
 const N=C.mapSize,V=C.three,B=C.cab;
-const down=row=>V.depthMax*(1-Math.exp(-row/V.depthScale));
 // pit gives the leaning wall's reach from a cell's centre at a height (wallReach) and the preset's wall shape, so lamps hang on the rock.
 export function createCabScene(scene,camera,factory,assets,pit={}){const sharedHoistGeo=new Set(Object.values(factory.geometries||{}));
  const hoistDir=new T.Vector3(),hoistDown=new T.Vector3(0,-1,0);let hoistAt=0;

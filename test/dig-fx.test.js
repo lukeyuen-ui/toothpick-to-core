@@ -1,6 +1,7 @@
 import test from 'node:test';import assert from 'node:assert/strict';
 import * as T from '../public/vendor/three.module.js';import {C} from '../config.js';import {QUALITY} from '../public/quality.js';
 import {digBudget,stratumColor,shareChunks,createPool,takeSlot,stepChunks,chunkScale,puffShape,kickOffset,rumbleOffset,kickAngle,createDigFx,stepGrains,grainAlpha,rowAtDepth} from '../public/dig-fx.js';import {qualitySettings} from '../public/quality.js';
+import {depth} from '../public/depth-map.js';
 const D=C.digFx,flat=()=>0;
 const view=()=>{const camera=new T.PerspectiveCamera(50,1.4,0.1,90);camera.position.set(8,3,12);camera.lookAt(8,0,8);camera.updateMatrixWorld();return camera;};
 
@@ -135,7 +136,7 @@ test('rock fall shares by preset: High all of it, Balanced half, Low none',()=>{
  assert.equal(D.fallCount.length,C.tools.length);assert.equal(D.fallScale.length,C.tools.length);
  for(let t=1;t<C.tools.length;t++)assert.ok(D.fallScale[t]>=D.fallScale[t-1],'bigger tools break bigger rocks');
  assert.ok(D.fallSize[1]*D.fallScale[0]<0.02,'a toothpick sheds grit');assert.ok(D.fallSize[1]*D.fallScale.at(-1)>0.05,'the mech fist-sized lumps');
- assert.equal(rowAtDepth(0),0);for(const row of [1,10,40])assert.ok(Math.abs(rowAtDepth(C.three.depthMax*(1-Math.exp(-row/C.three.depthScale)))-row)<1e-6);
+ assert.equal(rowAtDepth(0),0);for(const row of [1,10,40,C.finalRow])assert.ok(Math.abs(rowAtDepth(depth(row))-row)<1e-6);assert.ok(depth(1)<=0.15&&depth(3)<=0.4,'a scrape stays shallow: '+depth(3));assert.ok(Math.abs(depth(C.finalRow)-C.three.depthCore)<1e-9,'the core sits depthCore down');
 });
 test('rocks come off the wall, never pass its face as it leans in, come to rest on the floor and sink away',()=>{
  const fx=createDigFx(new T.Scene()),camera=view(),floor=-0.6,face=8.89;fx.setBudget(digBudget(qualitySettings('high')));

@@ -1,5 +1,6 @@
 import * as T from './vendor/three.module.js';
 import {C} from '../config.js';
+import {GLSL_DEPTH,GLSL_ROW} from './depth-map.js';
 // Visual masks only. The authoritative map, rows, reach and collision remain cells.
 // Dug cells that share a side open into one hole. The edge is inset only where it meets solid ground and every corner is rounded: outer
 // corners by C.pits.corner, and inner corners (where an undug cell pokes in between two arms of a hole) by their own smaller fillet,
@@ -47,7 +48,8 @@ float pitLeanAt(vec2 p){return 0.55+0.45*sin(p.x*1.37+sin(p.y*0.91)*2.0)*sin(p.y
 float pitHeave(vec2 p,out vec2 g){float a1=p.x*6.3+p.y*2.1+0.5,a2=-p.x*2.7+p.y*7.9+1.9,a3=p.x*13.1-p.y*11.3+0.3;g=0.5*cos(a1)*vec2(6.3,2.1)+0.3*cos(a2)*vec2(-2.7,7.9)+0.2*cos(a3)*vec2(13.1,-11.3);return 0.5*sin(a1)+0.3*sin(a2)+0.2*sin(a3);}
 float rowAt(vec2 cell){if(cell.x<0.0||cell.y<0.0||cell.x>=${g(N)}||cell.y>=${g(N)})return 0.0;return floor(texture2D(pitRows,(cell+0.5)/${g(N)}).r*255.0+0.5);}
 bool dugAt(vec2 cell){return rowAt(cell)>=${g(P.mergeRow)};}
-float visualDepth(float row){return ${g(V.depthMax)}*(1.0-exp(-row/${g(V.depthScale)}));}
+${GLSL_DEPTH}
+${GLSL_ROW}
 float pitNoise(vec2 p){return 0.6*sin(p.x*7.3+p.y*3.1)*sin(p.y*6.7-p.x*2.3)+0.4*sin(p.x*17.0-p.y*13.0+1.7);}
 float pitInner(vec2 q,vec2 a,vec2 s){float u=s.x*(q.x-a.x)-${g(RI)},v=s.y*(q.y-a.y)-${g(RI)};return ${g(RI)}-(u>0.0&&v>0.0?-min(u,v):length(max(vec2(-u,-v),0.0)));}
 float pitSdf(vec2 at){vec2 c=floor(at),l=at-c-0.5,s=vec2(l.x<0.0?-1.0:1.0,l.y<0.0?-1.0:1.0),q=abs(l);if(!dugAt(c))return 1.0;bool X=dugAt(c+vec2(s.x,0.0)),Z=dugAt(c+vec2(0.0,s.y)),D=dugAt(c+s);if(X&&Z)return D?-1.0:pitInner(q,vec2(${g(E)}),vec2(1.0));if(X)return D?pitInner(q,vec2(${g(0.5+M)},${g(E)}),vec2(-1.0,1.0)):q.y-${g(E)};if(Z)return D?pitInner(q,vec2(${g(E)},${g(0.5+M)}),vec2(1.0,-1.0)):q.x-${g(E)};vec2 d=q-vec2(${g(E-R)});return length(max(d,0.0))+min(max(d.x,d.y),0.0)-${g(R)};}
@@ -93,7 +95,7 @@ const build={
  float sp=pitSpoil(cell,ax,az,ab),u=pitPart.z,W=pitPart.x>2.5?min(${g(Math.min(P.lipWidth,0.8*RI))}+${g(P.heapWidth)}*sp,${g(0.8*RI)}):${g(P.lipWidth)}+${g(P.heapWidth)}*sp,H=${g(P.lift)}+${g(P.heapLift)}*sp,G=0.004,c=1.0-u*u*(3.0-2.0*u),s=mix((H-G+0.004)/W,(H-G)*6.0*u*(1.0-u)/W,pitShape);
  ab+=n*(${g(P.edgeNoise)}*pitNoise(at)+W*u);pitPos=w*vec3(ab.x,mix(mix(H,G,u),G+(H-G)*c,pitShape),ab.y);pitNormal=normalize(vec3(n.x*s,1.0,n.y*s));pitUv=o+ab.x*ax+ab.y*az;pitLipT=u;}`,
  // The face between this cell and its +x neighbour (in the instance frame) where their floors do not blend: from the higher floor to the lower.
- step:`varying vec2 pitFace;void pitBuild(){vec2 o,ax,az;pitFrame(o,ax,az);pitFace=abs(ax);vec2 cell=floor(o),next=cell+ax;float u=pitPart.x,w=dugAt(cell)&&dugAt(next)?1.0:0.0,a=0.5,b=0.5*u;if(u!=0.0){bool p0=dugAt(cell+az*u),p1=dugAt(next+az*u);if(!(p0&&p1)){float e=p0||p1?${g(BE)}:${g(E)},s=p0||p1?${g(SA)}:1.0,noise=${g(P.edgeNoise)}*pitNoise(o+0.5*ax+az*u*e);b=u*(e+s*noise);if(p0!=p1)a+=(p0?1.0:-1.0)*${g(CA)}*noise;}}float k=2.0*b,d0=pitAlong(cell,ax,az,k),d1=pitAlong(next,-ax,az,k),y=-mix(min(d0,d1),max(d0,d1),pitPart.z);pitPos=w*vec3(a,y,b);pitNormal=vec3(1.0,0.0,0.0);pitUv=vec2(b+o.x+o.y,1.0-(-${g(V.depthScale)}*log(max(0.001,1.0+y/${g(V.depthMax)})))/${g(C.finalRow)});}`
+ step:`varying vec2 pitFace;void pitBuild(){vec2 o,ax,az;pitFrame(o,ax,az);pitFace=abs(ax);vec2 cell=floor(o),next=cell+ax;float u=pitPart.x,w=dugAt(cell)&&dugAt(next)?1.0:0.0,a=0.5,b=0.5*u;if(u!=0.0){bool p0=dugAt(cell+az*u),p1=dugAt(next+az*u);if(!(p0&&p1)){float e=p0||p1?${g(BE)}:${g(E)},s=p0||p1?${g(SA)}:1.0,noise=${g(P.edgeNoise)}*pitNoise(o+0.5*ax+az*u*e);b=u*(e+s*noise);if(p0!=p1)a+=(p0?1.0:-1.0)*${g(CA)}*noise;}}float k=2.0*b,d0=pitAlong(cell,ax,az,k),d1=pitAlong(next,-ax,az,k),y=-mix(min(d0,d1),max(d0,d1),pitPart.z);pitPos=w*vec3(a,y,b);pitNormal=vec3(1.0,0.0,0.0);pitUv=vec2(b+o.x+o.y,1.0-visualRow(y)/${g(C.finalRow)});}`
 };
 // Columns of (piece, t, row) with the winding that faces the open hole (walls, steps) or the sky (lip). Rows come from pieceRows;
 // straight runs take the layout's segments, the round pieces a quarter of C.pits.segments.

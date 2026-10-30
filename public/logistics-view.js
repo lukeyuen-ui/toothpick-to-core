@@ -1,10 +1,11 @@
 import * as T from './vendor/three.module.js';
 import {C} from '../config.js';
 import {parts,rod,lathe} from './explorer-models.js';
+import {depth} from './depth-map.js';
 // Renderer-only routes. Authority still owns production, burn, and receipts.
 export function pipeRoutes(state){const center=C.mapSize/2,pumps=state.cells.flatMap((c,i)=>c.pumpBuilt?[i]:[]),paths=pumps.map(i=>[[i%C.mapSize+0.5,Math.floor(i/C.mapSize)+0.5],[center,Math.floor(i/C.mapSize)+0.5],[center,center]]);if(pumps.length&&state.team.drill&&state.team.site!=null){const i=state.team.site;paths.push([[center,center],[i%C.mapSize+0.5,center],[i%C.mapSize+0.5,Math.floor(i/C.mapSize)+0.5]]);}return paths.map(points=>points.filter((p,i)=>!i||p[0]!==points[i-1][0]||p[1]!==points[i-1][1])).filter(p=>p.length>1);}
 // Coolant: once bought, a line runs from the hub to every hole nearing the magma layer, then down its wall to the floor.
-export function coolantRoutes(state){if(!state.team?.coolant||state.team.won)return [];const N=C.mapSize,c=N/2,H=C.logistics.pipeHeight,down=row=>C.three.depthMax*(1-Math.exp(-row/C.three.depthScale));const out=[];
+export function coolantRoutes(state){if(!state.team?.coolant||state.team.won)return [];const N=C.mapSize,c=N/2,H=C.logistics.pipeHeight,down=depth;const out=[];
  const site=state.team.drill?state.team.site:null,bore=i=>site!=null&&i!==site&&Math.max(Math.abs(i%N-site%N),Math.abs(Math.floor(i/N)-Math.floor(site/N)))<=1;state.cells.forEach((cell,i)=>{if(!cell.row||cell.row<C.outerRow-C.logistics.coolantLead||bore(i))return;const edge=i===site?1:0,x=i%N+0.5+(edge?(i%N+0.5<c?1.3:-1.3):0),z=Math.floor(i/N)+0.5,s=z<c?1:-1,rim=z+s*(0.42+edge),wall=z+s*(0.33+edge);out.push([[c,H,c],[x,H,c],[x,H,rim],[x,H,wall],[x,-down(cell.row)+0.12,wall]].filter((p,k,a)=>!k||p[0]!==a[k-1][0]||p[1]!==a[k-1][1]||p[2]!==a[k-1][2]));});return out;}
 // Pipe runs are built as one merged mesh per kind: steel legs, flanged elbows at the corners, flanges along the run and pipe saddles on
 // short posts. They are rebuilt only when a route changes.

@@ -48,7 +48,7 @@ test('wall and lip pieces get more rows on the higher presets, and Low keeps the
 });
 test('walls round over the rim into the lip, then lean in and ripple a little: bounded, continuous, and straight at shape 0',()=>{const P=C.pits;let seed=7;const rnd=()=>(seed=(seed*16807)%2147483647)/2147483647;
  for(let n=0;n<120;n++){const x=rnd()*C.mapSize,z=rnd()*C.mapSize;assert.ok(wallOffset(x,z,P.lift,1)===0,'the wall top meets the lip on the opening edge');let last=0;
-  for(let y=P.lift;y>-C.three.depthMax;y-=0.01){const o=wallOffset(x,z,y,1);assert.ok(Number.isFinite(o));assert.ok(o<=0,'never out past the edge, so step faces and floors stay tucked behind it');assert.ok(o>=-(P.rimRound+P.lean+P.ripple)-1e-9,'leans at most rim, lean and ripple: '+o);assert.ok(Math.abs(o-last)<0.035,'no jump down the wall');last=o;assert.ok(wallOffset(x,z,y,0)===0,'shape 0 is the straight cut');}
+  for(let y=P.lift;y>-C.three.depthCore;y-=0.01){const o=wallOffset(x,z,y,1);assert.ok(Number.isFinite(o));assert.ok(o<=0,'never out past the edge, so step faces and floors stay tucked behind it');assert.ok(o>=-(P.rimRound+P.lean+P.ripple)-1e-9,'leans at most rim, lean and ripple: '+o);assert.ok(Math.abs(o-last)<0.035,'no jump down the wall');last=o;assert.ok(wallOffset(x,z,y,0)===0,'shape 0 is the straight cut');}
   assert.ok(Math.abs(wallOffset(x,z,P.lift-P.rimRound,1)+P.rimRound)<1e-9,'the rounded rim ends a rim radius in');}
  const pits=createPits();pits.setLook('high');const E=0.5-P.inset;for(const [dx,dz] of [[1,0],[-1,0],[0,1],[0,-1]]){const reach=pits.wallReach(4.5,4.5,dx,dz,-1);assert.ok(reach<E+P.edgeNoise&&reach>E-P.edgeNoise-P.rimRound-P.lean-P.ripple,'lamps hang on the wall: '+reach);}
 });

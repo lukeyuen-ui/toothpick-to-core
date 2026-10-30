@@ -7,7 +7,7 @@ import {validMessage} from './resilience.js';
 import {cleanNickname,expireDepartures} from './presence-rules.js';
 import {shaftGate,enterShaft,trackSurfaceCell,advanceShaft,walkShaft,startBelay,lightShaft,atHub,rimArrival} from './shaft-rules.js';
 import { C } from './config.js';
-import {applyMove,liveMove,slide,driveStep,validPosition} from './movement-rules.js';
+import {applyMove,liveMove,slide,driveStep,validPosition,settlePits} from './movement-rules.js';
 import {initialTeam,creditFund,markActive,teamAction,runTeam,board,catalog,resolveVote,tuneConsole,publicConsole} from './team-rules.js';
 import {isDepot,home,addCargo,hoistCargo,haulAlong,runConveyors,publicPiles,returnHome,crossedCells,privateToast} from './hauling-rules.js';
 import {runShowcase} from './showcase-rules.js';
@@ -132,7 +132,7 @@ export function action(room,p,message,now) {
  if(message.type==='aim'){p.aim=validCell(message.x,message.y)?{x:message.x,y:message.y}:null;p.oilAim=oilAimAt(room,p);return;}
  if(message.type==='belay'){const l=Math.hypot(message.dx||0,message.dy||0);if(p.shaft!=null&&!p.belay)p.exitDir=l>0.1?{dx:message.dx/l,dy:message.dy/l}:null;startBelay(room,p,now);return;}
  if(message.type==='belayDown'){if(p.shaft!=null||p.belay||p.boarded||p.boarding)return;const {x,y}=message;if(!validCell(x,y))return;const index=y*C.mapSize+x;if(!room.cells[index].row||isDepot(x,y))return {type:'toast',text:'Dig a hole first'};if(machineAt(room,x,y))return {type:'toast',text:'Keep out. Excavator running.'};if(room.drill&&index===room.site)return {type:'toast',text:'That is the drill bore. Board the drill instead.'};if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))>1)return {type:'toast',text:'Walk up to the hole first'};markActive(room,p,now);p.lastWorked=now;p.returning=false;enterShaft(room,p,index);return;}
- if(message.type==='returnHome'){if(p.shaft!=null)startBelay(room,p,now,true);else returnHome(room,p,now);return;}
+ if(message.type==='returnHome'){p.hopFrom=null;if(p.shaft!=null)startBelay(room,p,now,true);else returnHome(room,p,now);return;}
  if(message.type==='move'){applyMove(room,p,message,now);return;}
  if(message.type==='tap') {
   if(p.belay)return {type:'toast',text:'Belaying to the surface'};
@@ -173,6 +173,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
    const oldX=p.x,oldY=p.y,wasInShaft=p.shaft!=null;if(!wasInShaft)trackSurfaceCell(p,Math.floor(oldY)*C.mapSize+Math.floor(oldX));
    if(p.shaft!=null){advanceShaft(room,p,now,dt);if(liveMove(p,now))walkShaft(room,p,dt);}else if(liveMove(p,now)){p.drive=null;p.drivePath=null;p.target=null;p.returning=false;p.boarded=false;p.boarding=false;const speed=C.mobility[p.mobility].speed*dt;slide(p,p.move.dx*speed,p.move.dy*speed,room);}else {if(p.move&&(p.move.dx||p.move.dy))p.move={dx:0,dy:0};driveStep(p,dt,room);}
 
+   settlePits(room,p);// a hole dug beside you is a wall: you end up on its lip, never over it
    if(!wasInShaft&&p.shaft==null&&!p.boarding&&!p.boarded&&Math.hypot(p.x-oldX,p.y-oldY)>C.damageEpsilon){const samples=Math.max(1,Math.ceil(Math.hypot(p.x-oldX,p.y-oldY)/C.movement.substep)),endX=p.x,endY=p.y;for(let i=0;i<=samples;i++){const sx=oldX+(endX-oldX)*i/samples,sy=oldY+(endY-oldY)*i/samples,cx=Math.floor(sx),cy=Math.floor(sy),index=cy*C.mapSize+cx;trackSurfaceCell(p,index);if(p.rimCell===index)continue;if(p.rimCell!=null&&index!==p.rimCell)p.rimCell=null;}}
    if(!wasInShaft&&Math.hypot(p.x-oldX,p.y-oldY)>C.damageEpsilon)p.lastWorked=now;
    haulAlong(room,p,oldX,oldY);

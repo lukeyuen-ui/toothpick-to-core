@@ -10,7 +10,7 @@ import {C} from '../config.js';
 // wall as it leans in, bounce on the floor and sink into the rubble.
 const D=C.digFx,LD=C.pits.leanDepth,V3=C.three,lerp=([a,b],t)=>a+(b-a)*t;
 // The row whose depth a point below the surface sits at (the inverse of the renderer's depth curve), for the colour of a wall there.
-export const rowAtDepth=d=>d<=0?0:d>=V3.depthMax?1e9:-V3.depthScale*Math.log(1-d/V3.depthMax);
+import {rowAtDepth} from './depth-map.js';export {rowAtDepth};
 
 // Pools, spawn rate (chunks per second), the share of each burst's chunks and whether the camera may kick, for one preset's settings;
 // grains is the crumble pool, scaled by that preset's trickle (C.dirt; none unless the preset is known); rocks that preset's share of
