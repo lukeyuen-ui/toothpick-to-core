@@ -87,16 +87,16 @@ for(const side of [-1,1]){const cap=new T.Mesh(new T.CylinderGeometry(0.018,0.01
 }
  if(tier===5){// Upright jackhammer along -z: T-handle, yellow motor body, neck, steel chisel bit.
 const yellow=new T.MeshStandardMaterial({color:'#d9a92e',metalness:0.35,roughness:0.45}),dark=factory.mat('#2c3438'),steel=new T.MeshStandardMaterial({color:'#aebdc8',metalness:0.3,roughness:0.35,emissive:'#202a30',emissiveIntensity:0.5});
-const along=(mesh,z)=>{mesh.rotation.x=Math.PI/2;mesh.position.z=z;root.add(mesh);return mesh;};
-const bar=new T.Mesh(new T.CylinderGeometry(0.012,0.012,0.22,8),dark);bar.rotation.z=Math.PI/2;bar.position.z=0.13;root.add(bar);
-for(const side of [-1,1]){const grip=new T.Mesh(new T.CylinderGeometry(0.018,0.018,0.06,8),dark);grip.rotation.z=Math.PI/2;grip.position.set(side*0.085,0,0.13);root.add(grip);}
+const hold=new T.Group();hold.position.z=-0.13;root.add(hold);/* the T-handle sits in the hands, the motor and bit hang below */const along=(mesh,z)=>{mesh.rotation.x=Math.PI/2;mesh.position.z=z;hold.add(mesh);return mesh;};
+const bar=new T.Mesh(new T.CylinderGeometry(0.012,0.012,0.22,8),dark);bar.rotation.z=Math.PI/2;bar.position.z=0.13;hold.add(bar);
+for(const side of [-1,1]){const grip=new T.Mesh(new T.CylinderGeometry(0.018,0.018,0.06,8),dark);grip.rotation.z=Math.PI/2;grip.position.set(side*0.085,0,0.13);hold.add(grip);}
 along(new T.Mesh(new T.CylinderGeometry(0.014,0.014,0.06,8),dark),0.1);
 along(new T.Mesh(new T.CylinderGeometry(0.052,0.058,0.15,12),yellow),0.02);
 for(const z of [0.075,-0.035])along(new T.Mesh(new T.CylinderGeometry(0.06,0.06,0.014,12),dark),z);
 along(new T.Mesh(new T.CylinderGeometry(0.024,0.03,0.06,10),dark),-0.085);
 along(new T.Mesh(new T.CylinderGeometry(0.011,0.011,0.16,8),steel),-0.19);
-const tip=new T.Mesh(new T.ConeGeometry(0.011,0.04,8),steel);tip.rotation.x=-Math.PI/2;tip.position.z=-0.29;root.add(tip);
-b('#60dfcb',0.012,0.03,0.04,0.055,0,0.03);
+const tip=new T.Mesh(new T.ConeGeometry(0.011,0.04,8),steel);tip.rotation.x=-Math.PI/2;tip.position.z=-0.29;hold.add(tip);
+b('#60dfcb',0.012,0.03,0.04,0.055,0,-0.10);
 }
  if(tier===6){rod('#a8433e',0.028,0.13,-0.022,0,-0.05);rod('#ad4d3d',0.028,0.13,0.026,0,-0.05);b('#3c4649',0.12,0.04,0.025,0,0,-0.05);const fuse=rod('#ddb85c',0.004,0.09,0,0.02,-0.16);}
  if(tier===7){// Tunnel borer: a heavy two-handed boring machine. Ribbed orange motor with hazard bands, glowing vents and pistons, and a wide toothed cutter head that spins.
