@@ -2,13 +2,13 @@ import {lightReach} from '../lighting-rules.js';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {C} from '../config.js';
-import {createRoom,join,step,gate,within,validCell} from '../rules.js';
+import {createRoom,join,step,gate,within,validCell,liveWell} from '../rules.js';
 import {atHub} from '../shaft-rules.js';
 import {validPosition,overPit,isShaft} from '../movement-rules.js';
 import {machineAt} from '../obstacles.js';
 import {home,isDepot,holdCapacity} from '../hauling-rules.js';
 import {operate} from './console-play.js';
-import {landlocked} from '../bot-rules.js';
+import {landlocked,unstruckOil,rigBurns,around} from '../bot-rules.js';
 
 function steer(bot,x,y,room,add,now=0,hop=false){const p=bot.p,key=x+':'+y,unit=C.pacing.navStep,width=Math.round(C.mapSize/unit),goal=Math.floor(y)*C.mapSize+Math.floor(x);if(bot.routeKey!==key||!bot.route?.length){bot.routeKey=key;bot.noRoute=false;const gx=goal%C.mapSize,gy=Math.floor(goal/C.mapSize),dug=isShaft(room.cells[goal]),arrived=(px,py)=>dug?Math.max(Math.abs(Math.floor(px)-gx),Math.abs(Math.floor(py)-gy))<=1:Math.hypot(px-x,py-y)<unit/2,safe=(px,py)=>{if(!validPosition(px,py,room))return false;const index=Math.floor(py)*C.mapSize+Math.floor(px);return index===p.rimCell||!overPit(room,px,py);},segment=(tx,ty)=>{const n=Math.max(1,Math.ceil(Math.hypot(tx-p.x,ty-p.y)/C.movement.substep));for(let j=1;j<=n;j++)if(!safe(p.x+(tx-p.x)*j/n,p.y+(ty-p.y)*j/n))return false;return true;},parents=new Map(),queue=[];for(let ny=Math.floor(p.y/unit)-2;ny<=Math.ceil(p.y/unit)+2;ny++)for(let nx=Math.floor(p.x/unit)-2;nx<=Math.ceil(p.x/unit)+2;nx++){if(nx<1||ny<1||nx>=width||ny>=width||!safe(nx*unit,ny*unit)||!segment(nx*unit,ny*unit))continue;const id=ny*width+nx;parents.set(id,null);queue.push(id);}let end=null,closest=null,near=Infinity;for(let i=0;i<queue.length;i++){const id=queue[i],cx=id%width,cy=Math.floor(id/width);if(arrived(cx*unit,cy*unit)){end=id;break;}const far=Math.hypot(cx*unit-x,cy*unit-y);if(far<near){near=far;closest=id;}for(const [dx,dy]of [[1,0],[-1,0],[0,1],[0,-1]]){const nx=cx+dx,ny=cy+dy,nid=ny*width+nx;if(nx<1||ny<1||nx>=width||ny>=width||parents.has(nid)||!safe(nx*unit,ny*unit))continue;parents.set(nid,id);queue.push(nid);}}if(end==null){bot.noRoute=true;end=closest;}const points=[];while(end!=null){points.push({x:end%width*unit,y:Math.floor(end/width)*unit});end=parents.get(end);}bot.route=points.reverse();}while(bot.route.length&&Math.hypot(p.x-bot.route[0].x,p.y-bot.route[0].y)<C.damageEpsilon)bot.route.shift();const target=bot.route[0];if(!target){add(p,'move',{dx:0,dy:0});if(bot.noRoute&&hop&&planHop(room,bot,goal))return;(bot.unreachable??={})[goal]=now+C.bots.unreachableMs;bot.work=null;return;}const dx=target.x-p.x,dy=target.y-p.y,length=Math.max(Math.hypot(dx,dy),C.mobility[p.mobility].speed*C.tickSeconds);add(p,'move',{dx:dx/length,dy:dy/length});}
 
@@ -27,8 +27,8 @@ export function simulate(seed=C.pacing.seed,count=2,{quick=false,hardcore=false,
    if(p.belay||p.boarding||p.drive||p.returning)continue;
    if(bot.hop&&hopStep(room,bot,now,add))continue;
    // The crew stays aboard: hand tools stop at the lower mantle and nothing passes the magma until the World Breaker runs, so the rig is the road to the core. Proposals work
-   // from the seat. With no pump built yet the rig cannot turn, so the crew goes back to digging until someone strikes oil.
-   const starved=!!room.drill&&!room.worldBreaker&&!room.cells.some(c=>c.pumpBuilt);
+   // from the seat. With no live well the rig cannot turn, so the crew goes back to digging (the rest of a known oil field first) until a new pump runs.
+   const starved=!!room.drill&&!room.worldBreaker&&!room.cells.some(liveWell);
    if(p.boarded){bot.triedDrill=true;if(starved){add(p,'board');add(p,'returnHome');continue;}if(bothMech&&!room.vote&&!room.goal&&now>=bot.nextTrade){bot.nextTrade=now+C.pacing.tradeEveryMs;const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':pump>=0?'pump':!room.worldBreaker&&room.cells[room.site].row>=C.outerRow?'worldBreaker':null;if(item)add(p,'propose',{item,...(item==='pump'?{index:pump}:{})});}continue;}
    if(room.drill&&!bot.triedDrill&&!starved){if(p.shaft!=null)add(p,'returnHome');else add(p,'board');continue;}
    const full=p.hold.units>=holdCapacity(p),blocked=p.shaft!=null&&(gate(p,room.cells[p.shaft].row,room)||room.cells[p.shaft].row>lightReach(room,p));
@@ -46,7 +46,9 @@ export function simulate(seed=C.pacing.seed,count=2,{quick=false,hardcore=false,
    if(bothMech&&room.site==null&&!atHub(p)){goHome(room,bot,add,now);continue;}
    if(room.drill&&!room.goal&&!starved){if(p.shaft!=null)add(p,'returnHome');else add(p,'board');continue;}
    if(p.shaft!=null){if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row&&now>=bot.nextTap){add(p,'tap',{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)});bot.nextTap=now+C.pacing.tapEveryMs;}continue;}
-   if(bot.work==null||(room.drill&&bot.work===room.site)||gate(p,room.cells[bot.work].row,room)||room.cells[bot.work].row>lightReach(room,p,bot.work)||landlocked(room,bot.work)){let best=null,distance=Infinity;for(let i=0;i<room.cells.length;i++){const x=i%C.mapSize,y=Math.floor(i/C.mapSize);if(isDepot(x,y)||home(x+0.5,y+0.5)||(room.drill&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i)||((bot.unreachable||{})[i]||0)>now||landlocked(room,i))continue;const d=Math.hypot(x+0.5-p.x,y+0.5-p.y);if(d<distance){distance=d;best=i;}}bot.work=best;bot.hops=0;}
+   const workable=i=>{const x=i%C.mapSize,y=Math.floor(i/C.mapSize);return !(isDepot(x,y)||home(x+0.5,y+0.5)||(room.drill&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i)||((bot.unreachable||{})[i]||0)>now||landlocked(room,i));};
+   const oil=starved&&rigBurns(room)?unstruckOil(room):[],inside=oil.filter(workable),refuel=inside.length||!C.tools[p.tool]?.area?inside:around(oil).filter(workable);
+   if(bot.work==null||(refuel.length&&!refuel.includes(bot.work))||(room.drill&&bot.work===room.site)||gate(p,room.cells[bot.work].row,room)||room.cells[bot.work].row>lightReach(room,p,bot.work)||landlocked(room,bot.work)){let best=null,distance=Infinity;for(const i of refuel.length?refuel:room.cells.keys()){if(!refuel.length&&!workable(i))continue;const x=i%C.mapSize,y=Math.floor(i/C.mapSize),d=Math.hypot(x+0.5-p.x,y+0.5-p.y);if(d<distance){distance=d;best=i;}}bot.work=best;bot.hops=0;}
    if(bot.work==null)continue;const x=bot.work%C.mapSize,y=Math.floor(bot.work/C.mapSize),cell=room.cells[bot.work];
    if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){bot.route=null;add(p,'move',{dx:0,dy:0});add(p,'belayDown',{x,y});}else steer(bot,x+0.5,y+0.5,room,add,now,true);}
    else if(!within(p,x,y)){steer(bot,x+0.5,y+0.5,room,add,now,true);}else if(now>=bot.nextTap){bot.route=null;add(p,'move',{dx:0,dy:0});add(p,'tap',{x,y});bot.nextTap=now+C.pacing.tapEveryMs;}

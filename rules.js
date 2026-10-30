@@ -33,6 +33,11 @@ export function hp(row) { return Math.round(C.hpBase*C.hpGrowth**row)*(row>=C.in
 // Hardcore rock is tougher: each block of a hardcore room (or a client's copy of its state) has C.hardcore.hpMultiplier times the hit points.
 export function rockToughness(room){return room?.hardcore?C.hardcore.hpMultiplier:1;}
 export function rockHp(room,row){return hp(row)*rockToughness(room);}
+// An oil pocket is a well of wellBarrels(room) barrels; its pump draws a barrel a second until oilLeft reaches 0. A well with no oilLeft
+// (the showcase's, or one from a save made before wells ran dry) is bottomless. These also read a client's copy of the cells.
+export function wellBarrels(room){return C.team.wellBarrels*rockToughness(room);}
+export function liveWell(c){return !!c.pumpBuilt&&(c.oilLeft==null||c.oilLeft>0);}
+export function dryWell(c){return !!c.pumpBuilt&&c.oilLeft!=null&&c.oilLeft<=0;}
 export function payout(row) { return C.payoutGrowth**row*(row>=C.innerRow?C.innerMultiplier:1); }
 export function createRoom(code,seed,fast,now,quick=false,hardcore=false) {
  hardcore=!!hardcore&&!quick;// Quick and Hardcore never mix
@@ -108,8 +113,8 @@ export function hit(room,p,x,y,amount,indirect=false,shaftBlast=false,pierce=0,a
   room.breakEvents.push({index,shares,bonuses,units,spilled,viaBelt});
   if(find){
    const vein=!!find.groupId&&room.finds.some(f=>f!==find&&f.groupId===find.groupId&&f.extracted);find.extracted=true;delete cell.surfaceSign;removeFindHints(room,find.id);
-   if(find.type==='oil'){cell.oilSite=true;cell.oilRow=cell.row;cell.pumpBuilt=false;if(find.groupId){cell.oilField=find.groupId;room.oilFields[find.groupId]??={cells:room.finds.filter(f=>f.groupId===find.groupId).map(f=>f.cell)};}}
-   if(!room.showcase||(!p.bot&&find.type!=='oil'))room.announcements.push({nickname:p.nickname,type:find.type,bonus,vein,...(find.type==='oil'?{cellLabel:String.fromCharCode('A'.charCodeAt(0)+x)+(y+1)}:{})});
+   if(find.type==='oil'){cell.oilSite=true;cell.oilRow=cell.row;cell.pumpBuilt=false;cell.oilLeft=wellBarrels(room);if(find.groupId){cell.oilField=find.groupId;room.oilFields[find.groupId]??={cells:room.finds.filter(f=>f.groupId===find.groupId).map(f=>f.cell)};}}
+   if(!room.showcase||(!p.bot&&find.type!=='oil'))room.announcements.push({nickname:p.nickname,type:find.type,bonus,vein,...(find.type==='oil'?{cellLabel:String.fromCharCode('A'.charCodeAt(0)+x)+(y+1),barrels:Math.ceil(cell.oilLeft)}:{})});
    for(const who of room.players)updateDowsing(room,who);
   }
   const previousRow=cell.row;cell.row++;for(const who of room.players)if(who.shaft===index&&!who.belay&&who.depth+C.damageEpsilon>=previousRow)who.depth=cell.row;
@@ -201,7 +206,7 @@ export function step(room,commands,now,dt=C.tickSeconds) {
  for(const p of room.players){const alpha=1-Math.exp(-dt/C.incomeWindowSeconds);p.income+=(p.earned/dt-p.income)*alpha;p.earned=0;p.beltIncome+=((p.beltEarned||0)/dt-p.beltIncome)*alpha;p.beltEarned=0;}
 }
 export function publicPlayer(p) { const {aim,controlTimes,token,tapTimes,inputAt,tour,autoElapsed,earned,id,detectorCell,lastActive,bestFindAt,contributedAt,deepestAt,drillAt,deliveredAt,hold,holdFullNotified,rimCell,shaftEntry,surfaceCell,shaftApproach,lastWorked,beltEarned,moveAt,drivePath,driveKey,...safe}=p; return {...safe,hold:{units:hold.units,value:hold.value},id: p.publicId}; }
-function wireCells(room,indices){return [...indices].map(index=>{const c=room.cells[index];return {index,row:c.row,hp:c.hp,thin:isThin(c),surfaceSign:c.surfaceSign||null,oilSite:!!c.oilSite,pumpBuilt:!!c.pumpBuilt,litDepth:c.litDepth||0,shaftLights:!!c.shaftLights,damage:Object.fromEntries(Object.entries(c.damage).map(([id,amount])=>[id===C.team.damagerId?id:room.players.find(p=>p.id===id)?.publicId,amount]))};});}
+function wireCells(room,indices){return [...indices].map(index=>{const c=room.cells[index];return {index,row:c.row,hp:c.hp,thin:isThin(c),surfaceSign:c.surfaceSign||null,oilSite:!!c.oilSite,pumpBuilt:!!c.pumpBuilt,...(c.oilSite?{oilLeft:c.oilLeft==null?null:Math.ceil(c.oilLeft)}:{}),litDepth:c.litDepth||0,shaftLights:!!c.shaftLights,damage:Object.fromEntries(Object.entries(c.damage).map(([id,amount])=>[id===C.team.damagerId?id:room.players.find(p=>p.id===id)?.publicId,amount]))};});}
 function delta(previous,next){const patch={};for(const [key,value]of Object.entries(next))if(JSON.stringify(previous?.[key])!==JSON.stringify(value))patch[key]=value;return patch;}
 export function snapshot(room,full=false) {
  full=full||room.resetEvent;

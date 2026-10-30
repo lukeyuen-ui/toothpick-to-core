@@ -49,3 +49,5 @@ All tool costs/damage, holds/pods, payout curve, rich/dry factors, oil values, t
 
 ## Build 4 (1.1.1)
 Presentation-only changes. All eight runs were rerun and produce these same timelines; no gameplay or balance number changed.
+
+Depleting wells: a struck pocket holds 90 barrels (18,000 in hardcore) and its pump runs dry after 90 seconds; bots on a starved rig get off and dig the rest of a known field (a mech from the shaft beside a field cell ringed by shafts). All eight runs stay inside their windows: core at 966, 1166, 1017 and 948 s Full, 280, 234, 426 and 311 s Quick. Only solo seed 5 runs its well dry mid-bore, eight rows above the magma: the bot strikes five more cells of the field and is aboard again twelve seconds later, and reaches the core seven seconds sooner than with one endless pump. The four full hardcore runs stall in the early game, before any drill, on ec6712d as well; started from a drill placed at the lower mantle, hardcore crews with depleting wells reach the core, forced mid-bore refuels included.

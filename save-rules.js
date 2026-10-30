@@ -113,6 +113,8 @@ export function restoreRoom(data,{code,now=Date.now()}={}){
   for(const [k,v]of entries(c.damage))out.damage[damagers.has(k)?k:k.startsWith('p:')?person(k).id:bad()]=num(v,0);
   for(const [k,v]of Object.entries(c)){if(k in out||k==='left')continue;if(!/^[a-z][A-Za-z0-9]{0,31}$/.test(k)||!(v===null||typeof v==='boolean'||(typeof v==='number'&&Number.isFinite(v))||(typeof v==='string'&&v.length<=40)))bad();out[k]=v;}
   for(const k of ['richStart','oilRow','litDepth'])if(k in out)row(out[k]);for(const k of ['oilSite','pumpBuilt','shaftLights'])if(k in out)flag(out[k]);
+  // Barrels left in a well: null is bottomless, and so is a well saved before wells ran dry (no oilLeft at all).
+  if('oilLeft' in out&&out.oilLeft!==null)num(out.oilLeft,0);
   if('surfaceSign' in out&&!FINDS.has(out.surfaceSign))bad();if('oilField' in out&&!/^oil-\d{1,4}$/.test(out.oilField))bad();return out;});
  room.broken=new Set(list(d.broken,CELLS).map(index));
  room.finds=list(d.finds,4096).map(raw=>{const f=obj(raw);if(!FINDS.has(f.type))bad();return {id:text(f.id,40),...(f.groupId!=null?{groupId:text(f.groupId,40)}:{}),extracted:flag(f.extracted),cell:index(f.cell),row:row(f.row),type:f.type,...(f.surface!=null?{surface:flag(f.surface)}:{})};});

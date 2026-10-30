@@ -1,7 +1,7 @@
 import {touchInput} from './wording.js';
 import {surfaceVisible,lightReach} from '../lighting-rules.js';
 import {holdCapacity} from '../hauling-rules.js';
-import {C} from '../config.js';import {depthAt,hp,gate} from '../rules.js';
+import {C} from '../config.js';import {depthAt,hp,gate,liveWell,dryWell,wellBarrels} from '../rules.js';
 // A hardcore explorer still holding the toothpick is pointed at the hub: each block takes hundreds of taps, and the starting wallet buys real tools.
 const hardcoreStart=touch=>'Hardcore rock takes hundreds of toothpick taps a block. '+(touch?'Tap Hub at the habitat':'Press E at the hub')+' and spend your starting $'+C.hardcore.startWallet.toLocaleString('en-US')+' on tools first.';
 const cellLabel=i=>String.fromCharCode('A'.charCodeAt(0)+i%C.mapSize)+(Math.floor(i/C.mapSize)+1);
@@ -19,7 +19,7 @@ export const goals=[
  ['Light the way down','Past 10 rows the floor is too dark to dig. Supply sells lamps that light more rows.'],
  ['Buy dowsing rods and follow them','Supply sells rods. Red rods: no oil here. Green rods: oil under this spot, so dig there.'],
  ['Strike oil','Dig where the rods turn green. The pocket breaks open when you reach its row.'],
- ['Propose an oil pump','At the hub, open Team and propose the Oil pump. Everyone votes. Pumps run the plasma drill and pay the fund every second.'],
+ ['Propose an oil pump',`At the hub, open Team and propose the Oil pump. Everyone votes. A well holds ${C.team.wellBarrels} barrels: the pump sells them to the fund and fuels the plasma drill, then runs dry.`],
  ['Pick the drill site','Hand tools stop at the lower mantle. In Team, propose a drill site: your deepest shaft.'],
  ['Buy coolant','Nothing survives the magma without coolant. Propose it in Team and chip in.'],
  ['Place the plasma drill','Propose it in Team. The rig drops into the site shaft with its own conveyor.'],
@@ -50,10 +50,10 @@ export function showcaseCopy(index,state,me,touch){const t=state.team,[title,hin
  if(t.vote?.item==='worldBreaker')return ['Vote YES on the World Breaker','Vote in the banner. Your crew is voting too.'];
  return [title,'The fund covers it. '+(touch?'Tap':'Click')+' "World Breaker ready" on the drill readout to propose it, or vote YES when a crewmate does.'];}
 // The first-expedition card's words for a step: the hardcore opener replaces the first three hints while the toothpick is still in hand,
-// and the pump step names the oil cell once someone has struck it.
+// and the pump step names the oil cell once someone has struck it (and a hardcore well's size).
 export function stepCopy(index,state,me,touch){const [title,hint,touchHint]=goals[index];let text=touch&&touchHint||hint;
  if(state?.hardcore&&me?.tool===0&&index<3)text=hardcoreStart(touch);
- if(index===10){const oil=state?.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt);if(oil>=0)text=text.replace('the Oil pump','the Oil pump at '+cellLabel(oil));}
+ if(index===10){const oil=state?.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt);if(oil>=0)text=text.replace('the Oil pump','the Oil pump at '+cellLabel(oil));if(state?.hardcore)text=text.replace(C.team.wellBarrels+' barrels',wellBarrels(state).toLocaleString('en-US')+' barrels');}
  return [title,text];}
 // Something that wants doing right now outranks the next lesson: a full hold, a floor too dark or too hard for your tools, oil nobody has
 // pumped yet, a rig with nothing to burn. The card shows it until it is dealt with, then goes back to the step. [title, hint] or null.
@@ -66,9 +66,14 @@ export function urgentTip(state,me,touch){
   const stop=gate(me,row,{coolant:t.coolant,worldBreaker:t.worldBreaker,showcase:state.showcase});
   if(stop==='Needs a pickaxe')return ['Granite: needs a pickaxe',up+' and buy the Pickaxe at the hub, or dig somewhere softer.'];
   if(stop)return ['Hand tools stop here','The plasma drill digs on from here. At the hub, chip in and vote for a drill site, coolant and the drill.'];}
- const oil=cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),want=item=>t.vote?.item===item||t.goal?.item===item;
- if(oil>=0&&!cells.some(c=>c.pumpBuilt)&&!want('pump'))return ['Oil at '+cellLabel(oil)+': propose a pump',(touch?'Tap Hub, open Team':'Go to the hub (E), open Team')+', propose the Oil pump at '+cellLabel(oil)+' and vote YES. Oil runs the plasma drill and pays the fund every second.'];
- if(t.drill&&!t.worldBreaker&&!cells.some(c=>c.pumpBuilt)&&oil<0)return ['The drill needs oil','Buy dowsing rods at the hub and dig where they turn green. Then propose a pump in Team.'];
+ // Wells run dry (C.team.wellBarrels each), so the oil tips follow the live ones. The rig burns oil until it reaches the magma; the World Breaker needs none.
+ const oil=cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),want=item=>t.vote?.item===item||t.goal?.item===item,live=cells.filter(liveWell),dry=cells.some(dryWell);
+ const burns=!!t.drill&&!t.worldBreaker&&t.site!=null&&cells[t.site]?.row<C.outerRow,unstruck=(t.fields||[]).some(f=>f.cells.some(i=>!cells[i]?.oilSite));
+ if(oil>=0&&!live.length&&(!t.drill||burns)&&!want('pump'))return ['Oil at '+cellLabel(oil)+': propose a pump',(dry?'Your wells ran dry. ':'')+(touch?'Tap Hub, open Team':'Go to the hub (E), open Team')+', propose the Oil pump at '+cellLabel(oil)+' and vote YES. Oil runs the plasma drill and pays the fund every second.'];
+ if(burns&&!live.length&&oil<0)return [dry?'Your wells ran dry':'The drill needs oil','The drill has nothing to burn. '+(unstruck?'Dig the rest of the oil field: its cells are outlined on the minimap.':'Buy dowsing rods at the hub and dig where they turn green.')+' Then propose a pump in Team.'];
+ // A low warning only counts wells that can run dry: a bottomless one (from an older save) never does.
+ const left=live.reduce((n,c)=>n+(c.oilLeft??Infinity),0);
+ if(burns&&live.length&&left<=C.team.wellLowBarrels&&!want('pump'))return ['Oil running low: '+left+(left===1?' barrel':' barrels')+' left','Strike more oil before the wells run dry: '+(oil>=0?'propose the pump at '+cellLabel(oil)+'.':unstruck?'dig the rest of the field on the minimap.':'follow the rods to a new pocket.')];
  return null;}
 export function initialGuide(){return {index:0,blocks:0,flags:{},skipped:false,lastPacket:null};}
 function observeShowcase(record,state,me){record.mode='showcase';record.target=Math.max(record.target||0,showcaseStep(state,me));}

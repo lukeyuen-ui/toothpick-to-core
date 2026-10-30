@@ -18,9 +18,10 @@ export const breakerPrice=room=>C.teamItems.worldBreaker.price*Math.sqrt(room.pl
 
 // A fresh claim: coolant is already paid for and two oil pumps already run, so the visit is about digging, the drill, the console and the finale.
 // Ore pays base rates (no quick multiplier), so the wallet stays small next to the World Breaker the drill has to earn.
+// Both wells are bottomless (oilLeft null): the three-minute showcase must never starve the drill.
 export function setupShowcase(room){const S=C.showcase;room.showcase=true;if(!C.bots.levels[room.botLevel])room.botLevel=S.botLevel;
  Object.assign(room,{quick:false,coolant:true,site:null,drill:null,drillScale:1});
- for(const [x,y] of S.pumps){const i=y*N+x;Object.assign(room.cells[i],{row:S.oilRow,hp:hp(S.oilRow),damage:{},oilSite:true,oilRow:S.oilRow,pumpBuilt:true});room.dirty.add(i);}
+ for(const [x,y] of S.pumps){const i=y*N+x;Object.assign(room.cells[i],{row:S.oilRow,hp:hp(S.oilRow),damage:{},oilSite:true,oilRow:S.oilRow,pumpBuilt:true,oilLeft:null});room.dirty.add(i);}
  room.arc={beat:'dig',at:room.now,round:room.round};room.deepest=Math.max(...room.cells.map(c=>c.row));}
 
 // People arrive with the toothpick (the bots, and anyone joining after the dig, carry the mech). Lights reach the core so no shaft goes dark.

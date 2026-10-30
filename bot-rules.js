@@ -1,5 +1,5 @@
 import {C} from './config.js';
-import {join,gate,within,validCell} from './rules.js';
+import {join,gate,within,validCell,liveWell} from './rules.js';
 import {atHub} from './shaft-rules.js';
 import {validPosition,overPit,isShaft} from './movement-rules.js';
 import {machineAt} from './obstacles.js';
@@ -36,7 +36,8 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});b.unreachable??=
  if(p.belay||p.boarding||p.drive||p.returning)return;
  if(b.hop&&hopStep(room,p,b,now,add))return;
  if(room.showcase){showcaseCrew(room,p,b,L,now,add);return;}
- const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps));
+ // The crew rides while a well is live (or the World Breaker runs); a starved rig cannot turn, so the crew gets off and digs for oil.
+ const hasMech=p.tool===C.tools.length-1,fueled=room.cells.some(liveWell),crewWanted=!!room.drill&&(!!room.worldBreaker||(fueled&&(people(room).some(h=>h.boarded&&h.connected)||role.rider)));
  // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
  if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
   const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&room.cells[room.site].row>=C.outerRow?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
@@ -51,7 +52,11 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});b.unreachable??=
  const upgrade=[C.cargoPods[p.pods],C.tools[p.tool+1],C.mobility[p.mobility+1],C.lighting[p.lighting]].some(item=>item&&p.wallet>=item.cost*L.spare),pending=!room.vote&&!room.goal&&(room.site==null||!room.coolant||!room.drill||!room.worldBreaker);
  if(!atHub(p)&&now>=(b.nextShop||0)&&(upgrade||(room.goal&&p.wallet>0&&b.chipKey!==room.goal.key+':'+p.deliveredValue))){b.nextShop=now+L.tradeEveryMs*4;goHome(room,p,b,add,now);return;}
  if(p.shaft!=null){if(p.depth+C.damageEpsilon>=room.cells[p.shaft].row&&now>=b.nextTap){add('tap',{x:p.shaft%C.mapSize,y:Math.floor(p.shaft/C.mapSize)});b.nextTap=now+L.tapEveryMs*(0.8+0.4*Math.random());}return;}
- if(b.work==null||(room.drill&&b.work===room.site)||gate(p,room.cells[b.work].row,room)||room.cells[b.work].row>lightReach(room,p,b.work)||landlocked(room,b.work)){let best=null,distance=Infinity;for(let i=0;i<room.cells.length;i++){const x=i%C.mapSize,y=Math.floor(i/C.mapSize);if(isDepot(x,y)||home(x+0.5,y+0.5)||(room.site!=null&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i)||(b.unreachable[i]||0)>now||landlocked(room,i))continue;const d=Math.hypot(x+0.5-p.x,y+0.5-p.y)+Math.random()*C.bots.wander;if(d<distance){distance=d;best=i;}}b.work=best;b.hops=0;}
+ // While the rig is starved the crew digs the unstruck cells of the fields already found. A field cell ringed by shafts has no lip to belay from, but a mech
+ // digging a shaft beside it drags it down too (toolPattern in rules.js), so a mech takes those neighbours next; any other cell only when none of these can be worked.
+ const workable=i=>{const x=i%C.mapSize,y=Math.floor(i/C.mapSize);return !(isDepot(x,y)||home(x+0.5,y+0.5)||(room.site!=null&&i===room.site)||gate(p,room.cells[i].row,room)||room.cells[i].row>lightReach(room,p,i)||(b.unreachable[i]||0)>now||landlocked(room,i));};
+ const oil=rigBurns(room)&&!fueled?unstruckOil(room):[],inside=oil.filter(workable),refuel=inside.length||!C.tools[p.tool]?.area?inside:around(oil).filter(workable);
+ if(b.work==null||(refuel.length&&!refuel.includes(b.work))||(room.drill&&b.work===room.site)||gate(p,room.cells[b.work].row,room)||room.cells[b.work].row>lightReach(room,p,b.work)||landlocked(room,b.work)){let best=null,distance=Infinity;for(const i of refuel.length?refuel:room.cells.keys()){if(!refuel.length&&!workable(i))continue;const x=i%C.mapSize,y=Math.floor(i/C.mapSize),d=Math.hypot(x+0.5-p.x,y+0.5-p.y)+Math.random()*C.bots.wander;if(d<distance){distance=d;best=i;}}b.work=best;b.hops=0;}
  if(b.work==null)return;const x=b.work%C.mapSize,y=Math.floor(b.work/C.mapSize),cell=room.cells[b.work];
  if(cell.row>C.shafts.surfaceReachRows&&within(p,x,y)){if(Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=1){b.route=null;add('move',{dx:0,dy:0});add('belayDown',{x,y});}else steer(b,p,x+0.5,y+0.5,room,add,now,true);}
  else if(!within(p,x,y))steer(b,p,x+0.5,y+0.5,room,add,now,true);
@@ -83,6 +88,12 @@ export function workSeat(g,b,L,now,add){const d=g.v-0.5,ready=now>=b.nextTune,la
 // Hemmed in by shafts (holes are walls now), a bot crosses one the way a person does: Belay down into the shaft beside it and belay up looking
 // the other way, which brings it out on the far side. planHop picks the neighbouring shaft that leads towards the goal; hopStep plays the hop out.
 // A shaft ringed by shafts has no lip to belay down from, so nobody can work it from the surface; bots leave those alone.
+// Cells of the oil fields found so far whose pocket is still unstruck at or below their floor: each one is a fresh well.
+export function unstruckOil(room){return Object.values(room.oilFields).flatMap(f=>f.cells).filter(i=>!room.cells[i].oilSite&&room.finds.some(f=>f.cell===i&&f.type==='oil'&&!f.extracted&&f.row>=room.cells[i].row));}
+// The cells touching any of these cells, sideways or corner to corner, without the cells themselves.
+export function around(cells){const N=C.mapSize,own=new Set(cells),out=new Set();for(const i of cells){const x=i%N,y=Math.floor(i/N);for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){const nx=x+dx,ny=y+dy,j=ny*N+nx;if((dx||dy)&&validCell(nx,ny)&&!own.has(j))out.add(j);}}return [...out];}
+// The rig burns oil from the moment it is placed until it reaches the magma; the World Breaker needs none.
+export function rigBurns(room){return !!room.drill&&!room.worldBreaker&&room.site!=null&&room.cells[room.site].row<C.outerRow;}
 export function landlocked(room,i){const N=C.mapSize,x=i%N,y=Math.floor(i/N);if(!isShaft(room.cells[i]))return false;for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=x+dx,ny=y+dy;if(validCell(nx,ny)&&!isDepot(nx,ny)&&!isShaft(room.cells[ny*N+nx]))return false;}return true;}
 function planHop(room,p,b,goal){if((b.hops||0)>=C.bots.maxHops||p.shaft!=null)return false;const N=C.mapSize,bx=Math.floor(p.x),by=Math.floor(p.y),gx=goal%N+0.5,gy=Math.floor(goal/N)+0.5,now=Math.hypot(p.x-gx,p.y-gy);let best=null;
  for(let dy=-1;dy<=1;dy++)for(let dx=-1;dx<=1;dx++){if(!dx&&!dy)continue;const nx=bx+dx,ny=by+dy;if(!validCell(nx,ny)||isDepot(nx,ny))continue;const i=ny*N+nx;if(!isShaft(room.cells[i])||(room.drill&&i===room.site)||machineAt(room,nx,ny))continue;const l=Math.hypot(dx,dy),ux=dx/l,uy=dy/l,d=Math.hypot(nx+0.5+ux*2-gx,ny+0.5+uy*2-gy);if(d>=now-0.25)continue;if(!best||d<best.d)best={shaft:i,dx:ux,dy:uy,d};}

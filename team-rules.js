@@ -3,7 +3,7 @@ import {machineAt} from './obstacles.js';
 import {soloPlayer,creditMachine,incomeMultiplier} from './economy-rules.js';
 import {rimArrival,atHub} from './shaft-rules.js';
 import {C} from './config.js';
-import {hit,payout,hp,rockHp,createRoom,join,validCell,gate} from './rules.js';
+import {hit,payout,hp,rockHp,createRoom,join,validCell,gate,dryWell} from './rules.js';
 import {isDepot,conveyorQuote,conveyorPath,buildConveyor} from './hauling-rules.js';
 const T=C.team;
 export function initialTeam(){return {console:{},fund:0,fundIncome:0,fundEarned:0,drillEarned:0,drillIncome:0,drillTotal:0,vote:null,goal:null,locks:{},site:null,drill:null,coolant:false,worldBreaker:null,won:false,stats:null,wonAt:null,achievement:0,round:0,magmaNotice:false,oil:{production:0,burn:0,sold:0,demand:0,speed:0,crew:0,blocked:null}};}
@@ -22,7 +22,7 @@ export function requirement(room,item,index){
  return null;
 }
 export function catalogPrice(room,item,index){return item==='conveyor'?conveyorQuote(room,index).price:item==='pump'?Math.max(T.pumpMinimum,T.pumpPayoutMultiplier*payout(room.cells[index]?.oilRow??0)):C.teamItems[item]?.price;}
-export function catalog(room){const multiplier=Math.sqrt(room.players.length);return Object.entries(C.teamItems).flatMap(([item,spec])=>spec.locked||spec.personal||item==='conveyor'?[]:item==='pump'?room.cells.flatMap((c,index)=>c.oilSite?[{item,index,name:spec.name+' '+cellLabel(index),price:catalogPrice(room,item,index)*multiplier,requirement:requirement(room,item,index),key:itemKey(item,index),built:!!c.pumpBuilt}]:[]):[{item,name:spec.name,price:spec.price*multiplier,requirement:requirement(room,item),key:itemKey(item)}]);}
+export function catalog(room){const multiplier=Math.sqrt(room.players.length);return Object.entries(C.teamItems).flatMap(([item,spec])=>spec.locked||spec.personal||item==='conveyor'?[]:item==='pump'?room.cells.flatMap((c,index)=>c.oilSite?[{item,index,name:spec.name+' '+cellLabel(index),price:catalogPrice(room,item,index)*multiplier,requirement:requirement(room,item,index),key:itemKey(item,index),built:!!c.pumpBuilt,left:c.oilLeft==null?null:Math.ceil(c.oilLeft),dry:dryWell(c)}]:[]):[{item,name:spec.name,price:spec.price*multiplier,requirement:requirement(room,item),key:itemKey(item)}]);}
 export function cellLabel(index){return String.fromCharCode('A'.charCodeAt(0)+index%C.mapSize)+(Math.floor(index/C.mapSize)+1);}
 function failVote(room,now,lock=true){if(lock)room.locks[room.vote.key]=now+T.lockMs;room.vote=null;}
 function passVote(room,now){const vote=room.vote;room.vote=null;if(vote.kind==='site')room.site=vote.index;else room.goal={item:vote.item,index:vote.index,price:vote.price,multiplier:vote.multiplier,key:vote.key,name:vote.name,...(vote.path?{path:vote.path,newCells:vote.newCells}:{})};autoBuy(room,now);}
@@ -113,11 +113,16 @@ export function runTeam(room,now,dt){
  const crew=room.players.filter(p=>p.connected&&p.boarded&&room.drill),count=crew.length,blocked=room.drill?gate({isTeam:true},room.cells[room.site].row,room):null;
  if(blocked&&!room.magmaNotice&&blocked.startsWith('Magma')){room.magmaNotice=true;room.announcements.push({type:'gate',text:'Entering the magma. The World Breaker is required to break through: propose it and vote YES.'});}
  for(const p of crew){p.drillSeconds+=dt;p.drillAt=++room.achievement;}
- const production=room.cells.filter(c=>c.pumpBuilt).length*T.pumpBarrelsPerSecond,demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
+ // Each built well pumps a barrel a second, or what is left of it in its last tick; a bottomless well (oilLeft null) always pumps the full rate.
+ const wells=room.cells.flatMap((c,index)=>c.pumpBuilt?[{c,index,rate:c.oilLeft==null?T.pumpBarrelsPerSecond:Math.min(T.pumpBarrelsPerSecond,Math.max(0,c.oilLeft)/dt)}]:[]);
+ const production=wells.reduce((sum,w)=>sum+w.rate,0),demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
  const burn=Math.min(production,demand),ratio=demand?Math.min(1,production/demand):0;
  const panel=runConsole(room,crew,now,dt,room.worldBreaker?C.console.overdriveDrift:1),speed=count&&!blocked?T.crewSpeed[count]*ratio*panel*(room.showcase?1:T.expeditionTempo):0;room.oil={production,burn,sold:Math.max(0,production-burn),demand,speed,crew:count,blocked,console:panel};
  if(speed||room.worldBreaker)for(const p of crew)p.lastWorked=now;
  if(production>burn)creditMachine(room,(production-burn)*T.barrelPrice*dt*incomeMultiplier(room),'oil');
+ // Every barrel a well pumps comes out of it, burned or sold. Six decimals keep a 90 barrel well exact to the tick; the cell goes on the wire once a barrel.
+ for(const w of wells){if(w.c.oilLeft==null||!w.rate)continue;const before=Math.ceil(w.c.oilLeft);w.c.oilLeft=Math.max(0,Math.round((w.c.oilLeft-w.rate*dt)*1e6)/1e6);if(Math.ceil(w.c.oilLeft)!==before)room.dirty.add(w.index);
+  if(w.c.oilLeft<=0){const label=cellLabel(w.index);room.announcements.push({type:'dry',cellLabel:label,text:'The well at '+label+' ran dry. Dig another cell of its field, or follow the rods to a new pocket, and propose a pump.'});}}
  const team={id:T.damagerId,publicId:T.damagerId,nickname:room.worldBreaker?'World Breaker':'Plasma drill',isTeam:true,tool:C.rockTool};const bore={...team,id:'bore',publicId:'bore'},digger=i=>i===room.site?team:bore;// the World Breaker's ring cells stay uncredited: 60 seconds of nine inner-core cells would flood the ending
  if(room.worldBreaker){const wb=room.worldBreaker,O=C.console,rate=count?1+O.overdriveBonus*Math.max(0,(panel-O.zoneSpeed.red)/(O.zoneSpeed.green-O.zoneSpeed.red)):1;wb.bonus=(wb.bonus||0)+(rate-1)*dt*C.tapWindowMs/T.worldBreakerMs;wb.charge=Math.min(1,(now-wb.startedAt)/T.worldBreakerMs+wb.bonus);wb.rate=rate;if(wb.charge<1)wb.endsAt=Math.round(now+(1-wb.charge)*T.worldBreakerMs/rate);else wb.endsAt=Math.min(wb.endsAt??now,now);const target=wb.startRow+Math.floor((C.finalRow-wb.startRow)*wb.charge);for(const i of boreCells(room)){for(let guard=0;guard<C.finalRow&&room.cells[i].row<target;guard++){const c=room.cells[i],before=c.row;c.damage={};c.hp=rockHp(room,c.row);room.broken.delete(i);hit(room,digger(i),i%C.mapSize,Math.floor(i/C.mapSize),c.hp,true);if(room.cells[i].row===before)break;}}}
  else if(room.drill&&!room.won){const siteRow=room.cells[room.site].row,N=C.mapSize;for(const i of boreCells(room)){const c=room.cells[i];
