@@ -95,7 +95,7 @@ test('in a showcase, a person who works their own seat rides the console for abo
 
 // The readout tells seated crew to propose the World Breaker in Command, so the confirm step has to work from the seat.
 test('a seated crew member far from the hub can confirm the World Breaker proposal; someone walking there cannot',async()=>{const {createConfirmation}=await import('../public/confirmation.js');
- const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);const p=join(r,'a','Ana',0);p.publicId='a';equipShowcase(r,p);[p.x,p.y]=[C.mapSize-1.5,C.mapSize-1.5];r.site=8*C.mapSize+4;r.drill={index:r.site};
+ const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);const p=join(r,'a','Ana',0);p.publicId='a';equipShowcase(r,p);[p.x,p.y]=[C.mapSize-1.5,C.mapSize-1.5];r.site=8*C.mapSize+4;r.drill={index:r.site};r.cells[r.site].row=C.outerRow;
  const nodes=Object.fromEntries(['confirm-panel','confirm-name','confirm-detail','confirm-price','confirm-wallet','confirm-status','confirm-yes','confirm-cancel','confirm-footprint'].map(id=>[id,{hidden:true,disabled:false,textContent:'',focus(){}}])),sent=[];
  const ui=createConfirmation({getContext:()=>{const state=snapshot(r,true);return {state,me:state.players.find(q=>q.id==='a'),connected:true};},send:m=>sent.push(m),money:n=>'$'+n,document:{getElementById:id=>nodes[id],activeElement:null}}),message={type:'propose',item:'worldBreaker'};
  ui.open(message);assert.equal(nodes['confirm-panel'].hidden,true,'walking far from the hub');p.boarded=true;ui.open(message);assert.equal(nodes['confirm-panel'].hidden,false,'aboard the drill');assert.equal(nodes['confirm-yes'].disabled,false);nodes['confirm-yes'].onclick();assert.deepEqual(sent,[message]);

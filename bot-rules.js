@@ -37,7 +37,7 @@ function think(room,p,b,L,now,role,add){add('move',{dx:0,dy:0});
  const hasMech=p.tool===C.tools.length-1,pumps=room.cells.some(c=>c.pumpBuilt),crewWanted=!!room.drill&&(!!room.worldBreaker||people(room).some(h=>h.boarded&&h.connected)||(role.rider&&pumps));
  // Proposals work from anywhere, even the drill seat: the bot with the mech moves the team through site, coolant, drill, pumps and the finale.
  if(role.planner&&!room.vote&&!room.goal&&now>=(b.nextPropose||0)){b.nextPropose=now+L.voteDelayMs;if(room.site==null){const deepest=room.cells.reduce((best,c,i)=>c.row>room.cells[best].row?i:best,0);add('proposeSite',{x:deepest%C.mapSize,y:Math.floor(deepest/C.mapSize)});return;}
-  const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
+  const pump=room.cells.findIndex(c=>c.oilSite&&!c.pumpBuilt),item=!room.coolant?'coolant':!room.drill?'plasma':pump>=0?'pump':!room.worldBreaker&&room.cells[room.site].row>=C.outerRow?'worldBreaker':null;if(item){add('propose',{item,...(item==='pump'?{index:pump}:{})});return;}}
  if(p.boarded){if(!crewWanted){add('board');return;}const g=room.console?.[p.publicId];if(g)workSeat(g,b,L,now,add);return;}
  if(crewWanted){if(p.shaft!=null)add('returnHome');else add('board');return;}
  const full=p.hold.units>=holdCapacity(p),blocked=p.shaft!=null&&(gate(p,room.cells[p.shaft].row,room)||room.cells[p.shaft].row>lightReach(room,p));

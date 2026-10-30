@@ -4,9 +4,9 @@ import {soloPlayer,creditMachine,incomeMultiplier} from './economy-rules.js';
 import {rimArrival,atHub} from './shaft-rules.js';
 import {C} from './config.js';
 import {hit,payout,hp,rockHp,createRoom,join,validCell,gate} from './rules.js';
-import {isDepot,conveyorQuote,buildConveyor} from './hauling-rules.js';
+import {isDepot,conveyorQuote,conveyorPath,buildConveyor} from './hauling-rules.js';
 const T=C.team;
-export function initialTeam(){return {console:{},fund:0,fundIncome:0,fundEarned:0,drillEarned:0,drillIncome:0,drillTotal:0,vote:null,goal:null,locks:{},site:null,drill:null,coolant:false,worldBreaker:null,won:false,stats:null,wonAt:null,achievement:0,round:0,oil:{production:0,burn:0,sold:0,demand:0,speed:0,crew:0,blocked:null}};}
+export function initialTeam(){return {console:{},fund:0,fundIncome:0,fundEarned:0,drillEarned:0,drillIncome:0,drillTotal:0,vote:null,goal:null,locks:{},site:null,drill:null,coolant:false,worldBreaker:null,won:false,stats:null,wonAt:null,achievement:0,round:0,magmaNotice:false,oil:{production:0,burn:0,sold:0,demand:0,speed:0,crew:0,blocked:null}};}
 export function creditFund(room,value){room.fund+=value;room.fundEarned+=value;}
 export function markActive(room,p,now){p.lastActive=now;room.lastActivity=now;}
 export function active(room,now){return room.players.filter(p=>p.connected&&(p.boarded||now-p.lastActive<=T.activeMs));}
@@ -18,6 +18,7 @@ export function requirement(room,item,index){
  if(item==='coolant'&&room.coolant)return 'Already owned';
  if(item==='plasma'&&(room.site===null||room.drill))return room.drill?'Already owned':'Vote a drill site first';
  if(item==='worldBreaker'&&(!room.drill||!room.coolant||room.worldBreaker))return room.worldBreaker?'Already running':'Requires the plasma drill and coolant';
+ if(item==='worldBreaker'&&room.cells[room.site].row<C.outerRow)return 'Bore to the magma first';
  return null;
 }
 export function catalogPrice(room,item,index){return item==='conveyor'?conveyorQuote(room,index).price:item==='pump'?Math.max(T.pumpMinimum,T.pumpPayoutMultiplier*payout(room.cells[index]?.oilRow??0)):C.teamItems[item]?.price;}
@@ -67,7 +68,7 @@ export function autoBuy(room,now){const goal=room.goal;if(!goal||requirement(roo
  if(goal.item==='conveyor')buildConveyor(room,goal);
  if(goal.item==='pump'){const c=room.cells[goal.index];c.pumpBuilt=true;room.dirty.add(goal.index);}
  if(goal.item==='coolant')room.coolant=true;
- if(goal.item==='plasma')room.drill={index:room.site};
+ if(goal.item==='plasma'){room.drill={index:room.site};if(!room.conveyorLines.some(line=>line.source===room.site))buildConveyor(room,{index:room.site,path:conveyorPath(room.site)});}// the rig comes with a conveyor line to the hub, so ore dug in its shaft rides to the depot
  if(goal.item==='worldBreaker'){for(const p of room.players)if(!p.departed&&Math.floor(p.y)*C.mapSize+Math.floor(p.x)===room.site){p.shaft=room.site;rimArrival(room,p);p.belay=null;p.drive=null;p.target=null;}room.worldBreaker={startedAt:now,startRow:room.cells[room.site].row,endsAt:now+T.worldBreakerMs};}
 }
 // The plasma drill bores a 3 by 3 shaft: the site first, then its eight neighbours (never ahead of the site). Extra blocks pay nothing.
@@ -110,6 +111,7 @@ export function publicConsole(room){return Object.fromEntries(Object.entries(roo
 export function runTeam(room,now,dt){
  resolveVote(room,now);autoBuy(room,now);
  const crew=room.players.filter(p=>p.connected&&p.boarded&&room.drill),count=crew.length,blocked=room.drill?gate({isTeam:true},room.cells[room.site].row,room):null;
+ if(blocked&&!room.magmaNotice&&blocked.startsWith('Magma')){room.magmaNotice=true;room.announcements.push({type:'gate',text:'Entering the magma. The World Breaker is required to break through: propose it and vote YES.'});}
  for(const p of crew){p.drillSeconds+=dt;p.drillAt=++room.achievement;}
  const production=room.cells.filter(c=>c.pumpBuilt).length*T.pumpBarrelsPerSecond,demand=count&&!room.worldBreaker&&!blocked?T.drillBurnBase*T.crewBurn[count]:0;
  const burn=Math.min(production,demand),ratio=demand?Math.min(1,production/demand):0;

@@ -55,7 +55,9 @@ export function join(room,token,nickname,now) {
 export function within(p,x,y) { return Math.max(Math.abs(Math.floor(p.x)-x),Math.abs(Math.floor(p.y)-y))<=C.mobility[p.mobility].reach; }
 export function gate(p,row,room) {
  if(row>=C.innerRow&&!p.isTeam) return 'Needs the plasma drill';
+ if(row>=C.lowerMantleRow&&!p.isTeam&&!room?.showcase) return 'Lower mantle. Needs the plasma drill';
  if(row>=C.outerRow&&!room?.coolant) return 'Magma. Needs coolant';
+ if(row>=C.outerRow&&!room?.worldBreaker&&!room?.showcase) return 'Magma. The World Breaker is required to break through';
  if(!p.isTeam && row>=C.graniteRow && p.tool<C.rockTool) return 'Needs a pickaxe';
  return null;
 }

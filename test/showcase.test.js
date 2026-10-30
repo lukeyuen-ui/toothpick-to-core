@@ -100,7 +100,7 @@ test('two people: an idle second visitor is walked aboard too, and the people ge
   if(!second)assert.equal(seats.Bo,'POWER','with both aboard from the start, the second person gets POWER');}});
 
 test('a crew member aboard the drill can propose from the seat; someone walking far from the hub cannot',()=>{
- const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);r.site=8*N+4;r.drill={index:r.site};const a=join(r,'a','Ana',0),b=join(r,'b','Bo',0);a.publicId='a';b.publicId='b';
+ const r=createRoom('SHOW',4,false,0,true);setupShowcase(r);r.site=8*N+4;r.drill={index:r.site};r.cells[r.site].row=C.outerRow;const a=join(r,'a','Ana',0),b=join(r,'b','Bo',0);a.publicId='a';b.publicId='b';
  const far=[N-1.5,N-1.5];[a.x,a.y]=far;[b.x,b.y]=far;b.boarded=true;
  const toasts=[];step(r,[{player:a,message:{type:'propose',item:'worldBreaker'},respond:m=>toasts.push(m?.text)}],100);
  assert.equal(r.vote,null);assert.ok(toasts.includes('Trade at the hub'));

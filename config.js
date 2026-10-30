@@ -20,7 +20,7 @@ export const C = {
  explorerPolish:{fillIntensity:1.3,fillPosition:[0,1.65,0.8],fillDistance:2.2,fillColor:'#d9e4ef',suitEmission:0.12,stripeEmission:0.18,glovePalm:[0.016,0.021,0.012],gloveCuff:[0.018,0.007,0.015],gloveSpacing:0.012,fingerRadius:0.0018,fingerLength:0.007,thumbRadius:0.0025,thumbLength:0.009},
  oilPurpose:'Oil powers the plasma drill. Oil the drill does not burn sells every second: half to the team fund, half to active crew.',
  logistics:{coolantLead:4,pipeHeight:0.17,pipeRadius:0.035,flowCount:4,flowSpeed:1.5,flowRadius:0.055,hoistOreSize:0.08},
- quickValueMultiplier:60,quickMinimumSeconds:240,quickMaximumSeconds:420,
+ quickValueMultiplier:60,quickMinimumSeconds:210,quickMaximumSeconds:540,
  // Hardcore, a two-week expedition: every block has hpMultiplier times the hit points, and ore, finds and oil pay a valueDivisor-th as much; every price stays the same.
  // Machines keep their power, so the excavator and the plasma drill also take hpMultiplier times as long per block. The World Breaker still runs sixty seconds.
  // Ore that poor cannot buy the first lamps (every daylight row on the claim is worth about $4,900 before the divisor, and each digger needs a $150 Headlamp),
@@ -33,7 +33,9 @@ export const C = {
  tickMs:100, tickSeconds:0.1, tickHz:10, tapsPerSecond:8, tapWindowMs:1000, fastMultiplier:100,
  spawnStart:5, spawnWidth:6, spawnSeats:[[5,6.5],[6.5,5],[11,9.5],[9.5,11]], defaultPort:3000, integrationPort:3107, maxPayload:4096,
  maxNickname:18, heartbeatMs:15000, reconnectMs:1500, incomeWindowSeconds:10,
- hpBase:3, hpGrowth:1.066, payoutGrowth:1.12, innerMultiplier:50, graniteRow:66, outerRow:146, innerRow:169, finalRow:181,
+ // lowerMantleRow starts the lower mantle (see layers): hand tools stop there and only the plasma drill carries on. outerRow starts the magma: nothing passes it
+ // until the World Breaker is bought, and that needs the drill parked at the magma, so the drill is the road to the core and the World Breaker is the finale.
+ hpBase:3, hpGrowth:1.066, payoutGrowth:1.12, innerMultiplier:50, graniteRow:66, lowerMantleRow:124, outerRow:146, innerRow:169, finalRow:181,
  colors:['#60dfcb','#ffb85c','#b59cff','#ff7ba5'],
  layers:[
  {name:'Topsoil',from:0,to:10,rows:10,color:'#9b7957'},
@@ -51,7 +53,7 @@ export const C = {
  {name:'Jackhammer',icon:'🔩',cost:40000,tap:180,autoDamage:120,interval:0.5},
  {name:'Blasting kit',icon:'💥',cost:400000,tap:400,splash:150},
  {name:'Tunnel borer',icon:'⚙️',cost:6400000,tap:3000,autoDamage:1000,interval:0.1,line:3,lineForce:1,pierce:1},
- {name:'Mining mech',icon:'🤖',cost:30000000,tap:3900,autoDamage:1300,interval:0.1,clearsRubble:true,area:1,areaForce:1,pierce:2}],
+ {name:'Mining mech',icon:'🤖',cost:30000000,tap:3900,autoDamage:1300,interval:0.1,clearsRubble:true,area:1,areaForce:1,pierce:1}],
  toolVisual:{digMs:[420,560,540,620],dig:{depth:[0.05,0.09,0.1,0.13],raise:0.3,pull:0.12,stab:1.15,lever:0.5,lift:0.3,yaw:0.3,restart:0.85,ownOffset:0.6,ownScale:0.62},throwMs:380,fuseMs:240,borerSink:0.06,borerSprayMs:120,borerLean:0.95,regripMs:180,fireMs:450,flashIntensity:7,mechArmSpread:0.36,mechArmLag:0.18,handSwingYaw:0.95,handSwingRoll:0.5,swingYaw:0.65,worldScale:[2.4,2.4,2.4,2.0,2.0,1.45,2.0,2.3,1.6],ownOffset:0.34,ownScale:0.8,hammerLift:0.03,raiseAngle:1.05,impactPitch:[0.84,0.84,0.84,0.84,0.2,0.84,0.84,0.84,0.84],contact:[[0,0,-0.215],[0,-0.005,-0.2],[0,0,-0.2],[0,0,-0.32],[0,-0.205,-0.205],[0,0,-0.44],[0,0,-0.12],[0,0,-0.27],[0,0,-0.32]],plantMs:1400,plantScale:2.4,strikeMs:[180,260,240,320,420,320,320,420,420],impactAt:0.58,hammerPulses:4,equipMs:500,swingHz:[6,3,4,2,2,12,2,10,3],spinRate:28,walkHz:1.9,walkSwing:0.55,walkBounce:0.025,chips:[3,5,6,8,12,8,18,10,16],blastRings:8,blastLifeMs:650},
  excavator:{fullToastMs:30000,price:4800000,depotClearance:1,halfSize:1,maxPerPlayer:1,secondsPerBlock:12,hopperCapacity:120,driveSpeed:4,interactRadius:1.2,beltRadius:1,beltUnitsPerSecond:10,hazardHz:0.8,dustPerSecond:5},
  rockTool:4,
@@ -69,8 +71,11 @@ export const C = {
  polish:{aimEveryMs:150,rodHot:'#58e07f',rodCold:'#e0574c',floatMs:1100,floatRise:36,floatFont:17,bonusFont:11,flashMs:260,flashAlpha:0.65,rimWidth:4,rimInset:3,rimAlpha:0.55,rowMinWidth:60,rowFont:10,heatAlpha:[0,0.10,0.20,0.31,0.43],sparkleSize:7,sparklePeriodMs:1200,sparkleMinAlpha:0.45,miniHintRadius:1.8,rodSwingMs:180,rodLength:20,rodWidth:3,rodOpenAngle:0.28,rodCrossAngle:0.65,rodPivot:13,rodBox:76,rodCenter:38,announcementMs:3600,percent:100,crackRays:[[[0,0],[0.12,-0.07],[0.2,-0.04],[0.3,-0.2]],[[0,0],[-0.08,-0.1],[-0.17,-0.09],[-0.27,-0.28]],[[0,0],[-0.05,0.13],[0.03,0.22],[-0.06,0.34]]]},
  dowsingCrossRadius:1,
  // expeditionTempo multiplies the drill's speed outside the showcase, whose pacing (guide beats, overdrive, the core in minutes) is tuned to the base rates.
- // At 5, two crew on one pump with green gauges clear a nine-cell bore row every six seconds, so the drill out-digs any hand tool once it is running.
- team:{endingDelayMs:14000,activeMs:45000,machinePersonalFraction:0.5,shareFloatMs:1000,voteMs:10000,lockMs:15000,chipFractions:{ten:0.1,half:0.5,all:1},pumpBarrelsPerSecond:1,barrelPrice:50000,pumpMinimum:2000,pumpPayoutMultiplier:40,drillSecondsPerBlock:30,drillYield:20,boreCatchUpRows:6,drillBurnBase:1,crewSpeed:[0,1,1.5,3,5],crewBurn:[0,2,1.5,1,0.75],expeditionTempo:5,boardRadius:2,worldBreakerMs:60000,rippleMs:10000,damagerId:'@team',etaMinuteSeconds:60,etaHourMinutes:60},
+ // At 10, two crew on one pump (or one crew on two) with green gauges clear a nine-cell bore row every three seconds, four crew every 0.6 s.
+ // drillYield pays each bore cell that many times its ore value. Ore runs thin (deposits.dryFactor) below a column's first 25 rows and every site was dug from the
+ // surface, so a deep bore nets 600 times: one crew out-earns a mining mech on an autoclicker at any depth, four crew by an order of magnitude, and the fund
+ // reaches the magma holding hundreds of billions against a four-player World Breaker at 18.4 billion.
+ team:{endingDelayMs:14000,activeMs:45000,machinePersonalFraction:0.5,shareFloatMs:1000,voteMs:10000,lockMs:15000,chipFractions:{ten:0.1,half:0.5,all:1},pumpBarrelsPerSecond:1,barrelPrice:50000,pumpMinimum:2000,pumpPayoutMultiplier:40,drillSecondsPerBlock:30,drillYield:1500,boreCatchUpRows:6,drillBurnBase:1,crewSpeed:[0,1,1.5,3,5],crewBurn:[0,2,1.5,1,0.75],expeditionTempo:10,boardRadius:2,worldBreakerMs:60000,rippleMs:10000,damagerId:'@team',etaMinuteSeconds:60,etaHourMinutes:60},
  teamItems:{pump:{name:'Oil pump',price:null},coolant:{name:'Coolant system',price:20000000},plasma:{name:'Plasma drill',price:120000000},worldBreaker:{name:'World Breaker',price:9200000000},supports:{name:'Shaft supports',price:8000,locked:true},conveyor:{name:'Conveyor line',price:null,personal:true},survey:{name:'Orbital survey',price:1000000,locked:true}},
  presentation:{cover:{position:[13,3.4,15.5],target:[8.5,0.6,8.5],fov:52,orbitRate:0,sunScale:1,ambientScale:1,fillIntensity:12,moonNdc:[0.69,0.52],moonDistance:24,moonRadius:2.6},lobby:{position:[17,5,20],target:[8,0.7,8],fov:55,orbitRate:0.018,sunScale:0.75,ambientScale:0.8,fillIntensity:6,moonNdc:[0.62,0.5],moonDistance:28,moonRadius:2.8},rovers:[[9,10.6],[11.8,9.7]],shaft:[10,10],shaftRow:30,pile:[10,11],pileUnits:6,pileValue:42000},
  cover:{pixelRatio:1,width:1200,height:630,seed:9,eyeFov:60,chaseBack:8,chaseUp:4,pitch:-0.12,rovers:[[11.5,13.5],[9.5,11.5]],shaft:[10,10],shaftRow:30},
@@ -97,7 +102,7 @@ export const C = {
  // Bot seat habits: tuneAt is how far off centre HEAT and PRESSURE get before the bot reacts and tuneEveryMs its reaction time; a HEAT vent doubles up (overcools) with chance fumble;
  // PRESSURE lets go only letGo below centre; ALIGN slips off the pads with chance slip per tick for about slipMs; POWER closes follow of the gap to the target each tick, with shake of hand noise.
  bots:{suffix:' (bot)',names:['Rook','Pip','Moss','Juno','Vega','Kit'],fillEveryMs:1000,wander:1.2,levels:{easy:{tapEveryMs:450,tradeEveryMs:4000,spare:1.8,tuneAt:0.2,tuneEveryMs:450,voteDelayMs:5000,napChance:0.003,napMs:4000,letGo:0.14,fumble:0.3,slip:0.05,slipMs:1400,follow:0.07,shake:0.09},normal:{tapEveryMs:250,tradeEveryMs:2000,spare:1.4,tuneAt:0.17,tuneEveryMs:360,voteDelayMs:3000,napChance:0.0012,napMs:2500,letGo:0.12,fumble:0.25,slip:0.04,slipMs:1200,follow:0.09,shake:0.08},hard:{tapEveryMs:160,tradeEveryMs:1000,spare:1.2,tuneAt:0.11,tuneEveryMs:240,voteDelayMs:1500,napChance:0.0003,napMs:1500,letGo:0.06,fumble:0.1,slip:0.01,slipMs:800,follow:0.2,shake:0.045}}},
- pacing:{seed:5,navStep:0.25,minimumSeconds:1200,maximumSeconds:2100,spare:1.2,tapEveryMs:150,tradeEveryMs:300,largeDelivery:1000},
+ pacing:{seed:5,navStep:0.25,minimumSeconds:840,maximumSeconds:2100,spare:1.2,tapEveryMs:150,tradeEveryMs:300,largeDelivery:1000},
  testing:{drillPrice:80,leaveGraceSeconds:1,integrationWaitMs:30000},
  ending:{green:'#639d58'},
  hauling:{flowSpeed:1.4,flowPerCell:2,flowLingerMs:12000,depotCells:[[7,7],[8,7],[7,8],[8,8]],depotRadius:1,conveyorCostPerCell:25000,firstBeltDiscountCells:6,firstBeltDiscount:0.25,conveyorSpeed:10,maxEtaSeconds:7200,deliveryFloatMs:1500,deliveryFloatRise:42,pileColor:'#eeddb0',beltColor:'#687771',beltLine:'#cad6bc',beltPeriodMs:600,pileSize:6},

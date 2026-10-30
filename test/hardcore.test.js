@@ -50,10 +50,10 @@ test('Quick and Showcase are untouched: no hardcore flag, ordinary rock, ordinar
  for(const m of [{type:'create',hardcore:'yes'},{type:'create',hardcore:1}])assert.equal(validMessage(m),false,JSON.stringify(m));});
 
 test(`Hardcore machines keep their power: the drill bites as hard but each row takes ${H.hpMultiplier} times as long`,()=>{
- const bite=hardcore=>{const r=room({hardcore}),p=r.players[0];r.site=200;r.drill={index:200};r.coolant=true;r.cells[200]={row:145,hp:rockHp(r,145),damage:{}};r.cells[0].pumpBuilt=r.cells[1].pumpBuilt=true;p.boarded=true;const start=r.cells[200].hp;step(r,[],r.now+C.tickMs);return {damage:start-r.cells[200].hp,start,speed:r.oil.speed};};
- const full=bite(false),hard=bite(true);assert.ok(full.speed>0);near(hard.damage,full.damage);near(hard.damage,hp(145)/(C.team.drillSecondsPerBlock*C.tickHz)*hard.speed);near(hard.start/hard.damage,H.hpMultiplier*full.start/full.damage);});
+ const bite=hardcore=>{const r=room({hardcore}),p=r.players[0];r.site=200;r.drill={index:200};r.coolant=true;r.cells[200]={row:100,hp:rockHp(r,100),damage:{}};r.cells[0].pumpBuilt=r.cells[1].pumpBuilt=true;p.boarded=true;const start=r.cells[200].hp;step(r,[],r.now+C.tickMs);return {damage:start-r.cells[200].hp,start,speed:r.oil.speed};};
+ const full=bite(false),hard=bite(true);assert.ok(full.speed>0);near(hard.damage,full.damage);near(hard.damage,hp(100)/(C.team.drillSecondsPerBlock*C.tickHz)*hard.speed);near(hard.start/hard.damage,H.hpMultiplier*full.start/full.damage);});
 
-for(const start of [20,170])test('the World Breaker still opens a hardcore core in exactly 60 seconds from row '+start,()=>{
+for(const start of [C.outerRow,170])test('the World Breaker still opens a hardcore core in exactly 60 seconds from row '+start,()=>{
  const r=room();r.site=200;r.drill={index:200};r.coolant=true;r.cells[200]={row:start,hp:rockHp(r,start),damage:{}};r.fund=C.teamItems.worldBreaker.price;
  step(r,[cmd(r.players[0],'propose',{item:'worldBreaker'})],r.now+C.tickMs);const began=r.worldBreaker.startedAt;
  step(r,[],began+C.team.worldBreakerMs-1);assert.equal(r.won,false);step(r,[],began+C.team.worldBreakerMs);
